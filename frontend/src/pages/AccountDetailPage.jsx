@@ -16,6 +16,7 @@ import BudgetsTab from '../components/tabs/BudgetsTab';
 import AccountSettings from '../components/accounts/AccountSettings';
 import RecurringTransactionsWidget from '../components/recurring/RecurringTransactionsWidget';
 import ComparisonView from '../components/comparison/ComparisonView';
+import ImportHistory from '../components/csv/ImportHistory';
 import { format } from 'date-fns';
 
 /**
@@ -39,6 +40,7 @@ export default function AccountDetailPage() {
   } = useFilterStore();
   
   const [activeTab, setActiveTab] = useState('data');
+  const [importHistoryRefresh, setImportHistoryRefresh] = useState(0);
 
   // Pagination State
   const [pagination, setPagination] = useState({
@@ -112,6 +114,9 @@ export default function AccountDetailPage() {
     // User bleibt auf dem Import-Tab und sieht die Success-Meldung
     // Die Daten-Hooks laden automatisch neu beim nächsten Tab-Wechsel
     console.log('Import completed successfully');
+    
+    // Trigger Import History refresh
+    setImportHistoryRefresh(prev => prev + 1);
   }, []);
 
   const dataLoading = transactionsLoading || summaryLoading || chartLoading;
@@ -312,11 +317,36 @@ export default function AccountDetailPage() {
 
         {/* CSV Import & Mapping Tab */}
         {activeTab === 'csv-import' && (
-          <div className="space-y-6">
-            <CsvImportWizard
-              accountId={id}
-              onImportSuccess={handleUploadComplete}
-            />
+          <div className="space-y-8">
+            {/* CSV Import Wizard */}
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">
+                CSV Import
+              </h2>
+              <CsvImportWizard
+                accountId={id}
+                onImportSuccess={handleUploadComplete}
+              />
+            </div>
+
+            {/* Divider */}
+            <div className="border-t border-gray-300" />
+
+            {/* Import History */}
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">
+                Import-Historie & Rollback
+              </h2>
+              <ImportHistory
+                accountId={parseInt(id)}
+                refreshTrigger={importHistoryRefresh}
+                onRollbackSuccess={() => {
+                  // Reload transactions when rollback succeeds
+                  console.log('Rollback completed, reloading data');
+                  setImportHistoryRefresh(prev => prev + 1);
+                }}
+              />
+            </div>
           </div>
         )}
 

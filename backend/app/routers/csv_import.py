@@ -25,6 +25,7 @@ from app.services.mapping_suggester import MappingSuggester
 from app.services.bank_presets import BankPresetMatcher
 from app.services.recipient_matcher import RecipientMatcher
 from app.services.recurring_transaction_detector import RecurringTransactionDetector
+from app.services.import_history_service import ImportHistoryService
 
 router = APIRouter()
 
@@ -290,6 +291,15 @@ async def import_csv_advanced(
     # Read file content
     content = await file.read()
     
+    # Create import history record
+    import_record = ImportHistoryService.create_import_record(
+        db=db,
+        account_id=account_id,
+        filename=file.filename,
+        file_content=content
+    )
+    import_id = import_record.id
+    
     try:
         # Parse CSV
         df, _ = CsvProcessor.parse_csv_advanced(content)
@@ -385,7 +395,8 @@ async def import_csv_advanced(
                     raw_data=row_data,  # Keep original CSV data for audit
                     # Relations
                     category_id=category_id,
-                    recipient_id=recipient.id if recipient else None
+                    recipient_id=recipient.id if recipient else None,
+                    import_id=import_id  # Link to import history
                 )
                 
                 db.add(new_row)
@@ -403,6 +414,20 @@ async def import_csv_advanced(
         
         # Commit all changes
         db.commit()
+        
+        # Update import history with final statistics
+        status_value = 'success' if error_count == 0 else ('partial' if imported_count > 0 else 'failed')
+        error_summary = '; '.join(error_messages[:5]) if error_messages else None  # First 5 errors
+        
+        ImportHistoryService.update_import_stats(
+            db=db,
+            import_id=import_id,
+            row_count=len(mapped_data),
+            rows_inserted=imported_count,
+            rows_duplicated=duplicate_count,
+            status=status_value,
+            error_message=error_summary
+        )
         
         # Trigger recurring transaction detection after successful import
         # IMPORTANT: Always analyze ALL transactions for the account, not just newly imported ones
@@ -459,18 +484,49 @@ async def import_csv_advanced(
             "error_count": error_count,
             "total_rows": len(mapped_data),
             "errors": error_messages if error_messages else None,
-            "recurring_detected": recurring_count if recurring_count > 0 else None
+            "recurring_detected": recurring_count if recurring_count > 0 else None,
+            "import_id": import_id  # Return import ID for frontend
         }
         
     except HTTPException:
+        # Update import status to failed
+        ImportHistoryService.update_import_stats(
+            db=db,
+            import_id=import_id,
+            row_count=0,
+            rows_inserted=0,
+            rows_duplicated=0,
+            status='failed',
+            error_message="HTTP Exception during import"
+        )
         raise
     except ValueError as e:
+        # Update import status to failed
+        ImportHistoryService.update_import_stats(
+            db=db,
+            import_id=import_id,
+            row_count=0,
+            rows_inserted=0,
+            rows_duplicated=0,
+            status='failed',
+            error_message=str(e)
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid CSV file: {str(e)}"
         )
     except Exception as e:
         db.rollback()
+        # Update import status to failed
+        ImportHistoryService.update_import_stats(
+            db=db,
+            import_id=import_id,
+            row_count=0,
+            rows_inserted=0,
+            rows_duplicated=0,
+            status='failed',
+            error_message=str(e)
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error processing CSV: {str(e)}"

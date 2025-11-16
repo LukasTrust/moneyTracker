@@ -41,6 +41,16 @@ from .recurring_transaction import (
     RecurringTransactionUpdate,
     RecurringTransactionToggleRequest
 )
+from .import_history import (
+    ImportHistoryBase,
+    ImportHistoryCreate,
+    ImportHistoryUpdate,
+    ImportHistoryResponse,
+    ImportHistoryStats,
+    ImportHistoryListResponse,
+    ImportRollbackRequest,
+    ImportRollbackResponse
+)
 
 __all__ = [
     # Account
@@ -77,4 +87,13 @@ __all__ = [
     "RecurringTransactionDetectionStats",
     "RecurringTransactionUpdate",
     "RecurringTransactionToggleRequest",
+    # Import History
+    "ImportHistoryBase",
+    "ImportHistoryCreate",
+    "ImportHistoryUpdate",
+    "ImportHistoryResponse",
+    "ImportHistoryStats",
+    "ImportHistoryListResponse",
+    "ImportRollbackRequest",
+    "ImportRollbackResponse",
 ]

@@ -33,6 +33,7 @@ class Account(Base):
     # Relationships
     mappings = relationship("Mapping", back_populates="account", cascade="all, delete-orphan")
     data_rows = relationship("DataRow", back_populates="account", cascade="all, delete-orphan")
+    import_history = relationship("ImportHistory", back_populates="account", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<Account(id={self.id}, name='{self.name}', bank='{self.bank_name}')>"

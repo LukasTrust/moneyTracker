@@ -10,6 +10,7 @@ from . import csv_import
 from . import recipients
 from . import budgets
 from . import recurring
+from . import import_history
 
 __all__ = [
     "accounts",
@@ -21,4 +22,5 @@ __all__ = [
     "recipients",
     "budgets",
     "recurring",
+    "import_history",
 ]

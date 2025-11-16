@@ -17,20 +17,6 @@ Passt gut: ⚠️ Komplex, aber hochwertig. Benötigt min. 3 Monate Historie
 
 
 🎨 2. UX / UI VERBESSERUNGEN
-2.4 Comparison View
-Was es bringt: Monate/Jahre vergleichen (z.B. Dezember 2024 vs. 2023)
-
-Komplexität: Medium
-
-Integration:
-
-Backend: DataAggregator erweitern um comparison-Modus
-Frontend: Neue Comparison-Page mit Side-by-Side-Charts
-Parameter: period1, period2
-Technisch:
-
-Passt perfekt: ✅ Nutzt bestehende Aggregationen
-
 2.5 Export Reports (PDF/Excel)
 Was es bringt: Professionelle Reports für Steuern/Buchhaltung
 

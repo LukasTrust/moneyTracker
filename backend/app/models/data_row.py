@@ -48,6 +48,9 @@ class DataRow(Base):
     # Recipient ID (optional - normalized recipient/sender)
     recipient_id = Column(Integer, ForeignKey("recipients.id", ondelete="SET NULL"), nullable=True, index=True)
     
+    # Import History ID (optional - links to import session for rollback)
+    import_id = Column(Integer, ForeignKey("import_history.id", ondelete="SET NULL"), nullable=True, index=True)
+    
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     
@@ -55,6 +58,7 @@ class DataRow(Base):
     account = relationship("Account", back_populates="data_rows")
     category = relationship("Category")
     recipient_link = relationship("Recipient", back_populates="data_rows")
+    import_history = relationship("ImportHistory", back_populates="data_rows")
     
     # Optimized Composite Indexes for common query patterns
     __table_args__ = (

@@ -1,21 +1,6 @@
-🎯 1. CORE-FEATURES
-1.1 Budget-Management
-Was es bringt: Nutzer können monatliche/jährliche Budgets pro Kategorie setzen und Überschreitungen werden visualisiert.
-
-
-Integration:
-
-Neue Budget-Tabelle (category_id, period, amount, start_date, end_date)
-Backend: Neuer Router /api/v1/budgets
-Service: BudgetTracker vergleicht actual vs. budget
-Dashboard: Fortschrittsbalken pro Kategorie
-Technisch:
-
-
 1.2 Recurring Transactions Detection
 Was es bringt: Automatische Erkennung wiederkehrender Transaktionen (Miete, Netflix, etc.)
 
-Komplexität: Medium-High
 
 Integration:
 
@@ -23,9 +8,7 @@ Service: RecurringTransactionDetector analysiert Muster
 Algorithmus: Gleicher Betrag + gleicher Empfänger + ähnliche Abstände (28-31 Tage)
 Frontend: "Wiederkehrend"-Badge bei Transaktionen
 Dashboard: Übersicht fixer Kosten
-Technisch:
 
-Passt perfekt: ✅ Nutzt vorhandene recipient und transaction_date Felder
 
 1.3 Smart Forecasting
 Was es bringt: Prognose des Kontostands für nächste 3-6 Monate basierend auf Mustern

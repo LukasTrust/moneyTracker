@@ -14,6 +14,7 @@ import RecipientsTab from '../components/tabs/RecipientsTab';
 import CategoriesTab from '../components/tabs/CategoriesTab';
 import BudgetsTab from '../components/tabs/BudgetsTab';
 import AccountSettings from '../components/accounts/AccountSettings';
+import RecurringTransactionsWidget from '../components/recurring/RecurringTransactionsWidget';
 import { format } from 'date-fns';
 
 /**
@@ -81,6 +82,7 @@ export default function AccountDetailPage() {
 
   const tabs = [
     { id: 'data', label: 'Übersicht', icon: '📊' },
+    { id: 'contracts', label: 'Verträge', icon: '📋' },
     { id: 'categories', label: 'Kategorien', icon: '🏷️' },
     { id: 'budgets', label: 'Budgets', icon: '💰' },
     { id: 'recipients', label: 'Empfänger/Absender', icon: '👥' },
@@ -226,6 +228,21 @@ export default function AccountDetailPage() {
               accountId={id} 
               currency={currentAccount.currency} 
             />
+          </div>
+        )}
+
+        {/* Contracts Tab */}
+        {activeTab === 'contracts' && (
+          <div>
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                Verträge für {currentAccount.name}
+              </h2>
+              <p className="text-gray-600">
+                Automatisch erkannte wiederkehrende Transaktionen für dieses Konto.
+              </p>
+            </div>
+            <RecurringTransactionsWidget accountId={parseInt(id)} />
           </div>
         )}
 

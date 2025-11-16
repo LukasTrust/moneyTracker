@@ -7,4 +7,5 @@
 export * from './useAccounts';
 export * from './useCategories';
 export * from './useTransactions';
+export * from './useRecurring';
 export { default as useDataFetch } from './useDataFetch';

@@ -218,6 +218,12 @@ export default function CsvImportMapping({ accountId, onImportSuccess }) {
         if (result.error_count > 0) {
           showToast(`${result.error_count} Zeilen mit Fehlern`, 'warning');
         }
+        if (result.recurring_detected > 0) {
+          showToast(
+            `📋 ${result.recurring_detected} wiederkehrende Verträge erkannt`,
+            'success'
+          );
+        }
 
         // Reload mappings (they were saved after import)
         await loadExistingMappings();

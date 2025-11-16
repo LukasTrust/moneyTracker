@@ -24,6 +24,7 @@ from app.services.category_matcher import CategoryMatcher
 from app.services.mapping_suggester import MappingSuggester
 from app.services.bank_presets import BankPresetMatcher
 from app.services.recipient_matcher import RecipientMatcher
+from app.services.recurring_transaction_detector import RecurringTransactionDetector
 
 router = APIRouter()
 
@@ -403,6 +404,26 @@ async def import_csv_advanced(
         # Commit all changes
         db.commit()
         
+        # Trigger recurring transaction detection after successful import
+        # IMPORTANT: Always analyze ALL transactions for the account, not just newly imported ones
+        recurring_count = 0
+        if imported_count > 0 or duplicate_count > 0:  # Run even if only duplicates (might detect new patterns)
+            try:
+                detector = RecurringTransactionDetector(db)
+                stats = detector.update_recurring_transactions(account_id)
+                
+                # Get total count of active recurring transactions
+                from app.models.recurring_transaction import RecurringTransaction
+                recurring_count = db.query(RecurringTransaction).filter(
+                    RecurringTransaction.account_id == account_id,
+                    RecurringTransaction.is_active == True
+                ).count()
+                
+                print(f"✅ Recurring detection: {stats['created']} new, {stats['updated']} updated, {recurring_count} total active")
+            except Exception as e:
+                # Log error but don't fail the import
+                print(f"⚠️  Warning: Could not detect recurring transactions: {str(e)}")
+        
         # Save mapping configuration for future use
         if imported_count > 0:
             try:
@@ -425,14 +446,20 @@ async def import_csv_advanced(
         
         success = error_count == 0 or imported_count > 0
         
+        # Build success message with recurring info
+        message = f"Successfully imported {imported_count} transactions"
+        if recurring_count > 0:
+            message += f". Found {recurring_count} recurring contracts."
+        
         return {
             "success": success,
-            "message": f"Successfully imported {imported_count} transactions",
+            "message": message,
             "imported_count": imported_count,
             "duplicate_count": duplicate_count,
             "error_count": error_count,
             "total_rows": len(mapped_data),
-            "errors": error_messages if error_messages else None
+            "errors": error_messages if error_messages else None,
+            "recurring_detected": recurring_count if recurring_count > 0 else None
         }
         
     except HTTPException:

@@ -8,6 +8,8 @@ from . import dashboard
 from . import mappings
 from . import csv_import
 from . import recipients
+from . import budgets
+from . import recurring
 
 __all__ = [
     "accounts",
@@ -17,4 +19,6 @@ __all__ = [
     "mappings",
     "csv_import",
     "recipients",
+    "budgets",
+    "recurring",
 ]

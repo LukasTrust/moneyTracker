@@ -99,17 +99,19 @@ class CsvImportResponse(BaseModel):
     error_count: int = Field(default=0, description="Number of rows with errors")
     total_rows: int = Field(..., description="Total number of rows processed")
     errors: Optional[List[str]] = Field(default=None, description="List of error messages")
+    recurring_detected: Optional[int] = Field(default=None, description="Number of recurring transactions detected")
     
     class Config:
         json_schema_extra = {
             "example": {
                 "success": True,
-                "message": "Successfully imported 115 transactions",
+                "message": "Successfully imported 115 transactions. Found 8 recurring contracts.",
                 "imported_count": 115,
                 "duplicate_count": 5,
                 "error_count": 0,
                 "total_rows": 120,
-                "errors": None
+                "errors": None,
+                "recurring_detected": 8
             }
         }
 

@@ -207,6 +207,13 @@ export default function CsvImportWizard({ accountId, onImportSuccess }) {
           'warning'
         );
       }
+      
+      if (result.recurring_detected > 0) {
+        showToast(
+          `📋 ${result.recurring_detected} wiederkehrende Verträge erkannt`,
+          'success'
+        );
+      }
 
       // Reload mappings (they were saved after import)
       await loadExistingMappings();
@@ -548,6 +555,16 @@ export default function CsvImportWizard({ accountId, onImportSuccess }) {
                 <h2 className="text-2xl font-bold text-green-600">
                   Import erfolgreich!
                 </h2>
+                
+                {/* Recurring Transactions Info */}
+                {importResult.recurring_detected !== undefined && importResult.recurring_detected !== null && (
+                  <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg max-w-md mx-auto">
+                    <p className="text-sm text-blue-800">
+                      <span className="font-semibold">📋 {importResult.recurring_detected}</span> Verträge gefunden
+                    </p>
+                  </div>
+                )}
+                
                 <div className="grid grid-cols-3 gap-4 max-w-2xl mx-auto">
                   <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                     <p className="text-3xl font-bold text-green-600">

@@ -33,6 +33,14 @@ from .statistics import (
     RecipientDataResponse,
     BalanceHistoryResponse
 )
+from .recurring_transaction import (
+    RecurringTransactionResponse,
+    RecurringTransactionListResponse,
+    RecurringTransactionStats,
+    RecurringTransactionDetectionStats,
+    RecurringTransactionUpdate,
+    RecurringTransactionToggleRequest
+)
 
 __all__ = [
     # Account
@@ -62,4 +70,11 @@ __all__ = [
     "CategoryDataResponse",
     "RecipientDataResponse",
     "BalanceHistoryResponse",
+    # Recurring Transactions
+    "RecurringTransactionResponse",
+    "RecurringTransactionListResponse",
+    "RecurringTransactionStats",
+    "RecurringTransactionDetectionStats",
+    "RecurringTransactionUpdate",
+    "RecurringTransactionToggleRequest",
 ]

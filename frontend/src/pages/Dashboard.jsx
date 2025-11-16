@@ -4,6 +4,7 @@ import CategoryManager from '../components/categories/CategoryManager';
 import DashboardGraphOverview from '../components/dashboard/DashboardGraphOverview';
 import BudgetManager from '../components/budget/BudgetManager';
 import BudgetProgressCard from '../components/budget/BudgetProgressCard';
+import RecurringTransactionsWidget from '../components/recurring/RecurringTransactionsWidget';
 
 /**
  * Dashboard - Hauptseite mit Tabs
@@ -26,6 +27,7 @@ export default function Dashboard() {
     { id: 'accounts', label: 'Meine Konten', icon: '💳' },
     { id: 'categories', label: 'Kategorien', icon: '🏷️' },
     { id: 'budgets', label: 'Budgets', icon: '💰' },
+    { id: 'contracts', label: 'Verträge', icon: '📋' },
   ];
 
   return (
@@ -83,6 +85,12 @@ export default function Dashboard() {
         {activeTab === 'overview' && (
           <div className="space-y-6">
             <DashboardGraphOverview />
+            
+            {/* Recurring Transactions Widget */}
+            <div className="mt-6">
+              <RecurringTransactionsWidget />
+            </div>
+            
             {/* Budget Overview in Dashboard */}
             <div className="mt-6">
               <BudgetProgressCard 
@@ -124,6 +132,19 @@ export default function Dashboard() {
             
             {/* Budget Management */}
             <BudgetManager />
+          </div>
+        )}
+        {activeTab === 'contracts' && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">Verträge & Wiederkehrende Zahlungen</h2>
+              <p className="text-gray-600">
+                Automatische Erkennung wiederkehrender Transaktionen wie Miete, Netflix, etc.
+                Behalten Sie den Überblick über Ihre fixen monatlichen Kosten.
+              </p>
+            </div>
+            
+            <RecurringTransactionsWidget />
           </div>
         )}
       </main>

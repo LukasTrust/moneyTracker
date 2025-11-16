@@ -74,6 +74,7 @@ export const DATE_PRESETS = {
   ALL: {
     label: 'Alle',
     getRange: () => ({
+      // Return null for both dates to indicate no date filtering
       fromDate: null,
       toDate: null,
     }),
@@ -99,6 +100,12 @@ export const useFilterStore = create((set, get) => ({
   selectedRecipients: [], // [] = alle
   searchQuery: '',
   transactionType: 'all', // 'all', 'income', 'expense'
+  
+  // NEW: Advanced Filters
+  minAmount: null, // Minimum transaction amount
+  maxAmount: null, // Maximum transaction amount
+  recipientQuery: '', // Recipient search query
+  descriptionQuery: '', // Description/purpose search query
 
   // UI State
   showFilters: false,
@@ -112,6 +119,7 @@ export const useFilterStore = create((set, get) => ({
    * @param {string} preset - Key from DATE_PRESETS
    */
   setDateRange: (fromDate, toDate, preset = 'CUSTOM') => {
+    console.debug('filterStore: setDateRange', { fromDate, toDate, preset });
     set({
       fromDate,
       toDate,
@@ -128,6 +136,7 @@ export const useFilterStore = create((set, get) => ({
     if (!preset) return;
 
     const { fromDate, toDate } = preset.getRange();
+    console.debug('filterStore: applyDatePreset', presetKey, { fromDate, toDate });
     set({
       fromDate,
       toDate,
@@ -170,6 +179,7 @@ export const useFilterStore = create((set, get) => ({
    * @param {number[]} categoryIds - [] für alle
    */
   setCategoryFilter: (categoryIds) => {
+    console.debug('filterStore: setCategoryFilter', categoryIds);
     set({ selectedCategoryIds: Array.isArray(categoryIds) ? categoryIds : [categoryIds] });
   },
 
@@ -214,6 +224,7 @@ export const useFilterStore = create((set, get) => ({
    * @param {string} query
    */
   setSearchQuery: (query) => {
+    console.debug('filterStore: setSearchQuery', query);
     set({ searchQuery: query });
   },
 
@@ -226,7 +237,36 @@ export const useFilterStore = create((set, get) => ({
       console.warn(`Invalid transaction type: ${type}`);
       return;
     }
+    console.debug('filterStore: setTransactionType', type);
     set({ transactionType: type });
+  },
+
+  /**
+   * Set Amount Range Filter
+   * @param {number|null} min
+   * @param {number|null} max
+   */
+  setAmountRange: (min, max) => {
+    console.debug('filterStore: setAmountRange', { min, max });
+    set({ minAmount: min, maxAmount: max });
+  },
+
+  /**
+   * Set Recipient Query Filter
+   * @param {string} query
+   */
+  setRecipientQuery: (query) => {
+    console.debug('filterStore: setRecipientQuery', query);
+    set({ recipientQuery: query });
+  },
+
+  /**
+   * Set Description Query Filter
+   * @param {string} query
+   */
+  setDescriptionQuery: (query) => {
+    console.debug('filterStore: setDescriptionQuery', query);
+    set({ descriptionQuery: query });
   },
 
   /**
@@ -249,6 +289,10 @@ export const useFilterStore = create((set, get) => ({
       selectedRecipients: [],
       searchQuery: '',
       transactionType: 'all',
+      minAmount: null,
+      maxAmount: null,
+      recipientQuery: '',
+      descriptionQuery: '',
     });
   },
 
@@ -260,10 +304,11 @@ export const useFilterStore = create((set, get) => ({
     const state = get();
     const params = {};
 
-    if (state.fromDate) {
+    // Only add date filters if they are set (not null)
+    if (state.fromDate !== null) {
       params.fromDate = format(state.fromDate, 'yyyy-MM-dd');
     }
-    if (state.toDate) {
+    if (state.toDate !== null) {
       params.toDate = format(state.toDate, 'yyyy-MM-dd');
     }
     if (state.selectedAccountIds.length > 0) {
@@ -281,6 +326,26 @@ export const useFilterStore = create((set, get) => ({
     if (state.transactionType && state.transactionType !== 'all') {
       params.transactionType = state.transactionType;
     }
+    if (state.minAmount !== null) {
+      params.minAmount = state.minAmount;
+    }
+    if (state.maxAmount !== null) {
+      params.maxAmount = state.maxAmount;
+    }
+    if (state.recipientQuery) {
+      params.recipient = state.recipientQuery;
+    }
+    if (state.descriptionQuery) {
+      params.description = state.descriptionQuery;
+    }
+
+    console.debug('[FilterStore] getQueryParams:', {
+      datePreset: state.datePreset,
+      fromDate: state.fromDate,
+      toDate: state.toDate,
+      selectedCategoryIds: state.selectedCategoryIds,
+      params
+    });
 
     return params;
   },
@@ -295,7 +360,11 @@ export const useFilterStore = create((set, get) => ({
       state.selectedAccountIds.length > 0 ||
       state.selectedCategoryIds.length > 0 ||
       state.selectedRecipients.length > 0 ||
-      state.searchQuery !== ''
+      state.searchQuery !== '' ||
+      state.minAmount !== null ||
+      state.maxAmount !== null ||
+      state.recipientQuery !== '' ||
+      state.descriptionQuery !== ''
     );
   },
 
@@ -306,10 +375,16 @@ export const useFilterStore = create((set, get) => ({
   getActiveFilterCount: () => {
     const state = get();
     let count = 0;
+    
     if (state.selectedAccountIds.length > 0) count++;
     if (state.selectedCategoryIds.length > 0) count++;
     if (state.selectedRecipients.length > 0) count++;
     if (state.searchQuery !== '') count++;
+    if (state.minAmount !== null) count++;
+    if (state.maxAmount !== null) count++;
+    if (state.recipientQuery !== '') count++;
+    if (state.descriptionQuery !== '') count++;
+    
     return count;
   },
 }));

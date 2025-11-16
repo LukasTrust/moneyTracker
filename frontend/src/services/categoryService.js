@@ -64,6 +64,12 @@ export const categoryService = {
     if (fromDate) queryParams.append('from_date', fromDate);
     if (toDate) queryParams.append('to_date', toDate);
 
+    console.debug('[CategoryService] getCategoryData:', {
+      accountId,
+      params,
+      queryParams: queryParams.toString()
+    });
+
     const response = await api.get(
       `/accounts/${accountId}/categories-data?${queryParams}`
     );

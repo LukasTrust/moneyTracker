@@ -29,10 +29,16 @@ def get_account_data(
     offset: int = Query(0, ge=0, description="Number of items to skip"),
     from_date: Optional[date] = Query(None, description="Start date filter"),
     to_date: Optional[date] = Query(None, description="End date filter"),
+    category_id: Optional[int] = Query(None, description="Category ID filter (use -1 for uncategorized)"),
+    min_amount: Optional[float] = Query(None, description="Minimum amount filter"),
+    max_amount: Optional[float] = Query(None, description="Maximum amount filter"),
+    recipient: Optional[str] = Query(None, description="Recipient search query"),
+    description: Optional[str] = Query(None, description="Description/purpose search query"),
+    transaction_type: Optional[str] = Query(None, description="Transaction type: 'income', 'expense', 'all'"),
     db: Session = Depends(get_db)
 ):
     """
-    Get paginated transaction data for an account
+    Get paginated transaction data for an account with advanced filters
     
     Args:
         account_id: Account ID
@@ -40,6 +46,12 @@ def get_account_data(
         offset: Number of items to skip
         from_date: Filter by start date
         to_date: Filter by end date
+        category_id: Filter by category (-1 for uncategorized)
+        min_amount: Filter transactions >= this amount
+        max_amount: Filter transactions <= this amount
+        recipient: Search in recipient field (case-insensitive)
+        description: Search in purpose field (case-insensitive)
+        transaction_type: Filter by type ('income' for positive, 'expense' for negative)
         
     Returns:
         Paginated list of transactions
@@ -64,6 +76,36 @@ def get_account_data(
     
     if to_date:
         query = query.filter(DataRow.transaction_date <= to_date)
+    
+    # Apply category filter
+    if category_id is not None:
+        if category_id == -1:
+            # Uncategorized transactions
+            query = query.filter(DataRow.category_id.is_(None))
+        else:
+            query = query.filter(DataRow.category_id == category_id)
+    
+    # Apply amount filters
+    if min_amount is not None:
+        query = query.filter(DataRow.amount >= min_amount)
+    
+    if max_amount is not None:
+        query = query.filter(DataRow.amount <= max_amount)
+    
+    # Apply transaction type filter
+    if transaction_type and transaction_type != 'all':
+        if transaction_type == 'income':
+            query = query.filter(DataRow.amount > 0)
+        elif transaction_type == 'expense':
+            query = query.filter(DataRow.amount < 0)
+    
+    # Apply recipient search (case-insensitive)
+    if recipient:
+        query = query.filter(DataRow.recipient.ilike(f"%{recipient}%"))
+    
+    # Apply description search (case-insensitive)
+    if description:
+        query = query.filter(DataRow.purpose.ilike(f"%{description}%"))
     
     # Get total count
     total = query.count()
@@ -93,6 +135,7 @@ def get_account_summary(
     account_id: int,
     from_date: Optional[date] = Query(None, description="Start date filter"),
     to_date: Optional[date] = Query(None, description="End date filter"),
+    category_id: Optional[int] = Query(None, description="Filter by specific category ID"),
     db: Session = Depends(get_db)
 ):
     """
@@ -102,6 +145,7 @@ def get_account_summary(
         account_id: Account ID
         from_date: Filter by start date
         to_date: Filter by end date
+        category_id: Filter by specific category ID
         
     Returns:
         Summary with income, expenses, balance, and transaction count
@@ -121,7 +165,8 @@ def get_account_summary(
     summary = aggregator.get_summary(
         account_id=account_id,
         from_date=from_date,
-        to_date=to_date
+        to_date=to_date,
+        category_id=category_id
     )
     
     return summary
@@ -133,6 +178,7 @@ def get_account_statistics(
     group_by: str = Query('month', regex='^(day|month|year)$', description="Grouping period"),
     from_date: Optional[date] = Query(None, description="Start date filter"),
     to_date: Optional[date] = Query(None, description="End date filter"),
+    category_id: Optional[int] = Query(None, description="Filter by specific category ID"),
     db: Session = Depends(get_db)
 ):
     """
@@ -143,6 +189,7 @@ def get_account_statistics(
         group_by: Grouping period (day, month, year)
         from_date: Filter by start date
         to_date: Filter by end date
+        category_id: Filter by specific category ID
         
     Returns:
         Chart data with labels, income, expenses, balance arrays
@@ -163,7 +210,8 @@ def get_account_statistics(
         account_id=account_id,
         from_date=from_date,
         to_date=to_date,
-        group_by=group_by
+        group_by=group_by,
+        category_id=category_id
     )
     
     return statistics

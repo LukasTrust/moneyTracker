@@ -63,7 +63,8 @@ class DataAggregator:
         self,
         account_id: Optional[int] = None,
         from_date: Optional[date] = None,
-        to_date: Optional[date] = None
+        to_date: Optional[date] = None,
+        category_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         Get summary statistics (income, expenses, balance, count)
@@ -74,6 +75,7 @@ class DataAggregator:
             account_id: Filter by account ID (None for all accounts)
             from_date: Start date filter
             to_date: End date filter
+            category_id: Filter by category ID (None for all categories)
             
         Returns:
             Dictionary with summary statistics
@@ -98,6 +100,12 @@ class DataAggregator:
         if to_date:
             query = query.filter(DataRow.transaction_date <= to_date)
         
+        if category_id is not None:
+            if category_id == -1:
+                query = query.filter(DataRow.category_id.is_(None))
+            else:
+                query = query.filter(DataRow.category_id == category_id)
+        
         # Execute query
         result = query.first()
         
@@ -113,7 +121,8 @@ class DataAggregator:
         account_id: Optional[int] = None,
         from_date: Optional[date] = None,
         to_date: Optional[date] = None,
-        limit: int = 10
+        limit: int = 10,
+        category_id: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         """
         Get aggregated data by category
@@ -125,6 +134,7 @@ class DataAggregator:
             from_date: Start date filter
             to_date: End date filter
             limit: Maximum number of categories to return
+            category_id: Filter by specific category ID
             
         Returns:
             List of category aggregations
@@ -147,6 +157,12 @@ class DataAggregator:
         
         if to_date:
             query = query.filter(DataRow.transaction_date <= to_date)
+        
+        if category_id is not None:
+            if category_id == -1:
+                query = query.filter(DataRow.category_id.is_(None))
+            else:
+                query = query.filter(DataRow.category_id == category_id)
         
         # Group by category and order by absolute amount (descending)
         query = query.group_by(DataRow.category_id)
@@ -313,7 +329,8 @@ class DataAggregator:
         account_id: Optional[int] = None,
         from_date: Optional[date] = None,
         to_date: Optional[date] = None,
-        group_by: str = 'month'
+        group_by: str = 'month',
+        category_id: Optional[int] = None
     ) -> Dict[str, List]:
         """
         Get balance history grouped by time period
@@ -325,6 +342,7 @@ class DataAggregator:
             from_date: Start date filter
             to_date: End date filter
             group_by: Grouping period ('day', 'month', 'year')
+            category_id: Filter by specific category ID
             
         Returns:
             Dictionary with labels, income, expenses, balance arrays
@@ -355,6 +373,12 @@ class DataAggregator:
         
         if to_date:
             query = query.filter(DataRow.transaction_date <= to_date)
+        
+        if category_id is not None:
+            if category_id == -1:
+                query = query.filter(DataRow.category_id.is_(None))
+            else:
+                query = query.filter(DataRow.category_id == category_id)
         
         # Group by period and order chronologically
         query = query.group_by('period').order_by('period')

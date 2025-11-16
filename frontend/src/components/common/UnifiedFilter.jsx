@@ -6,6 +6,7 @@
  * - Category Filter
  * - Transaction Type (Income/Expense/All)
  * - Search
+ * - Advanced Filters (Amount Range, Recipient, Description)
  * - Reset Button
  * 
  * FEATURES:
@@ -24,6 +25,7 @@ export default function UnifiedFilter({
   showCategory = true,
   showTransactionType = false,
   showSearch = false,
+  showAdvancedFilters = true,
   compact = false,
   onChange,
 }) {
@@ -34,11 +36,18 @@ export default function UnifiedFilter({
     selectedCategoryIds,
     transactionType,
     searchQuery,
+    minAmount,
+    maxAmount,
+    recipientQuery,
+    descriptionQuery,
     setDateRange,
     applyDatePreset,
     setCategoryFilter,
     setTransactionType,
     setSearchQuery,
+    setAmountRange,
+    setRecipientQuery,
+    setDescriptionQuery,
     resetFilters,
     hasActiveFilters,
     getActiveFilterCount,
@@ -47,8 +56,12 @@ export default function UnifiedFilter({
   const { categories } = useCategoryStore();
 
   const [showCustomDateRange, setShowCustomDateRange] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  
+  // NOTE: advanced inputs update the global filter store immediately on change
 
   const handleDatePresetChange = (presetKey) => {
+    console.debug('UnifiedFilter: applyDatePreset', presetKey);
     applyDatePreset(presetKey);
     setShowCustomDateRange(false);
     onChange?.();
@@ -60,6 +73,7 @@ export default function UnifiedFilter({
   };
 
   const handleCategoryChange = (categoryId) => {
+    console.debug('UnifiedFilter: handleCategoryChange', categoryId);
     const currentIds = selectedCategoryIds;
     let newIds;
     
@@ -78,6 +92,7 @@ export default function UnifiedFilter({
   };
 
   const handleSearchChange = (query) => {
+    console.debug('UnifiedFilter: handleSearchChange', query);
     setSearchQuery(query);
     onChange?.();
   };
@@ -85,6 +100,28 @@ export default function UnifiedFilter({
   const handleReset = () => {
     resetFilters();
     setShowCustomDateRange(false);
+    setShowAdvanced(false);
+    // resetFilters() updates the store values (minAmount, maxAmount, ...)
+    onChange?.();
+  };
+
+  const handleAmountChange = (min, max) => {
+    const parsedMin = min !== '' && min !== null ? parseFloat(min) : null;
+    const parsedMax = max !== '' && max !== null ? parseFloat(max) : null;
+    console.debug('UnifiedFilter: setAmountRange', { parsedMin, parsedMax });
+    setAmountRange(parsedMin, parsedMax);
+    onChange?.();
+  };
+
+  const handleRecipientQueryChange = (query) => {
+    console.debug('UnifiedFilter: setRecipientQuery', query);
+    setRecipientQuery(query);
+    onChange?.();
+  };
+
+  const handleDescriptionQueryChange = (query) => {
+    console.debug('UnifiedFilter: setDescriptionQuery', query);
+    setDescriptionQuery(query);
     onChange?.();
   };
 
@@ -280,6 +317,83 @@ export default function UnifiedFilter({
                 </button>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Advanced Filters */}
+        {showAdvancedFilters && (
+          <div className="pt-3 border-t border-gray-200">
+            <button
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="flex items-center gap-2 text-sm font-medium text-primary-600 hover:text-primary-700 mb-3"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={showAdvanced ? "M19 9l-7 7-7-7" : "M9 5l7 7-7 7"} />
+              </svg>
+              {showAdvanced ? 'Erweiterte Filter ausblenden' : 'Erweiterte Filter anzeigen'}
+            </button>
+
+            {showAdvanced && (
+              <div className="space-y-3">
+                {/* Amount Range */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Betrag (€)
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <input
+                        type="number"
+                        step="0.01"
+                        placeholder="Min"
+                        value={minAmount !== null ? minAmount : ''}
+                        onChange={(e) => handleAmountChange(e.target.value, maxAmount)}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+                    <div>
+                      <input
+                        type="number"
+                        step="0.01"
+                        placeholder="Max"
+                        value={maxAmount !== null ? maxAmount : ''}
+                        onChange={(e) => handleAmountChange(minAmount, e.target.value)}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Recipient Query */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Empfänger
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="z.B. REWE, Amazon..."
+                    value={recipientQuery || ''}
+                    onChange={(e) => handleRecipientQueryChange(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  />
+                </div>
+
+                {/* Description Query */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Verwendungszweck
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Beschreibung durchsuchen..."
+                    value={descriptionQuery || ''}
+                    onChange={(e) => handleDescriptionQueryChange(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  />
+                </div>
+                {/* Apply Filters Button removed: filters apply immediately on input/change */}
+              </div>
+            )}
           </div>
         )}
       </div>

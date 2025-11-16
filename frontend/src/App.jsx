@@ -1,7 +1,8 @@
-import React, { lazy, Suspense } from 'react';
+import React, { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { LoadingSpinner } from './components/common';
 import ToastContainer from './components/common/Toast';
+import { useCategoryStore } from './store/categoryStore';
 
 // Lazy load pages for code splitting
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -15,6 +16,7 @@ const NotFound = lazy(() => import('./pages/NotFound'));
  * - Code Splitting via React.lazy
  * - Suspense with Loading States
  * - Global Toast Notifications
+ * - Global Category Store Initialization
  * 
  * ERWEITERBARKEIT:
  * - Error Boundary
@@ -23,6 +25,13 @@ const NotFound = lazy(() => import('./pages/NotFound'));
  * - i18n Provider
  */
 function App() {
+  const fetchCategories = useCategoryStore((state) => state.fetchCategories);
+
+  // Initialize global data (categories) on app mount
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
+
   return (
     <Router>
       {/* Global Toast Container */}

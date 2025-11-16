@@ -55,8 +55,8 @@ function CategoriesTab({ accountId, currency = 'EUR' }) {
     error: statsError,
     refetch: refetchStats 
   } = useCategoryStatistics(accountId, { 
-    fromDate: fromDate ? format(fromDate, 'yyyy-MM-dd') : undefined, 
-    toDate: toDate ? format(toDate, 'yyyy-MM-dd') : undefined 
+    fromDate: fromDate !== null ? format(fromDate, 'yyyy-MM-dd') : undefined, 
+    toDate: toDate !== null ? format(toDate, 'yyyy-MM-dd') : undefined 
   });
 
   /**

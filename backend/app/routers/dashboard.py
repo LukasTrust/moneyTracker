@@ -23,6 +23,7 @@ router = APIRouter()
 def get_dashboard_summary(
     from_date: Optional[date] = Query(None, description="Start date filter"),
     to_date: Optional[date] = Query(None, description="End date filter"),
+    category_id: Optional[int] = Query(None, description="Filter by specific category ID"),
     db: Session = Depends(get_db)
 ):
     """
@@ -31,6 +32,7 @@ def get_dashboard_summary(
     Args:
         from_date: Filter by start date
         to_date: Filter by end date
+        category_id: Filter by specific category ID
         
     Returns:
         Summary with total income, expenses, balance, transaction count, and account count
@@ -41,8 +43,10 @@ def get_dashboard_summary(
     summary = aggregator.get_summary(
         account_id=None,
         from_date=from_date,
-        to_date=to_date
+        to_date=to_date,
+        category_id=category_id
     )
+    print(f"[dashboard] get_dashboard_summary called with from_date={from_date} to_date={to_date} category_id={category_id}; summary_keys={list(summary.keys())}")
     
     # Count unique accounts
     query = db.query(DataRow.account_id).distinct()
@@ -52,6 +56,12 @@ def get_dashboard_summary(
     
     if to_date:
         query = query.filter(DataRow.transaction_date <= to_date)
+    
+    if category_id is not None:
+        if category_id == -1:
+            query = query.filter(DataRow.category_id.is_(None))
+        else:
+            query = query.filter(DataRow.category_id == category_id)
     
     account_count = query.count()
     
@@ -70,6 +80,7 @@ def get_dashboard_categories(
     limit: int = Query(10, ge=1, le=50, description="Number of categories"),
     from_date: Optional[date] = Query(None, description="Start date filter"),
     to_date: Optional[date] = Query(None, description="End date filter"),
+    category_id: Optional[int] = Query(None, description="Filter by specific category ID"),
     db: Session = Depends(get_db)
 ):
     """
@@ -79,6 +90,7 @@ def get_dashboard_categories(
         limit: Maximum number of categories to return
         from_date: Filter by start date
         to_date: Filter by end date
+        category_id: Filter by specific category ID
         
     Returns:
         List of category aggregations
@@ -89,8 +101,10 @@ def get_dashboard_categories(
         account_id=None,  # All accounts
         from_date=from_date,
         to_date=to_date,
-        limit=limit
+        limit=limit,
+        category_id=category_id
     )
+    print(f"[dashboard] get_dashboard_categories called with from_date={from_date} to_date={to_date} category_id={category_id} limit={limit}; returned_count={len(categories) if categories is not None else 'None'}")
     
     return categories
 
@@ -100,6 +114,7 @@ def get_dashboard_balance_history(
     group_by: str = Query('month', regex='^(day|month|year)$', description="Grouping period"),
     from_date: Optional[date] = Query(None, description="Start date filter"),
     to_date: Optional[date] = Query(None, description="End date filter"),
+    category_id: Optional[int] = Query(None, description="Filter by specific category ID"),
     db: Session = Depends(get_db)
 ):
     """
@@ -109,6 +124,7 @@ def get_dashboard_balance_history(
         group_by: Grouping period (day, month, year)
         from_date: Filter by start date
         to_date: Filter by end date
+        category_id: Filter by specific category ID
         
     Returns:
         Balance history with labels, income, expenses, balance arrays
@@ -119,8 +135,10 @@ def get_dashboard_balance_history(
         account_id=None,  # All accounts
         from_date=from_date,
         to_date=to_date,
-        group_by=group_by
+        group_by=group_by,
+        category_id=category_id
     )
+    print(f"[dashboard] get_dashboard_balance_history called with group_by={group_by} from_date={from_date} to_date={to_date} category_id={category_id}; labels_len={len(history.get('labels') if isinstance(history, dict) and history.get('labels') else [])}")
     
     return history
 
@@ -211,5 +229,6 @@ def get_dashboard_recipients_data(
         transaction_type=transaction_type,
         category_id=category_id
     )
+    print(f"[dashboard] get_dashboard_recipients_data called with transaction_type={transaction_type} from_date={from_date} to_date={to_date} category_id={category_id} limit={limit}; returned_count={len(recipients) if recipients is not None else 'None'}")
     
     return recipients

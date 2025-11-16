@@ -9,7 +9,18 @@ export const dataService = {
    * Transaktionen für ein Konto abrufen (mit Pagination und Filter)
    */
   async getData(accountId, params = {}) {
-    const { limit = 50, offset = 0, fromDate, toDate } = params;
+    const { 
+      limit = 50, 
+      offset = 0, 
+      fromDate, 
+      toDate,
+      minAmount,
+      maxAmount,
+      recipient,
+      description,
+      transactionType,
+      categoryIds
+    } = params;
     
     const queryParams = new URLSearchParams({
       limit: limit.toString(),
@@ -18,6 +29,23 @@ export const dataService = {
 
     if (fromDate) queryParams.append('from_date', fromDate);
     if (toDate) queryParams.append('to_date', toDate);
+    if (minAmount !== undefined && minAmount !== null) queryParams.append('min_amount', minAmount);
+    if (maxAmount !== undefined && maxAmount !== null) queryParams.append('max_amount', maxAmount);
+    if (recipient) queryParams.append('recipient', recipient);
+    if (description) queryParams.append('description', description);
+    if (transactionType && transactionType !== 'all') queryParams.append('transaction_type', transactionType);
+    
+    // Category Filter: Backend expects single category_id
+    if (categoryIds) {
+      const categoryId = categoryIds.split(',')[0]; // Take first category if multiple
+      queryParams.append('category_id', categoryId);
+    }
+
+    console.debug('[DataService] getData:', {
+      accountId,
+      params,
+      queryParams: queryParams.toString()
+    });
 
     const response = await api.get(`/accounts/${accountId}/data?${queryParams}`);
     return response.data;
@@ -27,11 +55,17 @@ export const dataService = {
    * Zusammenfassung für ein Konto (Einnahmen, Ausgaben, Saldo)
    */
   async getSummary(accountId, params = {}) {
-    const { fromDate, toDate } = params;
+    const { fromDate, toDate, categoryIds } = params;
     
     const queryParams = new URLSearchParams();
     if (fromDate) queryParams.append('from_date', fromDate);
     if (toDate) queryParams.append('to_date', toDate);
+    
+    // Category Filter: Backend expects single category_id
+    if (categoryIds) {
+      const categoryId = categoryIds.split(',')[0]; // Take first category if multiple
+      queryParams.append('category_id', categoryId);
+    }
 
     const response = await api.get(
       `/accounts/${accountId}/summary?${queryParams}`
@@ -43,7 +77,7 @@ export const dataService = {
    * Statistiken für Charts (gruppiert nach Tag/Monat/Jahr)
    */
   async getStatistics(accountId, groupBy = 'month', params = {}) {
-    const { fromDate, toDate } = params;
+    const { fromDate, toDate, categoryIds } = params;
     
     const queryParams = new URLSearchParams({
       group_by: groupBy,
@@ -51,6 +85,12 @@ export const dataService = {
 
     if (fromDate) queryParams.append('from_date', fromDate);
     if (toDate) queryParams.append('to_date', toDate);
+    
+    // Category Filter: Backend expects single category_id
+    if (categoryIds) {
+      const categoryId = categoryIds.split(',')[0]; // Take first category if multiple
+      queryParams.append('category_id', categoryId);
+    }
 
     const response = await api.get(
       `/accounts/${accountId}/statistics?${queryParams}`

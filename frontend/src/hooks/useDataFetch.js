@@ -5,7 +5,7 @@ import dataService from '../services/dataService';
  * Custom Hook für Transaktionsdaten mit automatischem Reload
  * 
  * @param {number} accountId - Konto-ID
- * @param {object} params - Query-Parameter (limit, offset, fromDate, toDate)
+ * @param {object} params - Query-Parameter (limit, offset, fromDate, toDate, categoryIds)
  * @returns {object} { data, loading, error, refetch }
  */
 export function useTransactionData(accountId, params = {}) {
@@ -21,6 +21,7 @@ export function useTransactionData(accountId, params = {}) {
     setError(null);
 
     try {
+      console.debug('[useTransactionData] Fetching with params:', params);
       const response = await dataService.getData(accountId, params);
       setData(response.data || []);
       setTotal(response.total || 0);
@@ -34,7 +35,7 @@ export function useTransactionData(accountId, params = {}) {
 
   useEffect(() => {
     fetchData();
-  }, [accountId, params.limit, params.offset, params.fromDate, params.toDate]);
+  }, [accountId, params.limit, params.offset, params.fromDate, params.toDate, params.categoryIds]);
 
   return { data, total, loading, error, refetch: fetchData };
 }
@@ -43,10 +44,10 @@ export function useTransactionData(accountId, params = {}) {
  * Custom Hook für Summary-Daten (Einnahmen/Ausgaben/Saldo)
  * 
  * @param {number} accountId - Konto-ID
- * @param {object} dateRange - { fromDate, toDate }
+ * @param {object} params - { fromDate, toDate, categoryIds }
  * @returns {object} { summary, loading, error, refetch }
  */
-export function useSummaryData(accountId, dateRange = {}) {
+export function useSummaryData(accountId, params = {}) {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -58,7 +59,8 @@ export function useSummaryData(accountId, dateRange = {}) {
     setError(null);
 
     try {
-      const response = await dataService.getSummary(accountId, dateRange);
+      console.debug('[useSummaryData] Fetching with params:', params);
+      const response = await dataService.getSummary(accountId, params);
       setSummary(response);
     } catch (err) {
       console.error('Error fetching summary:', err);
@@ -70,7 +72,7 @@ export function useSummaryData(accountId, dateRange = {}) {
 
   useEffect(() => {
     fetchSummary();
-  }, [accountId, dateRange.fromDate, dateRange.toDate]);
+  }, [accountId, params.fromDate, params.toDate, params.categoryIds]);
 
   return { summary, loading, error, refetch: fetchSummary };
 }
@@ -80,10 +82,10 @@ export function useSummaryData(accountId, dateRange = {}) {
  * 
  * @param {number} accountId - Konto-ID
  * @param {string} groupBy - Gruppierung ('day', 'month', 'year')
- * @param {object} dateRange - { fromDate, toDate }
+ * @param {object} params - { fromDate, toDate, categoryIds }
  * @returns {object} { chartData, loading, error, refetch }
  */
-export function useChartData(accountId, groupBy = 'month', dateRange = {}) {
+export function useChartData(accountId, groupBy = 'month', params = {}) {
   const [chartData, setChartData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -95,7 +97,8 @@ export function useChartData(accountId, groupBy = 'month', dateRange = {}) {
     setError(null);
 
     try {
-      const response = await dataService.getStatistics(accountId, groupBy, dateRange);
+      console.debug('[useChartData] Fetching with params:', { groupBy, ...params });
+      const response = await dataService.getStatistics(accountId, groupBy, params);
       
       // Transform data for Recharts
       const transformed = response.labels?.map((label, index) => ({
@@ -116,7 +119,7 @@ export function useChartData(accountId, groupBy = 'month', dateRange = {}) {
 
   useEffect(() => {
     fetchChartData();
-  }, [accountId, groupBy, dateRange.fromDate, dateRange.toDate]);
+  }, [accountId, groupBy, params.fromDate, params.toDate, params.categoryIds]);
 
   return { chartData, loading, error, refetch: fetchChartData };
 }
@@ -447,9 +450,10 @@ export function useDashboardData(params = {}) {
     }
   };
 
+  // Re-fetch whenever any of the params change (not just dates)
   useEffect(() => {
     fetchDashboardData();
-  }, [params.fromDate, params.toDate]);
+  }, [JSON.stringify(params)]);
 
   return { 
     summary, 

@@ -1,15 +1,3 @@
-1.2 Recurring Transactions Detection
-Was es bringt: Automatische Erkennung wiederkehrender Transaktionen (Miete, Netflix, etc.)
-
-
-Integration:
-
-Service: RecurringTransactionDetector analysiert Muster
-Algorithmus: Gleicher Betrag + gleicher Empfänger + ähnliche Abstände (28-31 Tage)
-Frontend: "Wiederkehrend"-Badge bei Transaktionen
-Dashboard: Übersicht fixer Kosten
-
-
 1.3 Smart Forecasting
 Was es bringt: Prognose des Kontostands für nächste 3-6 Monate basierend auf Mustern
 

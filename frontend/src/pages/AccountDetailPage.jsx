@@ -25,8 +25,8 @@ export default function AccountDetailPage() {
   const navigate = useNavigate();
   const { currentAccount, fetchAccount, loading: accountLoading } = useAccountStore();
   
-  // Get date range from global filter store
-  const { fromDate, toDate } = useFilterStore();
+  // Get filters from global filter store
+  const { fromDate, toDate, selectedCategoryIds } = useFilterStore();
   
   const [activeTab, setActiveTab] = useState('data');
 
@@ -36,11 +36,21 @@ export default function AccountDetailPage() {
     offset: 0,
   });
 
-  // Convert Date objects to ISO strings for API
-  const dateRange = useMemo(() => ({
-    fromDate: fromDate ? format(fromDate, 'yyyy-MM-dd') : '',
-    toDate: toDate ? format(toDate, 'yyyy-MM-dd') : '',
-  }), [fromDate, toDate]);
+  // Convert Date objects to ISO strings for API and add other filters
+  // Only include date params if they are not null (null means "ALL")
+  const filterParams = useMemo(() => {
+    const params = {};
+    if (fromDate !== null) {
+      params.fromDate = format(fromDate, 'yyyy-MM-dd');
+    }
+    if (toDate !== null) {
+      params.toDate = format(toDate, 'yyyy-MM-dd');
+    }
+    if (selectedCategoryIds && selectedCategoryIds.length > 0) {
+      params.categoryIds = selectedCategoryIds.join(',');
+    }
+    return params;
+  }, [fromDate, toDate, selectedCategoryIds]);
 
   // Custom Hooks für Daten mit automatischem Reload
   const { 
@@ -49,18 +59,18 @@ export default function AccountDetailPage() {
     loading: transactionsLoading 
   } = useTransactionData(id, {
     ...pagination,
-    ...dateRange,
+    ...filterParams,
   });
 
   const { 
     summary, 
     loading: summaryLoading 
-  } = useSummaryData(id, dateRange);
+  } = useSummaryData(id, filterParams);
 
   const { 
     chartData, 
     loading: chartLoading 
-  } = useChartData(id, 'month', dateRange);
+  } = useChartData(id, 'month', filterParams);
 
   useEffect(() => {
     if (id) {

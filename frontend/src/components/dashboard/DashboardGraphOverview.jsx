@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import Card from '../common/Card';
 import Button from '../common/Button';
 import LoadingSpinner from '../common/LoadingSpinner';
@@ -44,17 +44,77 @@ import {
  * - Vergleich: Jahr-über-Jahr oder Monat-über-Monat
  */
 function DashboardGraphOverview() {
-  // Get date range from global filter store
-  const { fromDate, toDate, setDateRange, applyDatePreset } = useFilterStore();
-  
-  // Convert Date objects to ISO strings for API
-  const dateRange = useMemo(() => ({
-    fromDate: fromDate ? format(fromDate, 'yyyy-MM-dd') : '',
-    toDate: toDate ? format(toDate, 'yyyy-MM-dd') : '',
-  }), [fromDate, toDate]);
+  // Subscribe to individual filter values to avoid unnecessary re-renders
+  const fromDate = useFilterStore((state) => state.fromDate);
+  const toDate = useFilterStore((state) => state.toDate);
+  const selectedAccountIds = useFilterStore((state) => state.selectedAccountIds);
+  const selectedCategoryIds = useFilterStore((state) => state.selectedCategoryIds);
+  const selectedRecipients = useFilterStore((state) => state.selectedRecipients);
+  const searchQuery = useFilterStore((state) => state.searchQuery);
+  const transactionType = useFilterStore((state) => state.transactionType);
+  const minAmount = useFilterStore((state) => state.minAmount);
+  const maxAmount = useFilterStore((state) => state.maxAmount);
+  const recipientQuery = useFilterStore((state) => state.recipientQuery);
+  const descriptionQuery = useFilterStore((state) => state.descriptionQuery);
 
-  // Fetch Dashboard Data
-  const { summary, categories, balanceHistory, recipients, senders, loading, error, refetch } = useDashboardData(dateRange);
+  // Memoize filter params to prevent unnecessary re-fetches
+  const filterParams = useMemo(() => {
+    const params = {};
+
+    // Only add date filters if they are not null (null means "ALL")
+    if (fromDate !== null) {
+      params.fromDate = format(fromDate, 'yyyy-MM-dd');
+    }
+    if (toDate !== null) {
+      params.toDate = format(toDate, 'yyyy-MM-dd');
+    }
+    if (selectedAccountIds.length > 0) {
+      params.accountIds = selectedAccountIds.join(',');
+    }
+    if (selectedCategoryIds.length > 0) {
+      params.categoryIds = selectedCategoryIds.join(',');
+    }
+    if (selectedRecipients.length > 0) {
+      params.recipients = selectedRecipients.join(',');
+    }
+    if (searchQuery) {
+      params.search = searchQuery;
+    }
+    if (transactionType && transactionType !== 'all') {
+      params.transactionType = transactionType;
+    }
+    if (minAmount !== null) {
+      params.minAmount = minAmount;
+    }
+    if (maxAmount !== null) {
+      params.maxAmount = maxAmount;
+    }
+    if (recipientQuery) {
+      params.recipient = recipientQuery;
+    }
+    if (descriptionQuery) {
+      params.description = descriptionQuery;
+    }
+
+    console.debug('[DashboardGraphOverview] filterParams:', params);
+
+    return params;
+  }, [
+    fromDate,
+    toDate,
+    selectedAccountIds,
+    selectedCategoryIds,
+    selectedRecipients,
+    searchQuery,
+    transactionType,
+    minAmount,
+    maxAmount,
+    recipientQuery,
+    descriptionQuery,
+  ]);
+
+  // Fetch Dashboard Data (will automatically re-fetch when filterParams change)
+  const { summary, categories, balanceHistory, recipients, senders, loading, error, refetch } = useDashboardData(filterParams);
 
   /**
    * Format currency
@@ -208,7 +268,6 @@ function DashboardGraphOverview() {
         showCategory={true}
         showTransactionType={true}
         showSearch={false}
-        onChange={() => refetch()}
       />
 
       {/* KPI Cards */}

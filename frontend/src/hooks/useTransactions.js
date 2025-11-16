@@ -22,9 +22,8 @@ export function useTransactions(accountId = null, options = {}) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Get filter params
-  const getQueryParams = useFilterStore((state) => state.getQueryParams);
-  const filterParams = enableFilters ? getQueryParams() : {};
+  // Get filter params (subscribe to store-derived params so updates re-trigger fetch)
+  const filterParams = useFilterStore((state) => (enableFilters ? state.getQueryParams() : {}));
 
   const fetchData = useCallback(async () => {
     if (!accountId) return;
@@ -80,8 +79,7 @@ export function useSummary(accountId = null, enableFilters = true) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const getQueryParams = useFilterStore((state) => state.getQueryParams);
-  const filterParams = enableFilters ? getQueryParams() : {};
+  const filterParams = useFilterStore((state) => (enableFilters ? state.getQueryParams() : {}));
 
   const fetchSummary = useCallback(async () => {
     if (!accountId) return;
@@ -126,8 +124,7 @@ export function useCategoryDistribution(accountId, enableFilters = true) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const getQueryParams = useFilterStore((state) => state.getQueryParams);
-  const filterParams = enableFilters ? getQueryParams() : {};
+  const filterParams = useFilterStore((state) => (enableFilters ? state.getQueryParams() : {}));
 
   const fetchData = useCallback(async () => {
     if (!accountId) return;
@@ -172,8 +169,7 @@ export function useRecipients(accountId, enableFilters = true) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const getQueryParams = useFilterStore((state) => state.getQueryParams);
-  const filterParams = enableFilters ? getQueryParams() : {};
+  const filterParams = useFilterStore((state) => (enableFilters ? state.getQueryParams() : {}));
 
   const fetchData = useCallback(async () => {
     if (!accountId) return;

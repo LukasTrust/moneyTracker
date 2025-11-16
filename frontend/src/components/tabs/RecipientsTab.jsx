@@ -10,7 +10,7 @@ import { useFilterStore } from '../../store';
  * 
  * FEATURES:
  * - Date Range Filter mit Quick Buttons (nutzt globalen FilterStore)
- * - Kategorie-Filter Dropdown
+ * - Kategorie-Filter über UnifiedFilter (nutzt globalen FilterStore)
  * - Zwei Kuchendiagramme (Absender/Empfänger)
  * - Top 10 Listen mit Details
  * - Responsive Layout (Desktop: nebeneinander, Mobile: gestapelt)
@@ -22,17 +22,15 @@ import { useFilterStore } from '../../store';
  * ✅ Beide Pie-Charts funktionieren unabhängig
  * ✅ Top 5 + "Andere" Gruppierung in Charts
  * ✅ Verbesserte Legende
+ * ✅ Integriert globale Kategorie-Filter
  * 
  * @param {Object} props
  * @param {number} props.accountId - Konto-ID
  * @param {string} props.currency - Währung (z.B. "EUR")
  */
 function RecipientsTab({ accountId, currency = 'EUR' }) {
-  // Nutze globalen FilterStore für Datumsbereich
-  const { fromDate, toDate } = useFilterStore();
-
-  // Category Filter State (lokal)
-  const [selectedCategoryId, setSelectedCategoryId] = useState(null);
+  // Nutze globalen FilterStore für alle Filter
+  const { fromDate, toDate, selectedCategoryIds } = useFilterStore();
 
   // Limit für Top-Listen (Standard: 10)
   const [limit] = useState(10);
@@ -43,7 +41,12 @@ function RecipientsTab({ accountId, currency = 'EUR' }) {
     toDate: toDate ? toDate.toISOString().split('T')[0] : undefined,
   }), [fromDate, toDate]);
 
-  // Fetch Categories
+  // Get first selected category (backend expects single ID)
+  const selectedCategoryId = useMemo(() => {
+    return selectedCategoryIds && selectedCategoryIds.length > 0 ? selectedCategoryIds[0] : null;
+  }, [selectedCategoryIds]);
+
+  // Fetch Categories (for debugging)
   const { categories, loading: categoriesLoading } = useCategoryData();
 
   // Fetch Recipients (Empfänger - Ausgaben) mit Kategorie-Filter
@@ -72,19 +75,14 @@ function RecipientsTab({ accountId, currency = 'EUR' }) {
   // Debug logging
   useEffect(() => {
     console.log('RecipientsTab: FilterStore Date Range:', { fromDate, toDate });
+    console.log('RecipientsTab: FilterStore Category IDs:', selectedCategoryIds);
     console.log('RecipientsTab: API Date Params:', dateParams);
-    console.log('RecipientsTab: Category Filter:', selectedCategoryId);
+    console.log('RecipientsTab: Category Filter (first selected):', selectedCategoryId);
     console.log('RecipientsTab: Recipients data:', recipients);
     console.log('RecipientsTab: Recipients error:', recipientsError);
     console.log('RecipientsTab: Senders data:', senders);
     console.log('RecipientsTab: Senders error:', sendersError);
-  }, [fromDate, toDate, dateParams, selectedCategoryId, recipients, senders, recipientsError, sendersError]);
-
-  // Handler für Kategorie-Filter Änderungen
-  const handleCategoryChange = useCallback((event) => {
-    const value = event.target.value;
-    setSelectedCategoryId(value === '' ? null : parseInt(value, 10));
-  }, []);
+  }, [fromDate, toDate, dateParams, selectedCategoryIds, selectedCategoryId, recipients, senders, recipientsError, sendersError]);
 
   // Handler für Segment-Klick (optional - für Drill-down)
   const handleRecipientClick = useCallback((recipient) => {

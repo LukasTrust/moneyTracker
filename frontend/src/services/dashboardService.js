@@ -18,11 +18,11 @@ export const dashboardService = {
   /**
    * Gesamt-Zusammenfassung über alle Accounts
    * 
-   * @param {object} params - Query-Parameter { fromDate, toDate }
+   * @param {object} params - Query-Parameter { fromDate, toDate, categoryIds }
    * @returns {Promise<object>} { income, expenses, balance, transactionCount }
    * 
    * BACKEND-ROUTE:
-   * GET /api/v1/dashboard/summary?from_date=2024-01-01&to_date=2024-12-31
+   * GET /api/v1/dashboard/summary?from_date=2024-01-01&to_date=2024-12-31&category_id=1
    * 
    * Response Format:
    * {
@@ -34,12 +34,19 @@ export const dashboardService = {
    * }
    */
   async getSummary(params = {}) {
-    const { fromDate, toDate } = params;
+    const { fromDate, toDate, categoryIds } = params;
     const queryParams = new URLSearchParams();
     
     if (fromDate) queryParams.append('from_date', fromDate);
     if (toDate) queryParams.append('to_date', toDate);
+    
+    // Category Filter: Backend expects single category_id
+    if (categoryIds) {
+      const categoryId = categoryIds.split(',')[0]; // Take first category if multiple
+      queryParams.append('category_id', categoryId);
+    }
 
+    console.debug('[DashboardService] getSummary:', { params, queryParams: queryParams.toString() });
     const response = await api.get(`/dashboard/summary?${queryParams}`);
     return response.data;
   },
@@ -47,11 +54,11 @@ export const dashboardService = {
   /**
    * Aggregierte Kategoriedaten über alle Accounts
    * 
-   * @param {object} params - Query-Parameter { fromDate, toDate, limit }
+   * @param {object} params - Query-Parameter { fromDate, toDate, limit, categoryIds }
    * @returns {Promise<Array>} Array von { category_id, category_name, total_amount, count, percentage }
    * 
    * BACKEND-ROUTE:
-   * GET /api/v1/dashboard/categories?from_date=&to_date=&limit=10
+   * GET /api/v1/dashboard/categories?from_date=&to_date=&limit=10&category_id=1
    * 
    * Response Format:
    * [
@@ -67,14 +74,21 @@ export const dashboardService = {
    * ]
    */
   async getCategoriesData(params = {}) {
-    const { fromDate, toDate, limit = 10 } = params;
+    const { fromDate, toDate, limit = 10, categoryIds } = params;
     const queryParams = new URLSearchParams({
       limit: limit.toString(),
     });
 
     if (fromDate) queryParams.append('from_date', fromDate);
     if (toDate) queryParams.append('to_date', toDate);
+    
+    // Category Filter: Backend expects single category_id
+    if (categoryIds) {
+      const categoryId = categoryIds.split(',')[0]; // Take first category if multiple
+      queryParams.append('category_id', categoryId);
+    }
 
+    console.debug('[DashboardService] getCategoriesData:', { params, queryParams: queryParams.toString() });
     const response = await api.get(`/dashboard/categories?${queryParams}`);
     return response.data;
   },
@@ -82,11 +96,11 @@ export const dashboardService = {
   /**
    * Historische Saldoentwicklung über alle Accounts
    * 
-   * @param {object} params - Query-Parameter { fromDate, toDate, groupBy }
+   * @param {object} params - Query-Parameter { fromDate, toDate, groupBy, categoryIds }
    * @returns {Promise<object>} { labels, income, expenses, balance }
    * 
    * BACKEND-ROUTE:
-   * GET /api/v1/dashboard/balance-history?from_date=&to_date=&group_by=month
+   * GET /api/v1/dashboard/balance-history?from_date=&to_date=&group_by=month&category_id=1
    * 
    * Response Format:
    * {
@@ -97,14 +111,21 @@ export const dashboardService = {
    * }
    */
   async getBalanceHistory(params = {}) {
-    const { fromDate, toDate, groupBy = 'month' } = params;
+    const { fromDate, toDate, groupBy = 'month', categoryIds } = params;
     const queryParams = new URLSearchParams({
       group_by: groupBy,
     });
 
     if (fromDate) queryParams.append('from_date', fromDate);
     if (toDate) queryParams.append('to_date', toDate);
+    
+    // Category Filter: Backend expects single category_id
+    if (categoryIds) {
+      const categoryId = categoryIds.split(',')[0]; // Take first category if multiple
+      queryParams.append('category_id', categoryId);
+    }
 
+    console.debug('[DashboardService] getBalanceHistory:', { params, queryParams: queryParams.toString() });
     const response = await api.get(`/dashboard/balance-history?${queryParams}`);
     return response.data;
   },
@@ -156,11 +177,11 @@ export const dashboardService = {
   /**
    * Aggregierte Empfänger/Absender-Daten über alle Accounts
    * 
-   * @param {object} params - Query-Parameter { fromDate, toDate, transactionType, limit, categoryId }
+   * @param {object} params - Query-Parameter { fromDate, toDate, transactionType, limit, categoryIds }
    * @returns {Promise<Array>} Array von { recipient, total_amount, transaction_count, percentage }
    * 
    * BACKEND-ROUTE:
-   * GET /api/v1/dashboard/recipients-data?transaction_type=expense&from_date=&to_date=&limit=10
+   * GET /api/v1/dashboard/recipients-data?transaction_type=expense&from_date=&to_date=&limit=10&category_id=1
    * 
    * Response Format:
    * [
@@ -175,7 +196,7 @@ export const dashboardService = {
    * ]
    */
   async getRecipientsData(params = {}) {
-    const { fromDate, toDate, transactionType = 'expense', limit = 10, categoryId } = params;
+    const { fromDate, toDate, transactionType = 'expense', limit = 10, categoryIds } = params;
     const queryParams = new URLSearchParams({
       transaction_type: transactionType,
       limit: limit.toString(),
@@ -183,8 +204,14 @@ export const dashboardService = {
 
     if (fromDate) queryParams.append('from_date', fromDate);
     if (toDate) queryParams.append('to_date', toDate);
-    if (categoryId) queryParams.append('category_id', categoryId.toString());
+    
+    // Category Filter: Backend expects single category_id
+    if (categoryIds) {
+      const categoryId = categoryIds.split(',')[0]; // Take first category if multiple
+      queryParams.append('category_id', categoryId);
+    }
 
+    console.debug('[DashboardService] getRecipientsData:', { params, queryParams: queryParams.toString() });
     const response = await api.get(`/dashboard/recipients-data?${queryParams}`);
     return response.data;
   },

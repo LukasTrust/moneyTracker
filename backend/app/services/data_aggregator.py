@@ -631,3 +631,149 @@ class DataAggregator:
             'expenses': expenses,
             'balance': balance
         }
+    
+    def get_period_comparison(
+        self,
+        account_id: int,
+        period1_start: date,
+        period1_end: date,
+        period2_start: date,
+        period2_end: date,
+        top_limit: int = 5
+    ) -> Dict[str, Any]:
+        """
+        Compare two time periods with comprehensive statistics
+        
+        Args:
+            account_id: Account ID to compare
+            period1_start: Start date of first period
+            period1_end: End date of first period
+            period2_start: Start date of second period
+            period2_end: End date of second period
+            top_limit: Number of top recipients to include
+            
+        Returns:
+            Dictionary with comparison data for both periods
+        """
+        # Get data for period 1
+        period1_summary = self.get_summary(
+            account_id=account_id,
+            from_date=period1_start,
+            to_date=period1_end
+        )
+        
+        period1_categories = self.get_category_aggregation(
+            account_id=account_id,
+            from_date=period1_start,
+            to_date=period1_end,
+            limit=20
+        )
+        
+        period1_recipients = self.get_recipient_aggregation(
+            account_id=account_id,
+            from_date=period1_start,
+            to_date=period1_end,
+            limit=top_limit,
+            transaction_type='all'
+        )
+        
+        # Get data for period 2
+        period2_summary = self.get_summary(
+            account_id=account_id,
+            from_date=period2_start,
+            to_date=period2_end
+        )
+        
+        period2_categories = self.get_category_aggregation(
+            account_id=account_id,
+            from_date=period2_start,
+            to_date=period2_end,
+            limit=20
+        )
+        
+        period2_recipients = self.get_recipient_aggregation(
+            account_id=account_id,
+            from_date=period2_start,
+            to_date=period2_end,
+            limit=top_limit,
+            transaction_type='all'
+        )
+        
+        # Calculate comparison metrics
+        def calculate_percent_change(old_val: float, new_val: float) -> float:
+            """Calculate percentage change, handling zero values"""
+            if old_val == 0:
+                return 100.0 if new_val != 0 else 0.0
+            return round(((new_val - old_val) / abs(old_val)) * 100, 2)
+        
+        comparison = {
+            'income_diff': round(period2_summary['total_income'] - period1_summary['total_income'], 2),
+            'income_diff_percent': calculate_percent_change(
+                period1_summary['total_income'],
+                period2_summary['total_income']
+            ),
+            'expenses_diff': round(period2_summary['total_expenses'] - period1_summary['total_expenses'], 2),
+            'expenses_diff_percent': calculate_percent_change(
+                abs(period1_summary['total_expenses']),
+                abs(period2_summary['total_expenses'])
+            ),
+            'balance_diff': round(period2_summary['net_balance'] - period1_summary['net_balance'], 2),
+            'balance_diff_percent': calculate_percent_change(
+                period1_summary['net_balance'],
+                period2_summary['net_balance']
+            ),
+            'transaction_count_diff': period2_summary['transaction_count'] - period1_summary['transaction_count']
+        }
+        
+        # Format period labels
+        period1_label = self._format_period_label(period1_start, period1_end)
+        period2_label = self._format_period_label(period2_start, period2_end)
+        
+        return {
+            'period1': {
+                'period_label': period1_label,
+                'total_income': period1_summary['total_income'],
+                'total_expenses': period1_summary['total_expenses'],
+                'net_balance': period1_summary['net_balance'],
+                'transaction_count': period1_summary['transaction_count'],
+                'categories': period1_categories,
+                'top_recipients': period1_recipients
+            },
+            'period2': {
+                'period_label': period2_label,
+                'total_income': period2_summary['total_income'],
+                'total_expenses': period2_summary['total_expenses'],
+                'net_balance': period2_summary['net_balance'],
+                'transaction_count': period2_summary['transaction_count'],
+                'categories': period2_categories,
+                'top_recipients': period2_recipients
+            },
+            'comparison': comparison
+        }
+    
+    @staticmethod
+    def _format_period_label(start_date: date, end_date: date) -> str:
+        """
+        Format a period label based on start and end dates
+        
+        Args:
+            start_date: Period start date
+            end_date: Period end date
+            
+        Returns:
+            Formatted period label (e.g., "December 2024", "2024")
+        """
+        # Check if it's a full year
+        if (start_date.month == 1 and start_date.day == 1 and
+            end_date.month == 12 and end_date.day == 31 and
+            start_date.year == end_date.year):
+            return str(start_date.year)
+        
+        # Check if it's a single month
+        if (start_date.year == end_date.year and 
+            start_date.month == end_date.month):
+            month_name = calendar.month_name[start_date.month]
+            return f"{month_name} {start_date.year}"
+        
+        # Otherwise, show date range
+        return f"{start_date.strftime('%d.%m.%Y')} - {end_date.strftime('%d.%m.%Y')}"

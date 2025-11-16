@@ -17,23 +17,6 @@ Passt gut: ⚠️ Komplex, aber hochwertig. Benötigt min. 3 Monate Historie
 
 
 🎨 2. UX / UI VERBESSERUNGEN
-2.1 Advanced Filters & Saved Views
-Was es bringt: Komplexe Filterabfragen speichern und wiederverwenden
-
-Komplexität: Medium
-
-Integration:
-
-Backend: SavedFilter Tabelle (user_id, name, filter_json)
-Frontend: Filter-Builder UI + Schnellzugriff-Buttons
-Zustand: LocalStorage + optional Backend-Sync
-Beispiel:
-
-"Große Ausgaben > 100€"
-"Uncategorized transactions"
-"Weihnachtseinkäufe 2024"
-Passt gut: ✅ Sehr nützlich für Power-User
-
 2.4 Comparison View
 Was es bringt: Monate/Jahre vergleichen (z.B. Dezember 2024 vs. 2023)
 

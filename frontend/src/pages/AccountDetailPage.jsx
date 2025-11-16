@@ -15,6 +15,7 @@ import CategoriesTab from '../components/tabs/CategoriesTab';
 import BudgetsTab from '../components/tabs/BudgetsTab';
 import AccountSettings from '../components/accounts/AccountSettings';
 import RecurringTransactionsWidget from '../components/recurring/RecurringTransactionsWidget';
+import ComparisonView from '../components/comparison/ComparisonView';
 import { format } from 'date-fns';
 
 /**
@@ -121,6 +122,7 @@ export default function AccountDetailPage() {
     { id: 'categories', label: 'Kategorien', icon: '🏷️' },
     { id: 'budgets', label: 'Budgets', icon: '💰' },
     { id: 'recipients', label: 'Empfänger/Absender', icon: '👥' },
+    { id: 'comparison', label: 'Zeitraum-Vergleich', icon: '📈' },
     { id: 'csv-import', label: 'CSV Import & Mapping', icon: '📁' },
     { id: 'settings', label: 'Einstellungen', icon: '⚙️' },
   ];
@@ -298,6 +300,13 @@ export default function AccountDetailPage() {
               accountId={id} 
               currency={currentAccount.currency} 
             />
+          </div>
+        )}
+
+        {/* Comparison Tab */}
+        {activeTab === 'comparison' && (
+          <div>
+            <ComparisonView accountId={id} />
           </div>
         )}
 

@@ -26,12 +26,6 @@ services:
     restart: unless-stopped
     networks:
       - moneytracker-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
     # Resource limits for production
     deploy:
       resources:
@@ -54,18 +48,9 @@ services:
     environment:
       - VITE_API_URL=http://localhost:8000/api/v1
       - NODE_ENV=production
-    depends_on:
-      backend:
-        condition: service_healthy
     restart: always
     networks:
       - moneytracker-network
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
     deploy:
       resources:
         limits:

@@ -50,6 +50,35 @@ class BalanceHistoryResponse(BaseModel):
     balance: List[float] = Field(..., description="Cumulative balance")
 
 
+class PeriodComparisonData(BaseModel):
+    """Schema for a single period's comparison data"""
+    period_label: str = Field(..., description="Period label (e.g., 'December 2024')")
+    total_income: float = Field(..., description="Total income for period")
+    total_expenses: float = Field(..., description="Total expenses for period")
+    net_balance: float = Field(..., description="Net balance for period")
+    transaction_count: int = Field(..., description="Number of transactions")
+    categories: List[CategoryDataResponse] = Field(..., description="Category breakdown")
+    top_recipients: List[RecipientDataResponse] = Field(..., description="Top recipients/senders")
+
+
+class ComparisonResponse(BaseModel):
+    """Schema for period comparison response"""
+    period1: PeriodComparisonData = Field(..., description="First period data")
+    period2: PeriodComparisonData = Field(..., description="Second period data")
+    comparison: dict = Field(..., description="Comparison metrics (differences, percentages)")
+
+
+class ComparisonMetrics(BaseModel):
+    """Schema for comparison metrics"""
+    income_diff: float = Field(..., description="Income difference (period2 - period1)")
+    income_diff_percent: float = Field(..., description="Income percentage change")
+    expenses_diff: float = Field(..., description="Expenses difference (period2 - period1)")
+    expenses_diff_percent: float = Field(..., description="Expenses percentage change")
+    balance_diff: float = Field(..., description="Balance difference")
+    balance_diff_percent: float = Field(..., description="Balance percentage change")
+    transaction_count_diff: int = Field(..., description="Transaction count difference")
+
+
 class StatisticsResponse(BaseModel):
     """Schema for account statistics"""
     summary: SummaryResponse

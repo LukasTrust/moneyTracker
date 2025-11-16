@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import AccountList from '../components/accounts/AccountList';
 import CategoryManager from '../components/categories/CategoryManager';
 import DashboardGraphOverview from '../components/dashboard/DashboardGraphOverview';
+import BudgetManager from '../components/budget/BudgetManager';
+import BudgetProgressCard from '../components/budget/BudgetProgressCard';
 
 /**
  * Dashboard - Hauptseite mit Tabs
@@ -10,6 +12,7 @@ import DashboardGraphOverview from '../components/dashboard/DashboardGraphOvervi
  * - Übersicht: Aggregierte Graphen und KPIs über alle Accounts
  * - Konten: AccountList mit Erstellen/Verwalten
  * - Kategorien: Globaler CategoryManager
+ * - Budgets: Budget-Verwaltung und Fortschrittsanzeige
  * 
  * ERWEITERBARKEIT:
  * - Weitere Tabs: z.B. "Berichte", "Einstellungen", "Benutzer"
@@ -22,6 +25,7 @@ export default function Dashboard() {
     { id: 'overview', label: 'Übersicht', icon: '📊' },
     { id: 'accounts', label: 'Meine Konten', icon: '💳' },
     { id: 'categories', label: 'Kategorien', icon: '🏷️' },
+    { id: 'budgets', label: 'Budgets', icon: '💰' },
   ];
 
   return (
@@ -76,7 +80,19 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <main className="mx-auto px-6 sm:px-8 lg:px-12 py-8">
-        {activeTab === 'overview' && <DashboardGraphOverview />}
+        {activeTab === 'overview' && (
+          <div className="space-y-6">
+            <DashboardGraphOverview />
+            {/* Budget Overview in Dashboard */}
+            <div className="mt-6">
+              <BudgetProgressCard 
+                activeOnly={true}
+                showSummary={true}
+                refreshInterval={60000}
+              />
+            </div>
+          </div>
+        )}
         {activeTab === 'accounts' && <AccountList />}
         {activeTab === 'categories' && (
           <div>
@@ -87,6 +103,27 @@ export default function Dashboard() {
               </p>
             </div>
             <CategoryManager />
+          </div>
+        )}
+        {activeTab === 'budgets' && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">Budget-Verwaltung</h2>
+              <p className="text-gray-600">
+                Setzen Sie Budgets für Ihre Kategorien und behalten Sie den Überblick über Ihre Ausgaben.
+                Budgets helfen Ihnen, finanzielle Ziele zu erreichen und Ausgaben zu kontrollieren.
+              </p>
+            </div>
+            
+            {/* Budget Progress Overview */}
+            <BudgetProgressCard 
+              activeOnly={true}
+              showSummary={true}
+              refreshInterval={30000}
+            />
+            
+            {/* Budget Management */}
+            <BudgetManager />
           </div>
         )}
       </main>

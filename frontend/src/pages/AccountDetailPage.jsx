@@ -12,6 +12,7 @@ import TransactionTable from '../components/visualization/TransactionTable';
 import UnifiedFilter from '../components/common/UnifiedFilter';
 import RecipientsTab from '../components/tabs/RecipientsTab';
 import CategoriesTab from '../components/tabs/CategoriesTab';
+import BudgetsTab from '../components/tabs/BudgetsTab';
 import AccountSettings from '../components/accounts/AccountSettings';
 import { format } from 'date-fns';
 
@@ -81,8 +82,9 @@ export default function AccountDetailPage() {
   const tabs = [
     { id: 'data', label: 'Übersicht', icon: '📊' },
     { id: 'categories', label: 'Kategorien', icon: '🏷️' },
+    { id: 'budgets', label: 'Budgets', icon: '💰' },
     { id: 'recipients', label: 'Empfänger/Absender', icon: '👥' },
-    { id: 'csv-import', label: 'CSV Import & Mapping', icon: '�' },
+    { id: 'csv-import', label: 'CSV Import & Mapping', icon: '📁' },
     { id: 'settings', label: 'Einstellungen', icon: '⚙️' },
   ];
 
@@ -217,20 +219,30 @@ export default function AccountDetailPage() {
           </div>
         )}
 
-        {/* Recipients/Senders Tab */}
-        {activeTab === 'recipients' && (
+        {/* Categories Tab */}
+        {activeTab === 'categories' && (
           <div>
-            <RecipientsTab 
+            <CategoriesTab 
               accountId={id} 
               currency={currentAccount.currency} 
             />
           </div>
         )}
 
-        {/* Categories Tab */}
-        {activeTab === 'categories' && (
+        {/* Budgets Tab */}
+        {activeTab === 'budgets' && (
           <div>
-            <CategoriesTab 
+            <BudgetsTab 
+              accountId={id} 
+              currency={currentAccount.currency} 
+            />
+          </div>
+        )}
+
+        {/* Recipients/Senders Tab */}
+        {activeTab === 'recipients' && (
+          <div>
+            <RecipientsTab 
               accountId={id} 
               currency={currentAccount.currency} 
             />

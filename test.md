@@ -2,7 +2,6 @@
 1.1 Budget-Management
 Was es bringt: Nutzer können monatliche/jährliche Budgets pro Kategorie setzen und Überschreitungen werden visualisiert.
 
-Komplexität: Medium
 
 Integration:
 
@@ -12,7 +11,6 @@ Service: BudgetTracker vergleicht actual vs. budget
 Dashboard: Fortschrittsbalken pro Kategorie
 Technisch:
 
-Passt perfekt: ✅ Erweitert bestehendes Category-System, nutzt DataAggregator
 
 1.2 Recurring Transactions Detection
 Was es bringt: Automatische Erkennung wiederkehrender Transaktionen (Miete, Netflix, etc.)

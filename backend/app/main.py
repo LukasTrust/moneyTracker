@@ -7,8 +7,9 @@ from contextlib import asynccontextmanager
 
 from app.config import settings
 from app.database import engine, Base, SessionLocal
-from app.routers import accounts, categories, data, dashboard, mappings, csv_import, recipients
+from app.routers import accounts, categories, data, dashboard, mappings, csv_import, recipients, budgets
 from app.models.category import Category
+from app.models.budget import Budget
 
 
 def init_default_categories():
@@ -169,6 +170,12 @@ app.include_router(
     recipients.router,
     prefix=f"{settings.API_V1_PREFIX}/recipients",
     tags=["recipients"]
+)
+
+app.include_router(
+    budgets.router,
+    prefix=f"{settings.API_V1_PREFIX}/budgets",
+    tags=["budgets"]
 )
 
 

@@ -1,0 +1,70 @@
+# Backend .dockerignore
+# Exclude development and test files from Docker image
+
+# Python cache and artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+env/
+venv/
+ENV/
+.venv/
+
+# Testing and coverage
+.coverage
+htmlcov/
+coverage.xml
+.pytest_cache/
+test_*.py
+*_test.py
+conftest.py
+
+# Database files (should be in volumes)
+*.db
+*.sqlite
+*.sqlite3
+data/
+
+# Documentation
+*.md
+docs/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+
+# Docker files (not needed in image)
+Dockerfile
+.dockerignore
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+.DS_Store
+
+# Backups
+*.backup
+*.bak
+
+# Migration merged files (auto-generated)
+migrations/_merged_migration.sql

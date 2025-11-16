@@ -1,0 +1,87 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+.pnpm-debug.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Documentation
+*.md
+!README.md
+docs/
+REFACTORING_ROADMAP.md
+MIGRATION_DATAROW_REFACTORING.md
+DATAROW_REFACTORING_SUMMARY.md
+DOCKER_SETUP.md
+IMPROVEMENTS.md
+QUICKSTART.md
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Database (should be in volumes, not in image)
+*.db
+*.sqlite
+*.sqlite3
+data/
+
+# Backups
+backups/
+*.backup
+*.bak
+
+# Test files
+test_*.py
+*_test.py
+tests/
+test/
+
+# Coverage reports
+.coverage
+htmlcov/
+coverage.xml
+
+# Build artifacts
+dist/
+build/
+*.egg
+*.wheel
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp

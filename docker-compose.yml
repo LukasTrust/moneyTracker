@@ -1,0 +1,85 @@
+# Production Docker Compose Configuration
+# Usage: docker-compose -f docker-compose.prod.yml up -d
+
+services:
+  # Backend API Service (Production)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: moneytracker-backend-prod
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:////app/data/moneytracker.db
+      - API_V1_PREFIX=/api/v1
+      - PROJECT_NAME=Money Tracker API
+      - HOST=0.0.0.0
+      - PORT=8000
+      - RELOAD=false
+      - ENV=production
+      - BACKEND_CORS_ORIGINS=["http://localhost","http://localhost:80","http://localhost:5173"]
+    volumes:
+      # Only mount data volume, no source code
+      - sqlite-data-prod:/app/data
+    restart: unless-stopped
+    networks:
+      - moneytracker-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    # Resource limits for production
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+  # Frontend Service (Production)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: production
+    container_name: moneytracker-frontend-prod
+    ports:
+      - "80:80"  # Nginx serves on port 80
+    environment:
+      - VITE_API_URL=http://localhost:8000/api/v1
+      - NODE_ENV=production
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: always
+    networks:
+      - moneytracker-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+networks:
+  moneytracker-network:
+    driver: bridge
+
+volumes:
+  sqlite-data-prod:
+    driver: local
+    # Production data - backup regularly!

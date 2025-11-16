@@ -1,0 +1,584 @@
+/**
+ * CSV Import Wizard - Step-by-Step Import Process
+ * 
+ * STEPS:
+ * 1. File Upload (Drag & Drop)
+ * 2. Mapping Configuration & Preview
+ * 3. Import Progress & Results
+ */
+
+import React, { useState, useEffect } from 'react';
+import { useDropzone } from 'react-dropzone';
+import ImportProgress from './ImportProgress';
+import { previewCsv, importCsv } from '../../services/csvImportApi';
+import mappingService from '../../services/mappingService';
+import { useToast } from '../../hooks/useToast';
+
+const STEPS = [
+  { id: 1, title: 'Datei hochladen', icon: '📁' },
+  { id: 2, title: 'Überprüfen', icon: '✓' },
+  { id: 3, title: 'Importieren', icon: '⚡' },
+];
+
+const REQUIRED_FIELDS = ['date', 'amount', 'recipient'];
+const OPTIONAL_FIELDS = ['purpose'];
+const ALL_FIELDS = [...REQUIRED_FIELDS, ...OPTIONAL_FIELDS];
+
+// Field configuration
+const FIELD_CONFIG = {
+  date: { label: 'Datum', icon: '📅', description: 'Transaktionsdatum' },
+  amount: { label: 'Betrag', icon: '💰', description: 'Transaktionsbetrag' },
+  recipient: { label: 'Empfänger/Absender', icon: '👤', description: 'Gegenpartei der Transaktion' },
+  purpose: { label: 'Verwendungszweck', icon: '📝', description: 'Beschreibung/Buchungstext (optional)' },
+};
+
+const getFieldLabel = (field) => FIELD_CONFIG[field]?.label || field;
+const getFieldIcon = (field) => FIELD_CONFIG[field]?.icon || '📄';
+
+export default function CsvImportWizard({ accountId, onImportSuccess }) {
+  const [currentStep, setCurrentStep] = useState(1);
+  const [file, setFile] = useState(null);
+  const [csvPreview, setCsvPreview] = useState(null);
+  const [mapping, setMapping] = useState({
+    date: '',
+    amount: '',
+    recipient: '',
+    purpose: '',
+  });
+  const [existingMapping, setExistingMapping] = useState(null);
+  const [mappingEditable, setMappingEditable] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [importResult, setImportResult] = useState(null);
+  const [importStage, setImportStage] = useState('uploading');
+
+  const { showToast } = useToast();
+
+  // Load existing mappings when component mounts
+  useEffect(() => {
+    if (accountId) {
+      loadExistingMappings();
+    }
+  }, [accountId]);
+
+  /**
+   * Load existing mappings from backend
+   */
+  const loadExistingMappings = async () => {
+    try {
+      const mappings = await mappingService.getMappings(accountId);
+      
+      if (mappings && mappings.length > 0) {
+        // Convert array to object
+        const mappingObj = {};
+        mappings.forEach((m) => {
+          mappingObj[m.standard_field] = m.csv_header;
+        });
+        
+        setExistingMapping(mappingObj);
+        setMapping(mappingObj);
+        setMappingEditable(false);
+      } else {
+        setExistingMapping(null);
+        setMappingEditable(true);
+      }
+    } catch (error) {
+      console.error('Error loading mappings:', error);
+      setExistingMapping(null);
+      setMappingEditable(true);
+    }
+  };
+
+  // Drag & Drop Configuration
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    accept: { 'text/csv': ['.csv'] },
+    multiple: false,
+    onDrop: async (acceptedFiles) => {
+      const csvFile = acceptedFiles[0];
+      if (!csvFile) return;
+
+      setIsLoading(true);
+      setFile(csvFile);
+      
+      try {
+        const preview = await previewCsv(csvFile);
+        setCsvPreview(preview);
+        
+        // Check if existing mapping exists and if headers match
+        if (existingMapping) {
+          const existingHeaders = Object.values(existingMapping).filter(h => h);
+          const headersMatch = existingHeaders.every(h => preview.headers.includes(h));
+          
+          if (!headersMatch) {
+            // Headers don't match - allow manual editing
+            setMappingEditable(true);
+            showToast('⚠️ CSV-Struktur weicht vom gespeicherten Mapping ab. Bitte prüfen Sie die Zuordnungen.', 'warning');
+          } else {
+            // Headers match - keep read-only but user can unlock
+            setMappingEditable(false);
+            showToast('✅ CSV erfolgreich geladen. Gespeichertes Mapping wird verwendet.', 'success');
+          }
+        } else {
+          // No existing mapping - enable manual editing
+          setMappingEditable(true);
+          showToast('✅ CSV erfolgreich geladen. Bitte ordnen Sie die Felder zu.', 'success');
+        }
+        
+        setCurrentStep(2);
+      } catch (error) {
+        showToast(
+          error.response?.data?.detail || 'Fehler beim Laden der CSV',
+          'error'
+        );
+        setFile(null);
+        setCsvPreview(null);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+  });
+
+  const handleMappingChange = (fieldName, csvHeader) => {
+    if (!mappingEditable) return;
+    
+    setMapping((prev) => ({
+      ...prev,
+      [fieldName]: csvHeader,
+    }));
+  };
+
+  const enableMappingEdit = () => {
+    setMappingEditable(true);
+  };
+
+  const handleStartImport = async () => {
+    if (!file || !mapping) return;
+
+    // Validate mapping before starting import
+    const missingFields = REQUIRED_FIELDS.filter(field => !mapping[field]);
+    
+    if (missingFields.length > 0) {
+      showToast(
+        `❌ Pflichtfelder fehlen: ${missingFields.join(', ')}`,
+        'error'
+      );
+      return;
+    }
+
+    setIsLoading(true);
+    setCurrentStep(3);
+
+    try {
+      // Simulate realistic progress stages
+      setImportStage('uploading');
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      setImportStage('parsing');
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      setImportStage('validating');
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      setImportStage('importing');
+      const result = await importCsv(accountId, mapping, file);
+      
+      setImportStage('finishing');
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      setImportResult(result);
+      
+      // Show detailed success message
+      if (result.imported_count > 0) {
+        showToast(
+          `✅ ${result.imported_count} Transaktionen erfolgreich importiert!`,
+          'success'
+        );
+      }
+      
+      if (result.duplicate_count > 0) {
+        showToast(
+          `ℹ️ ${result.duplicate_count} Duplikate übersprungen`,
+          'info'
+        );
+      }
+      
+      if (result.error_count > 0) {
+        showToast(
+          `⚠️ ${result.error_count} Zeilen mit Fehlern`,
+          'warning'
+        );
+      }
+
+      // Reload mappings (they were saved after import)
+      await loadExistingMappings();
+      
+      // Notify parent component (without automatic redirect)
+      if (onImportSuccess) {
+        onImportSuccess();
+      }
+    } catch (error) {
+      const errorDetail = error.response?.data?.detail || 'Unbekannter Fehler beim Import';
+      showToast(
+        `❌ Import fehlgeschlagen: ${errorDetail}`,
+        'error'
+      );
+      setCurrentStep(2); // Go back to review
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleReset = () => {
+    setCurrentStep(1);
+    setFile(null);
+    setCsvPreview(null);
+    setMapping(existingMapping || {
+      date: '',
+      amount: '',
+      recipient: '',
+      purpose: '',
+    });
+    setMappingEditable(!existingMapping);
+    setImportResult(null);
+    setImportStage('uploading');
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Progress Stepper */}
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <div className="flex items-center justify-between">
+          {STEPS.map((step, index) => (
+            <React.Fragment key={step.id}>
+              <div className="flex flex-col items-center flex-1">
+                <div
+                  className={`
+                    w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold transition-all
+                    ${currentStep >= step.id
+                      ? 'bg-primary-600 text-white'
+                      : 'bg-gray-200 text-gray-500'
+                    }
+                    ${currentStep === step.id ? 'ring-4 ring-primary-200' : ''}
+                  `}
+                >
+                  {step.icon}
+                </div>
+                <span
+                  className={`
+                    mt-2 text-xs font-medium text-center
+                    ${currentStep >= step.id ? 'text-gray-900' : 'text-gray-500'}
+                  `}
+                >
+                  {step.title}
+                </span>
+              </div>
+              {index < STEPS.length - 1 && (
+                <div
+                  className={`
+                    flex-1 h-1 mx-2 rounded transition-all
+                    ${currentStep > step.id ? 'bg-primary-600' : 'bg-gray-200'}
+                  `}
+                />
+              )}
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
+
+      {/* Step Content */}
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
+        {/* STEP 1: File Upload */}
+        {currentStep === 1 && (
+          <div className="space-y-4">
+            <h2 className="text-xl font-bold text-gray-900">
+              📁 CSV-Datei hochladen
+            </h2>
+            <p className="text-gray-600">
+              Laden Sie Ihre Banktransaktionen als CSV-Datei hoch.
+            </p>
+
+            <div
+              {...getRootProps()}
+              className={`
+                border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition-all
+                ${isDragActive
+                  ? 'border-primary-600 bg-primary-50'
+                  : 'border-gray-300 hover:border-gray-400 bg-gray-50'
+                }
+              `}
+            >
+              <input {...getInputProps()} />
+              <div className="text-6xl mb-4">📄</div>
+              {isDragActive ? (
+                <p className="text-lg font-medium text-primary-600">
+                  Datei hier ablegen...
+                </p>
+              ) : (
+                <>
+                  <p className="text-lg font-medium text-gray-900 mb-2">
+                    CSV-Datei hierher ziehen oder klicken
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    Unterstützte Formate: .csv
+                  </p>
+                </>
+              )}
+            </div>
+
+            {isLoading && (
+              <div className="flex items-center justify-center gap-3 py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary-600 border-t-transparent"></div>
+                <span className="text-gray-600">Analysiere CSV...</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* STEP 2: Mapping Configuration & Preview */}
+        {currentStep === 2 && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">
+                  ✓ Überprüfung & Mapping
+                </h2>
+                <p className="text-gray-600 mt-1">
+                  Prüfen Sie das Mapping und starten Sie den Import
+                </p>
+              </div>
+              <button
+                onClick={() => setCurrentStep(1)}
+                className="text-sm text-gray-500 hover:text-gray-700"
+              >
+                ← Zurück
+              </button>
+            </div>
+
+            {csvPreview && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                <p className="text-sm text-green-800">
+                  ✓ CSV geladen: <strong>{csvPreview.total_rows}</strong> Zeilen,{' '}
+                  <strong>{csvPreview.headers.length}</strong> Spalten
+                </p>
+              </div>
+            )}
+
+            {/* Mapping Configuration */}
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Felder zuordnen
+                </h3>
+                {existingMapping && !mappingEditable && (
+                  <button
+                    onClick={enableMappingEdit}
+                    className="px-3 py-1.5 text-sm font-medium text-primary-700 bg-primary-50 rounded-lg hover:bg-primary-100"
+                  >
+                    ✏️ Mapping ändern
+                  </button>
+                )}
+              </div>
+
+              <div className="space-y-4">
+                {REQUIRED_FIELDS.map((field) => (
+                  <div key={field} className="border border-gray-200 rounded-lg p-4">
+                    <label className="block text-sm font-medium text-gray-900 mb-2">
+                      <span className="mr-2">{getFieldIcon(field)}</span>
+                      {getFieldLabel(field)}
+                      <span className="text-red-500 ml-1">*</span>
+                      {!mappingEditable && (
+                        <span className="ml-2 text-xs text-gray-500">🔒 Gesperrt</span>
+                      )}
+                    </label>
+                    <select
+                      value={mapping[field] || ''}
+                      onChange={(e) => handleMappingChange(field, e.target.value)}
+                      disabled={!mappingEditable}
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    >
+                      <option value="">-- Bitte wählen --</option>
+                      {csvPreview?.headers.map((header) => (
+                        <option key={header} value={header}>
+                          {header}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="mt-1 text-xs text-gray-500">{FIELD_CONFIG[field]?.description}</p>
+                  </div>
+                ))}
+
+                {/* Optional Fields Section */}
+                {OPTIONAL_FIELDS.map((field) => (
+                  <div key={field} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                    <label className="block text-sm font-medium text-gray-900 mb-2">
+                      <span className="mr-2">{getFieldIcon(field)}</span>
+                      {getFieldLabel(field)}
+                      <span className="text-gray-400 ml-1 text-xs">(optional)</span>
+                      {!mappingEditable && (
+                        <span className="ml-2 text-xs text-gray-500">🔒 Gesperrt</span>
+                      )}
+                    </label>
+                    <select
+                      value={mapping[field] || ''}
+                      onChange={(e) => handleMappingChange(field, e.target.value)}
+                      disabled={!mappingEditable}
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    >
+                      <option value="">-- Nicht zuordnen --</option>
+                      {csvPreview?.headers.map((header) => (
+                        <option key={header} value={header}>
+                          {header}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="mt-1 text-xs text-gray-500">{FIELD_CONFIG[field]?.description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Validation Alert */}
+            {(() => {
+              const missingFields = REQUIRED_FIELDS.filter(field => !mapping[field]);
+              const hasAllRequired = missingFields.length === 0;
+              
+              return (
+                <>
+                  {!hasAllRequired && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl">⚠️</span>
+                        <div>
+                          <h3 className="font-semibold text-red-900 mb-1">
+                            Pflichtfelder fehlen
+                          </h3>
+                          <p className="text-sm text-red-700">
+                            Folgende Felder müssen gemappt werden: <strong>{missingFields.map(f => getFieldLabel(f)).join(', ')}</strong>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {hasAllRequired && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl">✅</span>
+                        <div>
+                          <h3 className="font-semibold text-green-900 mb-1">
+                            Mapping vollständig
+                          </h3>
+                          <p className="text-sm text-green-700">
+                            Alle Pflichtfelder sind korrekt zugeordnet
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+
+            {/* CSV Preview */}
+            {csvPreview && csvPreview.sample_rows && (
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900 mb-2">
+                  Vorschau (erste 5 Zeilen):
+                </h3>
+                <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        {csvPreview.headers.slice(0, 6).map((header, idx) => (
+                          <th
+                            key={idx}
+                            className="px-3 py-2 text-left text-xs font-medium text-gray-700"
+                          >
+                            {header}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {csvPreview.sample_rows.slice(0, 5).map((row, idx) => (
+                        <tr key={idx}>
+                          {csvPreview.headers.slice(0, 6).map((header, cellIdx) => (
+                            <td
+                              key={cellIdx}
+                              className="px-3 py-2 text-sm text-gray-900"
+                            >
+                              {row.data?.[header] || '-'}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleStartImport}
+                disabled={!REQUIRED_FIELDS.every(field => mapping[field])}
+                className={`
+                  flex-1 px-6 py-3 rounded-lg font-semibold transition-colors
+                  ${!REQUIRED_FIELDS.every(field => mapping[field])
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-primary-600 text-white hover:bg-primary-700'
+                  }
+                `}
+              >
+                ⚡ Import starten
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 3: Import Progress & Results */}
+        {currentStep === 3 && (
+          <div className="space-y-6 text-center">
+            {isLoading ? (
+              <ImportProgress 
+                estimatedRows={csvPreview?.total_rows || 0}
+                stage={importStage}
+              />
+            ) : importResult ? (
+              <>
+                <div className="text-6xl mb-4">✅</div>
+                <h2 className="text-2xl font-bold text-green-600">
+                  Import erfolgreich!
+                </h2>
+                <div className="grid grid-cols-3 gap-4 max-w-2xl mx-auto">
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <p className="text-3xl font-bold text-green-600">
+                      {importResult.imported_count}
+                    </p>
+                    <p className="text-sm text-green-700 mt-1">Importiert</p>
+                  </div>
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <p className="text-3xl font-bold text-yellow-600">
+                      {importResult.duplicate_count}
+                    </p>
+                    <p className="text-sm text-yellow-700 mt-1">Duplikate</p>
+                  </div>
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <p className="text-3xl font-bold text-red-600">
+                      {importResult.error_count}
+                    </p>
+                    <p className="text-sm text-red-700 mt-1">Fehler</p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleReset}
+                  className="mt-6 bg-primary-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-primary-700"
+                >
+                  Weiteren Import starten
+                </button>
+              </>
+            ) : null}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import AccountList from '../components/accounts/AccountList';
 import CategoryManager from '../components/categories/CategoryManager';
 import DashboardGraphOverview from '../components/dashboard/DashboardGraphOverview';
+import InsightPopup from '../components/dashboard/InsightPopup';
 import BudgetManager from '../components/budget/BudgetManager';
 import BudgetProgressCard from '../components/budget/BudgetProgressCard';
 import RecurringTransactionsWidget from '../components/recurring/RecurringTransactionsWidget';
@@ -84,8 +85,18 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <main className="mx-auto px-6 sm:px-8 lg:px-12 py-8">
+        {/* Insight Popup - Auto-shows on page load */}
+        <InsightPopup 
+          accountId={null}
+          maxInsights={2}
+          delayMs={3000}
+          autoShow={activeTab === 'overview'}
+          onInsightShown={(insight) => console.log('Insight shown:', insight)}
+          onInsightDismissed={(insight) => console.log('Insight dismissed:', insight)}
+        />
+        
         {activeTab === 'overview' && (
-          <div className="space-y-6">
+          <div className="space-y-6">            
             <DashboardGraphOverview />
             
             {/* Recurring Transactions Widget */}

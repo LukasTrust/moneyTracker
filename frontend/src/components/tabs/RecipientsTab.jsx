@@ -96,7 +96,7 @@ function RecipientsTab({ accountId, currency = 'EUR' }) {
     console.log('RecipientsTab: Recipients error:', recipientsError);
     console.log('RecipientsTab: Senders data:', senders);
     console.log('RecipientsTab: Senders error:', sendersError);
-  }, [fromDate, toDate, dateParams, selectedCategoryIds, selectedCategoryId, recipients, senders, recipientsError, sendersError]);
+  }, [fromDate, toDate, dateParams, selectedCategoryIds, recipients, senders, recipientsError, sendersError, minAmount, maxAmount, recipientQuery, purposeQuery, transactionType, filterParams]);
 
   // Handler für Segment-Klick (optional - für Drill-down)
   const handleRecipientClick = useCallback((recipient) => {

@@ -1,21 +1,3 @@
-1.3 Smart Forecasting
-Was es bringt: Prognose des Kontostands für nächste 3-6 Monate basierend auf Mustern
-
-Komplexität: High
-
-Integration:
-
-Service: BalanceForecaster
-Algorithmus:
-Durchschnittliche monatliche Ausgaben/Einnahmen (letzte 6 Monate)
-Berücksichtigung erkannter recurring transactions
-Saisonale Trends (z.B. Weihnachten)
-Frontend: Forecast-Chart im Dashboard
-Technisch:
-
-Passt gut: ⚠️ Komplex, aber hochwertig. Benötigt min. 3 Monate Historie
-
-
 🎨 2. UX / UI VERBESSERUNGEN
 2.5 Export Reports (PDF/Excel)
 Was es bringt: Professionelle Reports für Steuern/Buchhaltung
@@ -46,21 +28,6 @@ Frontend: Icons/Badges pro Typ
 Technisch:
 
 Passt perfekt: ✅ Einfach, praktisch
-
-4.3 Inter-Account Transfers
-Was es bringt: Überweisungen zwischen eigenen Konten markieren (nicht als Einnahme/Ausgabe zählen)
-
-Komplexität: Medium
-
-Integration:
-
-Neue Tabelle: Transfer (from_data_row_id, to_data_row_id)
-Service: TransferMatcher findet matching transactions (gleiches Datum, invertierter Betrag)
-Aggregation: Exclude transfers from income/expense
-Frontend: "Transfer"-Badge
-Technisch:
-
-Passt perfekt: ✅ Kritisch für korrekte Statistiken bei Multi-Account
 
 5.2 Anomaly Detection
 Was es bringt: Ungewöhnliche Ausgaben erkennen (z.B. 500€ für Lebensmittel)

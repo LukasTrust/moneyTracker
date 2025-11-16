@@ -10,6 +10,7 @@ from .budget import Budget
 from .recurring_transaction import RecurringTransaction, RecurringTransactionLink
 from .import_history import ImportHistory
 from .transfer import Transfer
+from .insight import Insight, InsightGenerationLog
 
 __all__ = [
     "Account",
@@ -22,4 +23,6 @@ __all__ = [
     "RecurringTransactionLink",
     "ImportHistory",
     "Transfer",
+    "Insight",
+    "InsightGenerationLog",
 ]

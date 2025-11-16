@@ -11,6 +11,7 @@ from . import recipients
 from . import budgets
 from . import recurring
 from . import import_history
+from . import transfers
 
 __all__ = [
     "accounts",
@@ -23,4 +24,5 @@ __all__ = [
     "budgets",
     "recurring",
     "import_history",
+    "transfers",
 ]

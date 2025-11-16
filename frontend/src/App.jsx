@@ -8,6 +8,7 @@ import { useCategoryStore } from './store/categoryStore';
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const AccountDetailPage = lazy(() => import('./pages/AccountDetailPage'));
 const ComparisonPage = lazy(() => import('./pages/ComparisonPage'));
+const TransferManagementPage = lazy(() => import('./components/transfers/TransferManagementPage'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 /**
@@ -44,6 +45,7 @@ function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/accounts/:id" element={<AccountDetailPage />} />
           <Route path="/accounts/:id/compare" element={<ComparisonPage />} />
+          <Route path="/transfers" element={<TransferManagementPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>

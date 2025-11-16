@@ -31,21 +31,6 @@ Technisch:
 
 Passt gut: ⚠️ Zusätzliche Dependencies, aber hoher Business-Wert
 
-3.6 Import History & Rollback
-Was es bringt: Sehen welche CSVs wann importiert wurden, Rückgängig machen
-
-Komplexität: Low-Medium
-
-Integration:
-
-Neue Tabelle: ImportHistory (filename, uploaded_at, row_count, account_id)
-Link: DataRow → import_id
-Backend: Rollback = DELETE WHERE import_id = X
-Frontend: Import-Log-Page
-Technisch:
-
-Passt perfekt: ✅ Wichtig für Fehlerkorrektur
-
 4.2 Account Types (Checking, Savings, Credit Card)
 Was es bringt: Unterschiedliche Behandlung je nach Typ
 

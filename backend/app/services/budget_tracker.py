@@ -2,7 +2,7 @@
 Budget Tracker Service - Business logic for budget management and progress tracking
 """
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, func
+from sqlalchemy import and_, func, or_
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import List, Optional, Dict
@@ -10,6 +10,7 @@ from typing import List, Optional, Dict
 from app.models.budget import Budget
 from app.models.category import Category
 from app.models.data_row import DataRow
+from app.models.transfer import Transfer
 from app.schemas.budget import BudgetProgressInfo, BudgetWithProgress, BudgetSummary
 
 
@@ -20,6 +21,26 @@ class BudgetTracker:
     
     def __init__(self, db: Session):
         self.db = db
+    
+    def _get_transfer_transaction_ids(self) -> set:
+        """
+        Get set of all transaction IDs that are part of transfers.
+        These should be excluded from budget calculations.
+        
+        Returns:
+            Set of transaction IDs involved in transfers
+        """
+        transfer_ids = set()
+        
+        # Get all from_transaction_ids
+        from_ids = self.db.query(Transfer.from_transaction_id).all()
+        transfer_ids.update([tid[0] for tid in from_ids])
+        
+        # Get all to_transaction_ids
+        to_ids = self.db.query(Transfer.to_transaction_id).all()
+        transfer_ids.update([tid[0] for tid in to_ids])
+        
+        return transfer_ids
     
     def calculate_budget_progress(
         self,
@@ -38,6 +59,9 @@ class BudgetTracker:
         """
         today = date.today()
         
+        # Get transfer transaction IDs to exclude
+        transfer_ids = self._get_transfer_transaction_ids()
+        
         # Calculate total spent in this budget period
         query = self.db.query(func.sum(func.abs(DataRow.amount))).filter(
             and_(
@@ -47,6 +71,10 @@ class BudgetTracker:
                 DataRow.amount < 0  # Only expenses (negative amounts)
             )
         )
+        
+        # Exclude transfer transactions
+        if transfer_ids:
+            query = query.filter(~DataRow.id.in_(transfer_ids))
         
         # Optional: Filter by account
         if account_id is not None:

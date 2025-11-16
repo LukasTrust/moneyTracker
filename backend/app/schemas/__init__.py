@@ -51,6 +51,17 @@ from .import_history import (
     ImportRollbackRequest,
     ImportRollbackResponse
 )
+from .transfer import (
+    TransferBase,
+    TransferCreate,
+    TransferUpdate,
+    TransferResponse,
+    TransferWithDetails,
+    TransferCandidate,
+    TransferDetectionRequest,
+    TransferDetectionResponse,
+    TransferStats
+)
 
 __all__ = [
     # Account
@@ -96,4 +107,14 @@ __all__ = [
     "ImportHistoryListResponse",
     "ImportRollbackRequest",
     "ImportRollbackResponse",
+    # Transfers
+    "TransferBase",
+    "TransferCreate",
+    "TransferUpdate",
+    "TransferResponse",
+    "TransferWithDetails",
+    "TransferCandidate",
+    "TransferDetectionRequest",
+    "TransferDetectionResponse",
+    "TransferStats",
 ]

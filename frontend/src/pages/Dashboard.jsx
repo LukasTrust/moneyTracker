@@ -5,6 +5,7 @@ import DashboardGraphOverview from '../components/dashboard/DashboardGraphOvervi
 import BudgetManager from '../components/budget/BudgetManager';
 import BudgetProgressCard from '../components/budget/BudgetProgressCard';
 import RecurringTransactionsWidget from '../components/recurring/RecurringTransactionsWidget';
+import TransferManagementPage from '../components/transfers/TransferManagementPage';
 
 /**
  * Dashboard - Hauptseite mit Tabs
@@ -28,6 +29,7 @@ export default function Dashboard() {
     { id: 'categories', label: 'Kategorien', icon: '🏷️' },
     { id: 'budgets', label: 'Budgets', icon: '💰' },
     { id: 'contracts', label: 'Verträge', icon: '📋' },
+    { id: 'transfers', label: 'Transfers', icon: '🔄' },
   ];
 
   return (
@@ -145,6 +147,11 @@ export default function Dashboard() {
             </div>
             
             <RecurringTransactionsWidget />
+          </div>
+        )}
+        {activeTab === 'transfers' && (
+          <div className="space-y-6">
+            <TransferManagementPage />
           </div>
         )}
       </main>

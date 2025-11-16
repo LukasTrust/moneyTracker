@@ -1,7 +1,7 @@
 """
 Data Aggregator - Aggregate transaction data for statistics and charts
 """
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional, Tuple, Set
 from sqlalchemy.orm import Session
 from sqlalchemy import func, case, and_, or_
 from datetime import datetime, date
@@ -10,6 +10,7 @@ import calendar
 
 from app.models.data_row import DataRow
 from app.models.category import Category
+from app.models.transfer import Transfer
 
 
 class DataAggregator:
@@ -25,6 +26,26 @@ class DataAggregator:
             db: SQLAlchemy database session
         """
         self.db = db
+    
+    def _get_transfer_transaction_ids(self) -> Set[int]:
+        """
+        Get set of all transaction IDs that are part of transfers.
+        These should be excluded from income/expense calculations.
+        
+        Returns:
+            Set of transaction IDs involved in transfers
+        """
+        transfer_ids = set()
+        
+        # Get all from_transaction_ids
+        from_ids = self.db.query(Transfer.from_transaction_id).all()
+        transfer_ids.update([tid[0] for tid in from_ids])
+        
+        # Get all to_transaction_ids
+        to_ids = self.db.query(Transfer.to_transaction_id).all()
+        transfer_ids.update([tid[0] for tid in to_ids])
+        
+        return transfer_ids
     
     @staticmethod
     def parse_amount(amount_str: str) -> float:
@@ -95,12 +116,19 @@ class DataAggregator:
         # Use SQL aggregation for better performance
         from sqlalchemy import case, cast, Float
         
+        # Exclude transfers from calculations
+        transfer_ids = self._get_transfer_transaction_ids()
+        
         query = self.db.query(
             func.sum(case((DataRow.amount > 0, DataRow.amount), else_=0)).label('total_income'),
             func.sum(case((DataRow.amount < 0, DataRow.amount), else_=0)).label('total_expenses'),
             func.sum(DataRow.amount).label('net_balance'),
             func.count(DataRow.id).label('transaction_count')
         )
+        
+        # Exclude transfer transactions
+        if transfer_ids:
+            query = query.filter(~DataRow.id.in_(transfer_ids))
         
         # Apply filters
         if account_id:
@@ -207,12 +235,19 @@ class DataAggregator:
         """
         from sqlalchemy import case
         
+        # Exclude transfers from calculations
+        transfer_ids = self._get_transfer_transaction_ids()
+        
         # Build aggregation query
         query = self.db.query(
             DataRow.category_id,
             func.sum(DataRow.amount).label('total_amount'),
             func.count(DataRow.id).label('count')
         )
+        
+        # Exclude transfer transactions
+        if transfer_ids:
+            query = query.filter(~DataRow.id.in_(transfer_ids))
         
         # Apply filters
         if account_id:
@@ -368,7 +403,14 @@ class DataAggregator:
         Returns:
             List of recipient aggregations
         """
+        # Exclude transfers from calculations
+        transfer_ids = self._get_transfer_transaction_ids()
+        
         query = self.db.query(DataRow)
+        
+        # Exclude transfer transactions
+        if transfer_ids:
+            query = query.filter(~DataRow.id.in_(transfer_ids))
         
         # Apply filters
         if account_id:
@@ -514,6 +556,9 @@ class DataAggregator:
         """
         from sqlalchemy import case
         
+        # Exclude transfers from calculations
+        transfer_ids = self._get_transfer_transaction_ids()
+        
         # Define grouping format based on group_by
         if group_by == 'day':
             date_format = '%Y-%m-%d'
@@ -528,6 +573,10 @@ class DataAggregator:
             func.sum(case((DataRow.amount > 0, DataRow.amount), else_=0)).label('income'),
             func.sum(case((DataRow.amount < 0, DataRow.amount), else_=0)).label('expenses')
         )
+        
+        # Exclude transfer transactions
+        if transfer_ids:
+            query = query.filter(~DataRow.id.in_(transfer_ids))
         
         # Apply filters
         if account_id:

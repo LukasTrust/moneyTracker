@@ -9,6 +9,7 @@ from .recipient import Recipient
 from .budget import Budget
 from .recurring_transaction import RecurringTransaction, RecurringTransactionLink
 from .import_history import ImportHistory
+from .transfer import Transfer
 
 __all__ = [
     "Account",
@@ -20,4 +21,5 @@ __all__ = [
     "RecurringTransaction",
     "RecurringTransactionLink",
     "ImportHistory",
+    "Transfer",
 ]

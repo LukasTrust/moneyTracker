@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 
 from app.config import settings
 from app.database import engine, Base, SessionLocal
-from app.routers import accounts, categories, data, dashboard, mappings, csv_import, recipients, budgets, recurring, comparison, import_history
+from app.routers import accounts, categories, data, dashboard, mappings, csv_import, recipients, budgets, recurring, comparison, import_history, transfers
 from app.models.category import Category
 from app.models.budget import Budget
 
@@ -194,6 +194,12 @@ app.include_router(
     import_history.router,
     prefix=f"{settings.API_V1_PREFIX}/import-history",
     tags=["import-history"]
+)
+
+app.include_router(
+    transfers.router,
+    prefix=f"{settings.API_V1_PREFIX}",
+    tags=["transfers"]
 )
 
 

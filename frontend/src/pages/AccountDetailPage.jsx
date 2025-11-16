@@ -26,7 +26,16 @@ export default function AccountDetailPage() {
   const { currentAccount, fetchAccount, loading: accountLoading } = useAccountStore();
   
   // Get filters from global filter store
-  const { fromDate, toDate, selectedCategoryIds } = useFilterStore();
+  const { 
+    fromDate, 
+    toDate, 
+    selectedCategoryIds,
+    minAmount,
+    maxAmount,
+    recipientQuery,
+    purposeQuery,
+    transactionType
+  } = useFilterStore();
   
   const [activeTab, setActiveTab] = useState('data');
 
@@ -49,8 +58,24 @@ export default function AccountDetailPage() {
     if (selectedCategoryIds && selectedCategoryIds.length > 0) {
       params.categoryIds = selectedCategoryIds.join(',');
     }
+    // Advanced filters
+    if (minAmount !== null) {
+      params.minAmount = minAmount;
+    }
+    if (maxAmount !== null) {
+      params.maxAmount = maxAmount;
+    }
+    if (recipientQuery) {
+      params.recipient = recipientQuery;
+    }
+    if (purposeQuery) {
+      params.purpose = purposeQuery;
+    }
+    if (transactionType && transactionType !== 'all') {
+      params.transactionType = transactionType;
+    }
     return params;
-  }, [fromDate, toDate, selectedCategoryIds]);
+  }, [fromDate, toDate, selectedCategoryIds, minAmount, maxAmount, recipientQuery, purposeQuery, transactionType]);
 
   // Custom Hooks für Daten mit automatischem Reload
   const { 
@@ -187,7 +212,7 @@ export default function AccountDetailPage() {
               showDateRange={true}
               showCategory={true}
               showTransactionType={false}
-              showSearch={true}
+              showSearch={false}
             />
 
             {/* Summary Cards mit Loading State */}

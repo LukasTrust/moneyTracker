@@ -30,7 +30,16 @@ import { useFilterStore } from '../../store';
  */
 function RecipientsTab({ accountId, currency = 'EUR' }) {
   // Nutze globalen FilterStore für alle Filter
-  const { fromDate, toDate, selectedCategoryIds } = useFilterStore();
+  const { 
+    fromDate, 
+    toDate, 
+    selectedCategoryIds,
+    minAmount,
+    maxAmount,
+    recipientQuery,
+    purposeQuery,
+    transactionType
+  } = useFilterStore();
 
   // Limit für Top-Listen (Standard: 10)
   const [limit] = useState(10);
@@ -41,43 +50,48 @@ function RecipientsTab({ accountId, currency = 'EUR' }) {
     toDate: toDate ? toDate.toISOString().split('T')[0] : undefined,
   }), [fromDate, toDate]);
 
-  // Get first selected category (backend expects single ID)
-  const selectedCategoryId = useMemo(() => {
-    return selectedCategoryIds && selectedCategoryIds.length > 0 ? selectedCategoryIds[0] : null;
-  }, [selectedCategoryIds]);
+  // Build filter params with all advanced filters
+  const filterParams = useMemo(() => {
+    const params = {
+      ...dateParams,
+      limit,
+      categoryIds: selectedCategoryIds && selectedCategoryIds.length > 0 ? selectedCategoryIds.join(',') : undefined,
+    };
+    
+    // Advanced filters
+    if (minAmount !== null) params.minAmount = minAmount;
+    if (maxAmount !== null) params.maxAmount = maxAmount;
+    if (recipientQuery) params.recipient = recipientQuery;
+    if (purposeQuery) params.purpose = purposeQuery;
+    if (transactionType && transactionType !== 'all') params.transactionType = transactionType;
+    
+    return params;
+  }, [dateParams, selectedCategoryIds, minAmount, maxAmount, recipientQuery, purposeQuery, transactionType, limit]);
 
   // Fetch Categories (for debugging)
   const { categories, loading: categoriesLoading } = useCategoryData();
 
-  // Fetch Recipients (Empfänger - Ausgaben) mit Kategorie-Filter
+  // Fetch Recipients (Empfänger - Ausgaben) mit allen Filtern
   const { recipients, loading: recipientsLoading, error: recipientsError } = useRecipientData(
     accountId,
     {
-      fromDate: dateParams.fromDate,
-      toDate: dateParams.toDate,
-      limit,
-      transactionType: 'expense',
-      categoryId: selectedCategoryId,
+      ...filterParams,
+      transactionType: 'expense', // Override for recipients
     }
   );
 
-  // Fetch Senders (Absender - Einnahmen) mit Kategorie-Filter
+  // Fetch Senders (Absender - Einnahmen) mit allen Filtern
   const { senders, loading: sendersLoading, error: sendersError } = useSenderData(
     accountId,
-    {
-      fromDate: dateParams.fromDate,
-      toDate: dateParams.toDate,
-      limit,
-      categoryId: selectedCategoryId,
-    }
+    filterParams
   );
 
   // Debug logging
   useEffect(() => {
     console.log('RecipientsTab: FilterStore Date Range:', { fromDate, toDate });
     console.log('RecipientsTab: FilterStore Category IDs:', selectedCategoryIds);
-    console.log('RecipientsTab: API Date Params:', dateParams);
-    console.log('RecipientsTab: Category Filter (first selected):', selectedCategoryId);
+    console.log('RecipientsTab: Advanced Filters:', { minAmount, maxAmount, recipientQuery, purposeQuery, transactionType });
+    console.log('RecipientsTab: API Filter Params:', filterParams);
     console.log('RecipientsTab: Recipients data:', recipients);
     console.log('RecipientsTab: Recipients error:', recipientsError);
     console.log('RecipientsTab: Senders data:', senders);

@@ -39,7 +39,7 @@ export default function UnifiedFilter({
     minAmount,
     maxAmount,
     recipientQuery,
-    descriptionQuery,
+    purposeQuery,  // Changed from descriptionQuery
     setDateRange,
     applyDatePreset,
     setCategoryFilter,
@@ -47,7 +47,7 @@ export default function UnifiedFilter({
     setSearchQuery,
     setAmountRange,
     setRecipientQuery,
-    setDescriptionQuery,
+    setPurposeQuery,  // Changed from setDescriptionQuery
     resetFilters,
     hasActiveFilters,
     getActiveFilterCount,
@@ -61,7 +61,6 @@ export default function UnifiedFilter({
   // NOTE: advanced inputs update the global filter store immediately on change
 
   const handleDatePresetChange = (presetKey) => {
-    console.debug('UnifiedFilter: applyDatePreset', presetKey);
     applyDatePreset(presetKey);
     setShowCustomDateRange(false);
     onChange?.();
@@ -73,7 +72,6 @@ export default function UnifiedFilter({
   };
 
   const handleCategoryChange = (categoryId) => {
-    console.debug('UnifiedFilter: handleCategoryChange', categoryId);
     const currentIds = selectedCategoryIds;
     let newIds;
     
@@ -92,7 +90,6 @@ export default function UnifiedFilter({
   };
 
   const handleSearchChange = (query) => {
-    console.debug('UnifiedFilter: handleSearchChange', query);
     setSearchQuery(query);
     onChange?.();
   };
@@ -108,20 +105,17 @@ export default function UnifiedFilter({
   const handleAmountChange = (min, max) => {
     const parsedMin = min !== '' && min !== null ? parseFloat(min) : null;
     const parsedMax = max !== '' && max !== null ? parseFloat(max) : null;
-    console.debug('UnifiedFilter: setAmountRange', { parsedMin, parsedMax });
     setAmountRange(parsedMin, parsedMax);
     onChange?.();
   };
 
   const handleRecipientQueryChange = (query) => {
-    console.debug('UnifiedFilter: setRecipientQuery', query);
     setRecipientQuery(query);
     onChange?.();
   };
 
-  const handleDescriptionQueryChange = (query) => {
-    console.debug('UnifiedFilter: setDescriptionQuery', query);
-    setDescriptionQuery(query);
+  const handlePurposeQueryChange = (query) => {
+    setPurposeQuery(query);
     onChange?.();
   };
 
@@ -386,8 +380,8 @@ export default function UnifiedFilter({
                   <input
                     type="text"
                     placeholder="Beschreibung durchsuchen..."
-                    value={descriptionQuery || ''}
-                    onChange={(e) => handleDescriptionQueryChange(e.target.value)}
+                    value={purposeQuery || ''}
+                    onChange={(e) => handlePurposeQueryChange(e.target.value)}
                     className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   />
                 </div>

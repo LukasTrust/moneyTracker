@@ -45,7 +45,16 @@ function CategoriesTab({ accountId, currency = 'EUR' }) {
   const [showMappingEditor, setShowMappingEditor] = useState(false);
 
   // Global Date Filter Store
-  const { fromDate, toDate } = useFilterStore();
+  const { 
+    fromDate, 
+    toDate, 
+    selectedCategoryIds,
+    minAmount,
+    maxAmount,
+    recipientQuery,
+    purposeQuery,
+    transactionType
+  } = useFilterStore();
 
   // Fetch Daten
   const { categories, loading: categoriesLoading, refetch: refetchCategories } = useCategoryData();
@@ -56,7 +65,13 @@ function CategoriesTab({ accountId, currency = 'EUR' }) {
     refetch: refetchStats 
   } = useCategoryStatistics(accountId, { 
     fromDate: fromDate !== null ? format(fromDate, 'yyyy-MM-dd') : undefined, 
-    toDate: toDate !== null ? format(toDate, 'yyyy-MM-dd') : undefined 
+    toDate: toDate !== null ? format(toDate, 'yyyy-MM-dd') : undefined,
+    categoryIds: selectedCategoryIds && selectedCategoryIds.length > 0 ? selectedCategoryIds.join(',') : undefined,
+    minAmount: minAmount !== null ? minAmount : undefined,
+    maxAmount: maxAmount !== null ? maxAmount : undefined,
+    recipient: recipientQuery || undefined,
+    purpose: purposeQuery || undefined,
+    transactionType: transactionType && transactionType !== 'all' ? transactionType : undefined
   });
 
   /**
@@ -245,7 +260,7 @@ function CategoriesTab({ accountId, currency = 'EUR' }) {
           {/* Unified Filter */}
           <UnifiedFilter
             showDateRange={true}
-            showCategory={false}
+            showCategory={true}
             showTransactionType={true}
             showSearch={false}
             compact={false}

@@ -17,7 +17,7 @@ export const dataService = {
       minAmount,
       maxAmount,
       recipient,
-      description,
+      purpose,  // Changed from description
       transactionType,
       categoryIds
     } = params;
@@ -32,20 +32,13 @@ export const dataService = {
     if (minAmount !== undefined && minAmount !== null) queryParams.append('min_amount', minAmount);
     if (maxAmount !== undefined && maxAmount !== null) queryParams.append('max_amount', maxAmount);
     if (recipient) queryParams.append('recipient', recipient);
-    if (description) queryParams.append('description', description);
+    if (purpose) queryParams.append('purpose', purpose);  // Changed from description
     if (transactionType && transactionType !== 'all') queryParams.append('transaction_type', transactionType);
     
-    // Category Filter: Backend expects single category_id
+    // Category Filter: Support multiple categories (comma-separated)
     if (categoryIds) {
-      const categoryId = categoryIds.split(',')[0]; // Take first category if multiple
-      queryParams.append('category_id', categoryId);
+      queryParams.append('category_ids', categoryIds);
     }
-
-    console.debug('[DataService] getData:', {
-      accountId,
-      params,
-      queryParams: queryParams.toString()
-    });
 
     const response = await api.get(`/accounts/${accountId}/data?${queryParams}`);
     return response.data;
@@ -55,17 +48,23 @@ export const dataService = {
    * Zusammenfassung für ein Konto (Einnahmen, Ausgaben, Saldo)
    */
   async getSummary(accountId, params = {}) {
-    const { fromDate, toDate, categoryIds } = params;
+    const { fromDate, toDate, categoryIds, minAmount, maxAmount, recipient, purpose, transactionType } = params;
     
     const queryParams = new URLSearchParams();
     if (fromDate) queryParams.append('from_date', fromDate);
     if (toDate) queryParams.append('to_date', toDate);
     
-    // Category Filter: Backend expects single category_id
+    // Category Filter: Backend now supports multiple category_ids
     if (categoryIds) {
-      const categoryId = categoryIds.split(',')[0]; // Take first category if multiple
-      queryParams.append('category_id', categoryId);
+      queryParams.append('category_ids', categoryIds);
     }
+    
+    // Advanced filters
+    if (minAmount !== undefined && minAmount !== null) queryParams.append('min_amount', minAmount);
+    if (maxAmount !== undefined && maxAmount !== null) queryParams.append('max_amount', maxAmount);
+    if (recipient) queryParams.append('recipient', recipient);
+    if (purpose) queryParams.append('purpose', purpose);
+    if (transactionType && transactionType !== 'all') queryParams.append('transaction_type', transactionType);
 
     const response = await api.get(
       `/accounts/${accountId}/summary?${queryParams}`
@@ -77,7 +76,7 @@ export const dataService = {
    * Statistiken für Charts (gruppiert nach Tag/Monat/Jahr)
    */
   async getStatistics(accountId, groupBy = 'month', params = {}) {
-    const { fromDate, toDate, categoryIds } = params;
+    const { fromDate, toDate, categoryIds, minAmount, maxAmount, recipient, purpose, transactionType } = params;
     
     const queryParams = new URLSearchParams({
       group_by: groupBy,
@@ -86,11 +85,17 @@ export const dataService = {
     if (fromDate) queryParams.append('from_date', fromDate);
     if (toDate) queryParams.append('to_date', toDate);
     
-    // Category Filter: Backend expects single category_id
+    // Category Filter: Backend now supports multiple category_ids
     if (categoryIds) {
-      const categoryId = categoryIds.split(',')[0]; // Take first category if multiple
-      queryParams.append('category_id', categoryId);
+      queryParams.append('category_ids', categoryIds);
     }
+    
+    // Advanced filters
+    if (minAmount !== undefined && minAmount !== null) queryParams.append('min_amount', minAmount);
+    if (maxAmount !== undefined && maxAmount !== null) queryParams.append('max_amount', maxAmount);
+    if (recipient) queryParams.append('recipient', recipient);
+    if (purpose) queryParams.append('purpose', purpose);
+    if (transactionType && transactionType !== 'all') queryParams.append('transaction_type', transactionType);
 
     const response = await api.get(
       `/accounts/${accountId}/statistics?${queryParams}`
@@ -102,11 +107,11 @@ export const dataService = {
    * Top Empfänger/Absender abrufen (mit Filter nach Typ)
    * 
    * @param {number} accountId - Konto-ID
-   * @param {object} params - Query-Parameter (fromDate, toDate, limit, transactionType, categoryId)
+   * @param {object} params - Query-Parameter (fromDate, toDate, limit, transactionType, categoryIds, minAmount, maxAmount, recipient, purpose)
    * @returns {Promise<Array>} Array von { recipient, total_amount, transaction_count, percentage, category_id, category_name }
    * 
    * BACKEND-ROUTE:
-   * GET /api/v1/accounts/{id}/recipients-data?from_date=&to_date=&limit=10&transaction_type=all&category_id=
+   * GET /api/v1/accounts/{id}/recipients-data?from_date=&to_date=&limit=10&transaction_type=all&category_ids=&min_amount=&max_amount=&recipient=&purpose=
    * 
    * Transaction Types:
    * - 'all': Alle Transaktionen
@@ -120,7 +125,17 @@ export const dataService = {
    * ]
    */
   async getRecipients(accountId, params = {}) {
-    const { fromDate, toDate, limit = 10, transactionType = 'all', categoryId } = params;
+    const { 
+      fromDate, 
+      toDate, 
+      limit = 10, 
+      transactionType = 'all', 
+      categoryIds,
+      minAmount,
+      maxAmount,
+      recipient,
+      purpose
+    } = params;
     
     const queryParams = new URLSearchParams({
       limit: limit.toString(),
@@ -129,9 +144,17 @@ export const dataService = {
 
     if (fromDate) queryParams.append('from_date', fromDate);
     if (toDate) queryParams.append('to_date', toDate);
-    if (categoryId !== undefined && categoryId !== null) {
-      queryParams.append('category_id', categoryId.toString());
+    
+    // Category Filter: Backend now supports multiple category_ids
+    if (categoryIds) {
+      queryParams.append('category_ids', categoryIds);
     }
+    
+    // Advanced filters
+    if (minAmount !== undefined && minAmount !== null) queryParams.append('min_amount', minAmount);
+    if (maxAmount !== undefined && maxAmount !== null) queryParams.append('max_amount', maxAmount);
+    if (recipient) queryParams.append('recipient', recipient);
+    if (purpose) queryParams.append('purpose', purpose);
 
     const response = await api.get(
       `/accounts/${accountId}/recipients-data?${queryParams}`

@@ -21,7 +21,6 @@ export function useTransactionData(accountId, params = {}) {
     setError(null);
 
     try {
-      console.debug('[useTransactionData] Fetching with params:', params);
       const response = await dataService.getData(accountId, params);
       setData(response.data || []);
       setTotal(response.total || 0);
@@ -35,7 +34,7 @@ export function useTransactionData(accountId, params = {}) {
 
   useEffect(() => {
     fetchData();
-  }, [accountId, params.limit, params.offset, params.fromDate, params.toDate, params.categoryIds]);
+  }, [accountId, params.limit, params.offset, params.fromDate, params.toDate, params.categoryIds, params.minAmount, params.maxAmount, params.recipient, params.purpose, params.transactionType]);
 
   return { data, total, loading, error, refetch: fetchData };
 }
@@ -59,7 +58,6 @@ export function useSummaryData(accountId, params = {}) {
     setError(null);
 
     try {
-      console.debug('[useSummaryData] Fetching with params:', params);
       const response = await dataService.getSummary(accountId, params);
       setSummary(response);
     } catch (err) {
@@ -72,7 +70,7 @@ export function useSummaryData(accountId, params = {}) {
 
   useEffect(() => {
     fetchSummary();
-  }, [accountId, params.fromDate, params.toDate, params.categoryIds]);
+  }, [accountId, params.fromDate, params.toDate, params.categoryIds, params.minAmount, params.maxAmount, params.recipient, params.purpose, params.transactionType]);
 
   return { summary, loading, error, refetch: fetchSummary };
 }
@@ -97,7 +95,6 @@ export function useChartData(accountId, groupBy = 'month', params = {}) {
     setError(null);
 
     try {
-      console.debug('[useChartData] Fetching with params:', { groupBy, ...params });
       const response = await dataService.getStatistics(accountId, groupBy, params);
       
       // Transform data for Recharts
@@ -119,7 +116,7 @@ export function useChartData(accountId, groupBy = 'month', params = {}) {
 
   useEffect(() => {
     fetchChartData();
-  }, [accountId, groupBy, params.fromDate, params.toDate, params.categoryIds]);
+  }, [accountId, groupBy, params.fromDate, params.toDate, params.categoryIds, params.minAmount, params.maxAmount, params.recipient, params.purpose, params.transactionType]);
 
   return { chartData, loading, error, refetch: fetchChartData };
 }
@@ -156,7 +153,7 @@ export function useRecipientData(accountId, params = {}) {
   const [error, setError] = useState(null);
 
   // Destructure params to use as dependencies
-  const { fromDate, toDate, limit, transactionType, categoryId } = params;
+  const { fromDate, toDate, limit, transactionType, categoryId, minAmount, maxAmount, recipient, purpose, categoryIds } = params;
 
   // Memoize params object to prevent infinite loops
   const apiParams = useMemo(() => {
@@ -166,8 +163,13 @@ export function useRecipientData(accountId, params = {}) {
     if (limit) p.limit = limit;
     if (transactionType) p.transactionType = transactionType;
     if (categoryId !== undefined && categoryId !== null) p.categoryId = categoryId;
+    if (categoryIds) p.categoryIds = categoryIds;
+    if (minAmount !== undefined && minAmount !== null) p.minAmount = minAmount;
+    if (maxAmount !== undefined && maxAmount !== null) p.maxAmount = maxAmount;
+    if (recipient) p.recipient = recipient;
+    if (purpose) p.purpose = purpose;
     return p;
-  }, [fromDate, toDate, limit, transactionType, categoryId]);
+  }, [fromDate, toDate, limit, transactionType, categoryId, categoryIds, minAmount, maxAmount, recipient, purpose]);
 
   // Wrap fetch in useCallback
   const fetchRecipients = useCallback(async () => {
@@ -231,7 +233,7 @@ export function useSenderData(accountId, params = {}) {
   const [error, setError] = useState(null);
 
   // Destructure params to use as dependencies
-  const { fromDate, toDate, limit, categoryId } = params;
+  const { fromDate, toDate, limit, categoryId, minAmount, maxAmount, recipient, purpose, categoryIds } = params;
 
   // Memoize params object with transactionType='income'
   const apiParams = useMemo(() => {
@@ -240,8 +242,13 @@ export function useSenderData(accountId, params = {}) {
     if (toDate) p.toDate = toDate;
     if (limit) p.limit = limit;
     if (categoryId !== undefined && categoryId !== null) p.categoryId = categoryId;
+    if (categoryIds) p.categoryIds = categoryIds;
+    if (minAmount !== undefined && minAmount !== null) p.minAmount = minAmount;
+    if (maxAmount !== undefined && maxAmount !== null) p.maxAmount = maxAmount;
+    if (recipient) p.recipient = recipient;
+    if (purpose) p.purpose = purpose;
     return p;
-  }, [fromDate, toDate, limit, categoryId]);
+  }, [fromDate, toDate, limit, categoryId, categoryIds, minAmount, maxAmount, recipient, purpose]);
 
   // Wrap fetch in useCallback
   const fetchSenders = useCallback(async () => {
@@ -385,7 +392,7 @@ export function useCategoryStatistics(accountId, params = {}) {
 
   useEffect(() => {
     fetchCategoryData();
-  }, [accountId, params.fromDate, params.toDate]);
+  }, [accountId, params.fromDate, params.toDate, params.categoryIds, params.minAmount, params.maxAmount, params.recipient, params.purpose, params.transactionType]);
 
   return { categoryData, loading, error, refetch: fetchCategoryData };
 }

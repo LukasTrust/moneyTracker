@@ -55,7 +55,7 @@ function DashboardGraphOverview() {
   const minAmount = useFilterStore((state) => state.minAmount);
   const maxAmount = useFilterStore((state) => state.maxAmount);
   const recipientQuery = useFilterStore((state) => state.recipientQuery);
-  const descriptionQuery = useFilterStore((state) => state.descriptionQuery);
+  const purposeQuery = useFilterStore((state) => state.purposeQuery);  // Changed from descriptionQuery
 
   // Memoize filter params to prevent unnecessary re-fetches
   const filterParams = useMemo(() => {
@@ -92,11 +92,9 @@ function DashboardGraphOverview() {
     if (recipientQuery) {
       params.recipient = recipientQuery;
     }
-    if (descriptionQuery) {
-      params.description = descriptionQuery;
+    if (purposeQuery) {
+      params.purpose = purposeQuery;  // Changed from description to purpose
     }
-
-    console.debug('[DashboardGraphOverview] filterParams:', params);
 
     return params;
   }, [
@@ -110,7 +108,7 @@ function DashboardGraphOverview() {
     minAmount,
     maxAmount,
     recipientQuery,
-    descriptionQuery,
+    purposeQuery,  // Changed from descriptionQuery
   ]);
 
   // Fetch Dashboard Data (will automatically re-fetch when filterParams change)

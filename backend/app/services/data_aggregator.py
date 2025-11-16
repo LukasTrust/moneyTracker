@@ -64,7 +64,13 @@ class DataAggregator:
         account_id: Optional[int] = None,
         from_date: Optional[date] = None,
         to_date: Optional[date] = None,
-        category_id: Optional[int] = None
+        category_id: Optional[int] = None,
+        category_ids: Optional[str] = None,
+        min_amount: Optional[float] = None,
+        max_amount: Optional[float] = None,
+        recipient: Optional[str] = None,
+        purpose: Optional[str] = None,
+        transaction_type: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Get summary statistics (income, expenses, balance, count)
@@ -75,7 +81,13 @@ class DataAggregator:
             account_id: Filter by account ID (None for all accounts)
             from_date: Start date filter
             to_date: End date filter
-            category_id: Filter by category ID (None for all categories)
+            category_id: Filter by single category ID (None for all categories)
+            category_ids: Filter by multiple categories (comma-separated, OR logic)
+            min_amount: Minimum amount filter
+            max_amount: Maximum amount filter
+            recipient: Recipient search query
+            purpose: Purpose search query
+            transaction_type: Filter by type ('income', 'expense', 'all')
             
         Returns:
             Dictionary with summary statistics
@@ -100,11 +112,53 @@ class DataAggregator:
         if to_date:
             query = query.filter(DataRow.transaction_date <= to_date)
         
-        if category_id is not None:
+        # Apply category filter (support both single and multiple)
+        if category_ids:
+            try:
+                cat_id_list = [int(cid.strip()) for cid in category_ids.split(',') if cid.strip()]
+                if cat_id_list:
+                    if -1 in cat_id_list:
+                        other_cats = [cid for cid in cat_id_list if cid != -1]
+                        if other_cats:
+                            query = query.filter(
+                                or_(
+                                    DataRow.category_id.is_(None),
+                                    DataRow.category_id.in_(other_cats)
+                                )
+                            )
+                        else:
+                            query = query.filter(DataRow.category_id.is_(None))
+                    else:
+                        query = query.filter(DataRow.category_id.in_(cat_id_list))
+            except (ValueError, AttributeError):
+                pass
+        elif category_id is not None:
             if category_id == -1:
                 query = query.filter(DataRow.category_id.is_(None))
             else:
                 query = query.filter(DataRow.category_id == category_id)
+        
+        # Apply amount filters
+        if min_amount is not None:
+            query = query.filter(DataRow.amount >= min_amount)
+        
+        if max_amount is not None:
+            query = query.filter(DataRow.amount <= max_amount)
+        
+        # Apply recipient filter
+        if recipient:
+            query = query.filter(DataRow.recipient.ilike(f"%{recipient}%"))
+        
+        # Apply purpose filter
+        if purpose:
+            query = query.filter(DataRow.purpose.ilike(f"%{purpose}%"))
+        
+        # Apply transaction type filter
+        if transaction_type and transaction_type != 'all':
+            if transaction_type == 'income':
+                query = query.filter(DataRow.amount > 0)
+            elif transaction_type == 'expense':
+                query = query.filter(DataRow.amount < 0)
         
         # Execute query
         result = query.first()
@@ -122,7 +176,13 @@ class DataAggregator:
         from_date: Optional[date] = None,
         to_date: Optional[date] = None,
         limit: int = 10,
-        category_id: Optional[int] = None
+        category_id: Optional[int] = None,
+        category_ids: Optional[str] = None,
+        min_amount: Optional[float] = None,
+        max_amount: Optional[float] = None,
+        recipient: Optional[str] = None,
+        purpose: Optional[str] = None,
+        transaction_type: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
         Get aggregated data by category
@@ -135,6 +195,12 @@ class DataAggregator:
             to_date: End date filter
             limit: Maximum number of categories to return
             category_id: Filter by specific category ID
+            category_ids: Filter by multiple categories (comma-separated)
+            min_amount: Minimum amount filter
+            max_amount: Maximum amount filter
+            recipient: Recipient search query
+            purpose: Purpose search query
+            transaction_type: Filter by type ('income', 'expense', 'all')
             
         Returns:
             List of category aggregations
@@ -158,11 +224,53 @@ class DataAggregator:
         if to_date:
             query = query.filter(DataRow.transaction_date <= to_date)
         
-        if category_id is not None:
+        # Apply category filter (when filtering specific categories in aggregation)
+        if category_ids:
+            try:
+                cat_id_list = [int(cid.strip()) for cid in category_ids.split(',') if cid.strip()]
+                if cat_id_list:
+                    if -1 in cat_id_list:
+                        other_cats = [cid for cid in cat_id_list if cid != -1]
+                        if other_cats:
+                            query = query.filter(
+                                or_(
+                                    DataRow.category_id.is_(None),
+                                    DataRow.category_id.in_(other_cats)
+                                )
+                            )
+                        else:
+                            query = query.filter(DataRow.category_id.is_(None))
+                    else:
+                        query = query.filter(DataRow.category_id.in_(cat_id_list))
+            except (ValueError, AttributeError):
+                pass
+        elif category_id is not None:
             if category_id == -1:
                 query = query.filter(DataRow.category_id.is_(None))
             else:
                 query = query.filter(DataRow.category_id == category_id)
+        
+        # Apply amount filters
+        if min_amount is not None:
+            query = query.filter(DataRow.amount >= min_amount)
+        
+        if max_amount is not None:
+            query = query.filter(DataRow.amount <= max_amount)
+        
+        # Apply recipient filter
+        if recipient:
+            query = query.filter(DataRow.recipient.ilike(f"%{recipient}%"))
+        
+        # Apply purpose filter
+        if purpose:
+            query = query.filter(DataRow.purpose.ilike(f"%{purpose}%"))
+        
+        # Apply transaction type filter
+        if transaction_type and transaction_type != 'all':
+            if transaction_type == 'income':
+                query = query.filter(DataRow.amount > 0)
+            elif transaction_type == 'expense':
+                query = query.filter(DataRow.amount < 0)
         
         # Group by category and order by absolute amount (descending)
         query = query.group_by(DataRow.category_id)
@@ -234,7 +342,12 @@ class DataAggregator:
         to_date: Optional[date] = None,
         limit: int = 10,
         transaction_type: str = 'all',
-        category_id: Optional[int] = None
+        category_id: Optional[int] = None,
+        category_ids: Optional[str] = None,
+        min_amount: Optional[float] = None,
+        max_amount: Optional[float] = None,
+        recipient: Optional[str] = None,
+        purpose: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
         Get aggregated data by recipient
@@ -245,7 +358,12 @@ class DataAggregator:
             to_date: End date filter
             limit: Maximum number of recipients to return
             transaction_type: Filter by transaction type ('all', 'income', 'expense')
-            category_id: Filter by category ID
+            category_id: Filter by single category ID
+            category_ids: Filter by multiple categories (comma-separated)
+            min_amount: Minimum amount filter
+            max_amount: Maximum amount filter
+            recipient: Recipient search query
+            purpose: Purpose search query
             
         Returns:
             List of recipient aggregations
@@ -263,8 +381,49 @@ class DataAggregator:
             query = query.filter(DataRow.transaction_date <= to_date)
         
         # Filter by category
-        if category_id is not None:
+        if category_ids:
+            try:
+                cat_id_list = [int(cid.strip()) for cid in category_ids.split(',') if cid.strip()]
+                if cat_id_list:
+                    if -1 in cat_id_list:
+                        other_cats = [cid for cid in cat_id_list if cid != -1]
+                        if other_cats:
+                            query = query.filter(
+                                or_(
+                                    DataRow.category_id.is_(None),
+                                    DataRow.category_id.in_(other_cats)
+                                )
+                            )
+                        else:
+                            query = query.filter(DataRow.category_id.is_(None))
+                    else:
+                        query = query.filter(DataRow.category_id.in_(cat_id_list))
+            except (ValueError, AttributeError):
+                pass
+        elif category_id is not None:
             query = query.filter(DataRow.category_id == category_id)
+        
+        # Apply amount filters
+        if min_amount is not None:
+            query = query.filter(DataRow.amount >= min_amount)
+        
+        if max_amount is not None:
+            query = query.filter(DataRow.amount <= max_amount)
+        
+        # Apply recipient filter
+        if recipient:
+            query = query.filter(DataRow.recipient.ilike(f"%{recipient}%"))
+        
+        # Apply purpose filter
+        if purpose:
+            query = query.filter(DataRow.purpose.ilike(f"%{purpose}%"))
+        
+        # Apply transaction type filter (before aggregation)
+        if transaction_type and transaction_type != 'all':
+            if transaction_type == 'income':
+                query = query.filter(DataRow.amount > 0)
+            elif transaction_type == 'expense':
+                query = query.filter(DataRow.amount < 0)
         
         # Get all transactions
         transactions = query.all()
@@ -279,31 +438,25 @@ class DataAggregator:
         total_absolute = 0.0
         
         for transaction in transactions:
-            recipient = transaction.data.get('recipient', 'Unbekannt')
-            if not recipient or recipient.strip() == '':
-                recipient = 'Unbekannt'
+            # Use structured fields (refactored model)
+            recipient_name = transaction.recipient or 'Unbekannt'
+            if not recipient_name.strip():
+                recipient_name = 'Unbekannt'
             
-            amount_str = transaction.data.get('amount', '0')
-            amount = self.parse_amount(amount_str)
+            amount = float(transaction.amount or 0)
             
-            # Filter by transaction type
-            if transaction_type == 'income' and amount <= 0:
-                continue
-            elif transaction_type == 'expense' and amount >= 0:
-                continue
-            
-            recipient_data[recipient]['total_amount'] += amount
-            recipient_data[recipient]['count'] += 1
+            recipient_data[recipient_name]['total_amount'] += amount
+            recipient_data[recipient_name]['count'] += 1
             total_absolute += abs(amount)
             
             # Store category info (use first occurrence)
-            if transaction.category_id and not recipient_data[recipient]['category_id']:
+            if transaction.category_id and not recipient_data[recipient_name]['category_id']:
                 category = self.db.query(Category).filter(
                     Category.id == transaction.category_id
                 ).first()
                 if category:
-                    recipient_data[recipient]['category_id'] = category.id
-                    recipient_data[recipient]['category_name'] = category.name
+                    recipient_data[recipient_name]['category_id'] = category.id
+                    recipient_data[recipient_name]['category_name'] = category.name
         
         # Build result
         result = []
@@ -330,7 +483,13 @@ class DataAggregator:
         from_date: Optional[date] = None,
         to_date: Optional[date] = None,
         group_by: str = 'month',
-        category_id: Optional[int] = None
+        category_id: Optional[int] = None,
+        category_ids: Optional[str] = None,
+        min_amount: Optional[float] = None,
+        max_amount: Optional[float] = None,
+        recipient: Optional[str] = None,
+        purpose: Optional[str] = None,
+        transaction_type: Optional[str] = None
     ) -> Dict[str, List]:
         """
         Get balance history grouped by time period
@@ -342,7 +501,13 @@ class DataAggregator:
             from_date: Start date filter
             to_date: End date filter
             group_by: Grouping period ('day', 'month', 'year')
-            category_id: Filter by specific category ID
+            category_id: Filter by single category ID
+            category_ids: Filter by multiple categories (comma-separated)
+            min_amount: Minimum amount filter
+            max_amount: Maximum amount filter
+            recipient: Recipient search query
+            purpose: Purpose search query
+            transaction_type: Filter by type ('income', 'expense', 'all')
             
         Returns:
             Dictionary with labels, income, expenses, balance arrays
@@ -374,11 +539,53 @@ class DataAggregator:
         if to_date:
             query = query.filter(DataRow.transaction_date <= to_date)
         
-        if category_id is not None:
+        # Apply category filter
+        if category_ids:
+            try:
+                cat_id_list = [int(cid.strip()) for cid in category_ids.split(',') if cid.strip()]
+                if cat_id_list:
+                    if -1 in cat_id_list:
+                        other_cats = [cid for cid in cat_id_list if cid != -1]
+                        if other_cats:
+                            query = query.filter(
+                                or_(
+                                    DataRow.category_id.is_(None),
+                                    DataRow.category_id.in_(other_cats)
+                                )
+                            )
+                        else:
+                            query = query.filter(DataRow.category_id.is_(None))
+                    else:
+                        query = query.filter(DataRow.category_id.in_(cat_id_list))
+            except (ValueError, AttributeError):
+                pass
+        elif category_id is not None:
             if category_id == -1:
                 query = query.filter(DataRow.category_id.is_(None))
             else:
                 query = query.filter(DataRow.category_id == category_id)
+        
+        # Apply amount filters
+        if min_amount is not None:
+            query = query.filter(DataRow.amount >= min_amount)
+        
+        if max_amount is not None:
+            query = query.filter(DataRow.amount <= max_amount)
+        
+        # Apply recipient filter
+        if recipient:
+            query = query.filter(DataRow.recipient.ilike(f"%{recipient}%"))
+        
+        # Apply purpose filter
+        if purpose:
+            query = query.filter(DataRow.purpose.ilike(f"%{purpose}%"))
+        
+        # Apply transaction type filter
+        if transaction_type and transaction_type != 'all':
+            if transaction_type == 'income':
+                query = query.filter(DataRow.amount > 0)
+            elif transaction_type == 'expense':
+                query = query.filter(DataRow.amount < 0)
         
         # Group by period and order chronologically
         query = query.group_by('period').order_by('period')

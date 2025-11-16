@@ -105,7 +105,7 @@ export const useFilterStore = create((set, get) => ({
   minAmount: null, // Minimum transaction amount
   maxAmount: null, // Maximum transaction amount
   recipientQuery: '', // Recipient search query
-  descriptionQuery: '', // Description/purpose search query
+  purposeQuery: '', // Purpose/description search query (renamed from descriptionQuery)
 
   // UI State
   showFilters: false,
@@ -119,7 +119,6 @@ export const useFilterStore = create((set, get) => ({
    * @param {string} preset - Key from DATE_PRESETS
    */
   setDateRange: (fromDate, toDate, preset = 'CUSTOM') => {
-    console.debug('filterStore: setDateRange', { fromDate, toDate, preset });
     set({
       fromDate,
       toDate,
@@ -136,7 +135,6 @@ export const useFilterStore = create((set, get) => ({
     if (!preset) return;
 
     const { fromDate, toDate } = preset.getRange();
-    console.debug('filterStore: applyDatePreset', presetKey, { fromDate, toDate });
     set({
       fromDate,
       toDate,
@@ -179,7 +177,6 @@ export const useFilterStore = create((set, get) => ({
    * @param {number[]} categoryIds - [] für alle
    */
   setCategoryFilter: (categoryIds) => {
-    console.debug('filterStore: setCategoryFilter', categoryIds);
     set({ selectedCategoryIds: Array.isArray(categoryIds) ? categoryIds : [categoryIds] });
   },
 
@@ -224,7 +221,6 @@ export const useFilterStore = create((set, get) => ({
    * @param {string} query
    */
   setSearchQuery: (query) => {
-    console.debug('filterStore: setSearchQuery', query);
     set({ searchQuery: query });
   },
 
@@ -237,7 +233,6 @@ export const useFilterStore = create((set, get) => ({
       console.warn(`Invalid transaction type: ${type}`);
       return;
     }
-    console.debug('filterStore: setTransactionType', type);
     set({ transactionType: type });
   },
 
@@ -247,7 +242,6 @@ export const useFilterStore = create((set, get) => ({
    * @param {number|null} max
    */
   setAmountRange: (min, max) => {
-    console.debug('filterStore: setAmountRange', { min, max });
     set({ minAmount: min, maxAmount: max });
   },
 
@@ -256,17 +250,15 @@ export const useFilterStore = create((set, get) => ({
    * @param {string} query
    */
   setRecipientQuery: (query) => {
-    console.debug('filterStore: setRecipientQuery', query);
     set({ recipientQuery: query });
   },
 
   /**
-   * Set Description Query Filter
+   * Set Purpose/Description Query Filter
    * @param {string} query
    */
-  setDescriptionQuery: (query) => {
-    console.debug('filterStore: setDescriptionQuery', query);
-    set({ descriptionQuery: query });
+  setPurposeQuery: (query) => {
+    set({ purposeQuery: query });
   },
 
   /**
@@ -292,7 +284,7 @@ export const useFilterStore = create((set, get) => ({
       minAmount: null,
       maxAmount: null,
       recipientQuery: '',
-      descriptionQuery: '',
+      purposeQuery: '',
     });
   },
 
@@ -335,17 +327,9 @@ export const useFilterStore = create((set, get) => ({
     if (state.recipientQuery) {
       params.recipient = state.recipientQuery;
     }
-    if (state.descriptionQuery) {
-      params.description = state.descriptionQuery;
+    if (state.purposeQuery) {
+      params.purpose = state.purposeQuery;  // Changed from description to purpose
     }
-
-    console.debug('[FilterStore] getQueryParams:', {
-      datePreset: state.datePreset,
-      fromDate: state.fromDate,
-      toDate: state.toDate,
-      selectedCategoryIds: state.selectedCategoryIds,
-      params
-    });
 
     return params;
   },
@@ -364,7 +348,7 @@ export const useFilterStore = create((set, get) => ({
       state.minAmount !== null ||
       state.maxAmount !== null ||
       state.recipientQuery !== '' ||
-      state.descriptionQuery !== ''
+      state.purposeQuery !== ''
     );
   },
 
@@ -383,7 +367,7 @@ export const useFilterStore = create((set, get) => ({
     if (state.minAmount !== null) count++;
     if (state.maxAmount !== null) count++;
     if (state.recipientQuery !== '') count++;
-    if (state.descriptionQuery !== '') count++;
+    if (state.purposeQuery !== '') count++;
     
     return count;
   },

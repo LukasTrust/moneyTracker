@@ -18,11 +18,11 @@ export const dashboardService = {
   /**
    * Gesamt-Zusammenfassung über alle Accounts
    * 
-   * @param {object} params - Query-Parameter { fromDate, toDate, categoryIds }
+   * @param {object} params - Query-Parameter { fromDate, toDate, categoryIds, minAmount, maxAmount, recipient, purpose, transactionType }
    * @returns {Promise<object>} { income, expenses, balance, transactionCount }
    * 
    * BACKEND-ROUTE:
-   * GET /api/v1/dashboard/summary?from_date=2024-01-01&to_date=2024-12-31&category_id=1
+   * GET /api/v1/dashboard/summary?from_date=2024-01-01&to_date=2024-12-31&category_ids=1,2&min_amount=&max_amount=&recipient=&purpose=&transaction_type=
    * 
    * Response Format:
    * {
@@ -34,19 +34,34 @@ export const dashboardService = {
    * }
    */
   async getSummary(params = {}) {
-    const { fromDate, toDate, categoryIds } = params;
+    const { 
+      fromDate, 
+      toDate, 
+      categoryIds,
+      minAmount,
+      maxAmount,
+      recipient,
+      purpose,
+      transactionType
+    } = params;
+    
     const queryParams = new URLSearchParams();
     
     if (fromDate) queryParams.append('from_date', fromDate);
     if (toDate) queryParams.append('to_date', toDate);
     
-    // Category Filter: Backend expects single category_id
+    // Category Filter: Backend now supports multiple category_ids
     if (categoryIds) {
-      const categoryId = categoryIds.split(',')[0]; // Take first category if multiple
-      queryParams.append('category_id', categoryId);
+      queryParams.append('category_ids', categoryIds);
     }
+    
+    // Advanced filters
+    if (minAmount !== undefined && minAmount !== null) queryParams.append('min_amount', minAmount);
+    if (maxAmount !== undefined && maxAmount !== null) queryParams.append('max_amount', maxAmount);
+    if (recipient) queryParams.append('recipient', recipient);
+    if (purpose) queryParams.append('purpose', purpose);
+    if (transactionType && transactionType !== 'all') queryParams.append('transaction_type', transactionType);
 
-    console.debug('[DashboardService] getSummary:', { params, queryParams: queryParams.toString() });
     const response = await api.get(`/dashboard/summary?${queryParams}`);
     return response.data;
   },
@@ -54,11 +69,11 @@ export const dashboardService = {
   /**
    * Aggregierte Kategoriedaten über alle Accounts
    * 
-   * @param {object} params - Query-Parameter { fromDate, toDate, limit, categoryIds }
+   * @param {object} params - Query-Parameter { fromDate, toDate, limit, categoryIds, minAmount, maxAmount, recipient, purpose, transactionType }
    * @returns {Promise<Array>} Array von { category_id, category_name, total_amount, count, percentage }
    * 
    * BACKEND-ROUTE:
-   * GET /api/v1/dashboard/categories?from_date=&to_date=&limit=10&category_id=1
+   * GET /api/v1/dashboard/categories?from_date=&to_date=&limit=10&category_ids=1,2&min_amount=&max_amount=&recipient=&purpose=&transaction_type=
    * 
    * Response Format:
    * [
@@ -74,7 +89,18 @@ export const dashboardService = {
    * ]
    */
   async getCategoriesData(params = {}) {
-    const { fromDate, toDate, limit = 10, categoryIds } = params;
+    const { 
+      fromDate, 
+      toDate, 
+      limit = 10, 
+      categoryIds,
+      minAmount,
+      maxAmount,
+      recipient,
+      purpose,
+      transactionType
+    } = params;
+    
     const queryParams = new URLSearchParams({
       limit: limit.toString(),
     });
@@ -82,13 +108,18 @@ export const dashboardService = {
     if (fromDate) queryParams.append('from_date', fromDate);
     if (toDate) queryParams.append('to_date', toDate);
     
-    // Category Filter: Backend expects single category_id
+    // Category Filter: Backend now supports multiple category_ids
     if (categoryIds) {
-      const categoryId = categoryIds.split(',')[0]; // Take first category if multiple
-      queryParams.append('category_id', categoryId);
+      queryParams.append('category_ids', categoryIds);
     }
+    
+    // Advanced filters
+    if (minAmount !== undefined && minAmount !== null) queryParams.append('min_amount', minAmount);
+    if (maxAmount !== undefined && maxAmount !== null) queryParams.append('max_amount', maxAmount);
+    if (recipient) queryParams.append('recipient', recipient);
+    if (purpose) queryParams.append('purpose', purpose);
+    if (transactionType && transactionType !== 'all') queryParams.append('transaction_type', transactionType);
 
-    console.debug('[DashboardService] getCategoriesData:', { params, queryParams: queryParams.toString() });
     const response = await api.get(`/dashboard/categories?${queryParams}`);
     return response.data;
   },
@@ -96,11 +127,11 @@ export const dashboardService = {
   /**
    * Historische Saldoentwicklung über alle Accounts
    * 
-   * @param {object} params - Query-Parameter { fromDate, toDate, groupBy, categoryIds }
+   * @param {object} params - Query-Parameter { fromDate, toDate, groupBy, categoryIds, minAmount, maxAmount, recipient, purpose, transactionType }
    * @returns {Promise<object>} { labels, income, expenses, balance }
    * 
    * BACKEND-ROUTE:
-   * GET /api/v1/dashboard/balance-history?from_date=&to_date=&group_by=month&category_id=1
+   * GET /api/v1/dashboard/balance-history?from_date=&to_date=&group_by=month&category_ids=1,2&min_amount=&max_amount=&recipient=&purpose=&transaction_type=
    * 
    * Response Format:
    * {
@@ -111,7 +142,18 @@ export const dashboardService = {
    * }
    */
   async getBalanceHistory(params = {}) {
-    const { fromDate, toDate, groupBy = 'month', categoryIds } = params;
+    const { 
+      fromDate, 
+      toDate, 
+      groupBy = 'month', 
+      categoryIds,
+      minAmount,
+      maxAmount,
+      recipient,
+      purpose,
+      transactionType
+    } = params;
+    
     const queryParams = new URLSearchParams({
       group_by: groupBy,
     });
@@ -119,13 +161,18 @@ export const dashboardService = {
     if (fromDate) queryParams.append('from_date', fromDate);
     if (toDate) queryParams.append('to_date', toDate);
     
-    // Category Filter: Backend expects single category_id
+    // Category Filter: Backend now supports multiple category_ids
     if (categoryIds) {
-      const categoryId = categoryIds.split(',')[0]; // Take first category if multiple
-      queryParams.append('category_id', categoryId);
+      queryParams.append('category_ids', categoryIds);
     }
+    
+    // Advanced filters
+    if (minAmount !== undefined && minAmount !== null) queryParams.append('min_amount', minAmount);
+    if (maxAmount !== undefined && maxAmount !== null) queryParams.append('max_amount', maxAmount);
+    if (recipient) queryParams.append('recipient', recipient);
+    if (purpose) queryParams.append('purpose', purpose);
+    if (transactionType && transactionType !== 'all') queryParams.append('transaction_type', transactionType);
 
-    console.debug('[DashboardService] getBalanceHistory:', { params, queryParams: queryParams.toString() });
     const response = await api.get(`/dashboard/balance-history?${queryParams}`);
     return response.data;
   },
@@ -133,11 +180,11 @@ export const dashboardService = {
   /**
    * Transaktionen über alle Accounts (für Drilldown)
    * 
-   * @param {object} params - Query-Parameter { fromDate, toDate, categoryId, limit, offset }
+   * @param {object} params - Query-Parameter { fromDate, toDate, categoryIds, limit, offset, minAmount, maxAmount, recipient, purpose, transactionType }
    * @returns {Promise<object>} { data, total, page, pages }
    * 
    * BACKEND-ROUTE:
-   * GET /api/v1/dashboard/transactions?category_id=2&from_date=&to_date=&limit=50&offset=0
+   * GET /api/v1/dashboard/transactions?category_ids=2,3&from_date=&to_date=&limit=50&offset=0&min_amount=&max_amount=&recipient=&purpose=&transaction_type=
    * 
    * Response Format:
    * {
@@ -160,7 +207,19 @@ export const dashboardService = {
    * }
    */
   async getTransactions(params = {}) {
-    const { fromDate, toDate, categoryId, limit = 50, offset = 0 } = params;
+    const { 
+      fromDate, 
+      toDate, 
+      categoryIds, 
+      limit = 50, 
+      offset = 0,
+      minAmount,
+      maxAmount,
+      recipient,
+      purpose,
+      transactionType
+    } = params;
+    
     const queryParams = new URLSearchParams({
       limit: limit.toString(),
       offset: offset.toString(),
@@ -168,7 +227,18 @@ export const dashboardService = {
 
     if (fromDate) queryParams.append('from_date', fromDate);
     if (toDate) queryParams.append('to_date', toDate);
-    if (categoryId) queryParams.append('category_id', categoryId.toString());
+    
+    // Category Filter: Backend now supports multiple category_ids
+    if (categoryIds) {
+      queryParams.append('category_ids', categoryIds);
+    }
+    
+    // Advanced filters
+    if (minAmount !== undefined && minAmount !== null) queryParams.append('min_amount', minAmount);
+    if (maxAmount !== undefined && maxAmount !== null) queryParams.append('max_amount', maxAmount);
+    if (recipient) queryParams.append('recipient', recipient);
+    if (purpose) queryParams.append('purpose', purpose);
+    if (transactionType && transactionType !== 'all') queryParams.append('transaction_type', transactionType);
 
     const response = await api.get(`/dashboard/transactions?${queryParams}`);
     return response.data;
@@ -177,11 +247,11 @@ export const dashboardService = {
   /**
    * Aggregierte Empfänger/Absender-Daten über alle Accounts
    * 
-   * @param {object} params - Query-Parameter { fromDate, toDate, transactionType, limit, categoryIds }
+   * @param {object} params - Query-Parameter { fromDate, toDate, transactionType, limit, categoryIds, minAmount, maxAmount, recipient, purpose }
    * @returns {Promise<Array>} Array von { recipient, total_amount, transaction_count, percentage }
    * 
    * BACKEND-ROUTE:
-   * GET /api/v1/dashboard/recipients-data?transaction_type=expense&from_date=&to_date=&limit=10&category_id=1
+   * GET /api/v1/dashboard/recipients-data?transaction_type=expense&from_date=&to_date=&limit=10&category_ids=1,2&min_amount=&max_amount=&recipient=&purpose=
    * 
    * Response Format:
    * [
@@ -196,7 +266,18 @@ export const dashboardService = {
    * ]
    */
   async getRecipientsData(params = {}) {
-    const { fromDate, toDate, transactionType = 'expense', limit = 10, categoryIds } = params;
+    const { 
+      fromDate, 
+      toDate, 
+      transactionType = 'expense', 
+      limit = 10, 
+      categoryIds,
+      minAmount,
+      maxAmount,
+      recipient,
+      purpose
+    } = params;
+    
     const queryParams = new URLSearchParams({
       transaction_type: transactionType,
       limit: limit.toString(),
@@ -205,13 +286,17 @@ export const dashboardService = {
     if (fromDate) queryParams.append('from_date', fromDate);
     if (toDate) queryParams.append('to_date', toDate);
     
-    // Category Filter: Backend expects single category_id
+    // Category Filter: Backend now supports multiple category_ids
     if (categoryIds) {
-      const categoryId = categoryIds.split(',')[0]; // Take first category if multiple
-      queryParams.append('category_id', categoryId);
+      queryParams.append('category_ids', categoryIds);
     }
+    
+    // Advanced filters
+    if (minAmount !== undefined && minAmount !== null) queryParams.append('min_amount', minAmount);
+    if (maxAmount !== undefined && maxAmount !== null) queryParams.append('max_amount', maxAmount);
+    if (recipient) queryParams.append('recipient', recipient);
+    if (purpose) queryParams.append('purpose', purpose);
 
-    console.debug('[DashboardService] getRecipientsData:', { params, queryParams: queryParams.toString() });
     const response = await api.get(`/dashboard/recipients-data?${queryParams}`);
     return response.data;
   },

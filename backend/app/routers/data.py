@@ -3,7 +3,7 @@ Data Router - Retrieve and analyze transaction data
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from typing import Optional
 from datetime import date, datetime
 
@@ -29,11 +29,12 @@ def get_account_data(
     offset: int = Query(0, ge=0, description="Number of items to skip"),
     from_date: Optional[date] = Query(None, description="Start date filter"),
     to_date: Optional[date] = Query(None, description="End date filter"),
-    category_id: Optional[int] = Query(None, description="Category ID filter (use -1 for uncategorized)"),
+    category_id: Optional[int] = Query(None, description="Single category ID filter (use -1 for uncategorized)"),
+    category_ids: Optional[str] = Query(None, description="Multiple category IDs (comma-separated, OR logic)"),
     min_amount: Optional[float] = Query(None, description="Minimum amount filter"),
     max_amount: Optional[float] = Query(None, description="Maximum amount filter"),
-    recipient: Optional[str] = Query(None, description="Recipient search query"),
-    description: Optional[str] = Query(None, description="Description/purpose search query"),
+    recipient: Optional[str] = Query(None, description="Recipient search query (case-insensitive)"),
+    purpose: Optional[str] = Query(None, description="Purpose/description search query (case-insensitive)"),
     transaction_type: Optional[str] = Query(None, description="Transaction type: 'income', 'expense', 'all'"),
     db: Session = Depends(get_db)
 ):
@@ -46,11 +47,12 @@ def get_account_data(
         offset: Number of items to skip
         from_date: Filter by start date
         to_date: Filter by end date
-        category_id: Filter by category (-1 for uncategorized)
+        category_id: Filter by single category (-1 for uncategorized)
+        category_ids: Filter by multiple categories (comma-separated, OR logic)
         min_amount: Filter transactions >= this amount
         max_amount: Filter transactions <= this amount
-        recipient: Search in recipient field (case-insensitive)
-        description: Search in purpose field (case-insensitive)
+        recipient: Search in recipient field (case-insensitive, partial match)
+        purpose: Search in purpose field (case-insensitive, partial match)
         transaction_type: Filter by type ('income' for positive, 'expense' for negative)
         
     Returns:
@@ -77,8 +79,31 @@ def get_account_data(
     if to_date:
         query = query.filter(DataRow.transaction_date <= to_date)
     
-    # Apply category filter
-    if category_id is not None:
+    # Apply category filter (support both single and multiple)
+    if category_ids:
+        # Multiple categories (OR logic)
+        try:
+            cat_id_list = [int(cid.strip()) for cid in category_ids.split(',') if cid.strip()]
+            if cat_id_list:
+                # Handle uncategorized (-1) in the list
+                if -1 in cat_id_list:
+                    # Include uncategorized OR any of the other categories
+                    other_cats = [cid for cid in cat_id_list if cid != -1]
+                    if other_cats:
+                        query = query.filter(
+                            or_(
+                                DataRow.category_id.is_(None),
+                                DataRow.category_id.in_(other_cats)
+                            )
+                        )
+                    else:
+                        query = query.filter(DataRow.category_id.is_(None))
+                else:
+                    query = query.filter(DataRow.category_id.in_(cat_id_list))
+        except (ValueError, AttributeError):
+            pass  # Invalid format, skip filter
+    elif category_id is not None:
+        # Single category (backward compatibility)
         if category_id == -1:
             # Uncategorized transactions
             query = query.filter(DataRow.category_id.is_(None))
@@ -103,9 +128,9 @@ def get_account_data(
     if recipient:
         query = query.filter(DataRow.recipient.ilike(f"%{recipient}%"))
     
-    # Apply description search (case-insensitive)
-    if description:
-        query = query.filter(DataRow.purpose.ilike(f"%{description}%"))
+    # Apply purpose/description search (case-insensitive)
+    if purpose:
+        query = query.filter(DataRow.purpose.ilike(f"%{purpose}%"))
     
     # Get total count
     total = query.count()
@@ -135,7 +160,13 @@ def get_account_summary(
     account_id: int,
     from_date: Optional[date] = Query(None, description="Start date filter"),
     to_date: Optional[date] = Query(None, description="End date filter"),
-    category_id: Optional[int] = Query(None, description="Filter by specific category ID"),
+    category_id: Optional[int] = Query(None, description="Filter by single category ID"),
+    category_ids: Optional[str] = Query(None, description="Filter by multiple category IDs"),
+    min_amount: Optional[float] = Query(None, description="Minimum amount filter"),
+    max_amount: Optional[float] = Query(None, description="Maximum amount filter"),
+    recipient: Optional[str] = Query(None, description="Recipient search query"),
+    purpose: Optional[str] = Query(None, description="Purpose search query"),
+    transaction_type: Optional[str] = Query(None, description="Transaction type filter"),
     db: Session = Depends(get_db)
 ):
     """
@@ -146,6 +177,12 @@ def get_account_summary(
         from_date: Filter by start date
         to_date: Filter by end date
         category_id: Filter by specific category ID
+        category_ids: Filter by multiple categories
+        min_amount: Minimum amount filter
+        max_amount: Maximum amount filter
+        recipient: Recipient search query
+        purpose: Purpose search query
+        transaction_type: Transaction type filter
         
     Returns:
         Summary with income, expenses, balance, and transaction count
@@ -166,7 +203,13 @@ def get_account_summary(
         account_id=account_id,
         from_date=from_date,
         to_date=to_date,
-        category_id=category_id
+        category_id=category_id,
+        category_ids=category_ids,
+        min_amount=min_amount,
+        max_amount=max_amount,
+        recipient=recipient,
+        purpose=purpose,
+        transaction_type=transaction_type
     )
     
     return summary
@@ -178,7 +221,13 @@ def get_account_statistics(
     group_by: str = Query('month', regex='^(day|month|year)$', description="Grouping period"),
     from_date: Optional[date] = Query(None, description="Start date filter"),
     to_date: Optional[date] = Query(None, description="End date filter"),
-    category_id: Optional[int] = Query(None, description="Filter by specific category ID"),
+    category_id: Optional[int] = Query(None, description="Filter by single category ID"),
+    category_ids: Optional[str] = Query(None, description="Filter by multiple category IDs"),
+    min_amount: Optional[float] = Query(None, description="Minimum amount filter"),
+    max_amount: Optional[float] = Query(None, description="Maximum amount filter"),
+    recipient: Optional[str] = Query(None, description="Recipient search query"),
+    purpose: Optional[str] = Query(None, description="Purpose search query"),
+    transaction_type: Optional[str] = Query(None, description="Transaction type filter"),
     db: Session = Depends(get_db)
 ):
     """
@@ -189,7 +238,13 @@ def get_account_statistics(
         group_by: Grouping period (day, month, year)
         from_date: Filter by start date
         to_date: Filter by end date
-        category_id: Filter by specific category ID
+        category_id: Filter by single category ID
+        category_ids: Filter by multiple categories
+        min_amount: Minimum amount filter
+        max_amount: Maximum amount filter
+        recipient: Recipient search query
+        purpose: Purpose search query
+        transaction_type: Transaction type filter
         
     Returns:
         Chart data with labels, income, expenses, balance arrays
@@ -211,7 +266,13 @@ def get_account_statistics(
         from_date=from_date,
         to_date=to_date,
         group_by=group_by,
-        category_id=category_id
+        category_id=category_id,
+        category_ids=category_ids,
+        min_amount=min_amount,
+        max_amount=max_amount,
+        recipient=recipient,
+        purpose=purpose,
+        transaction_type=transaction_type
     )
     
     return statistics
@@ -223,6 +284,13 @@ def get_account_categories_data(
     limit: int = Query(10, ge=1, le=50, description="Number of categories"),
     from_date: Optional[date] = Query(None, description="Start date filter"),
     to_date: Optional[date] = Query(None, description="End date filter"),
+    category_id: Optional[int] = Query(None, description="Filter by single category ID"),
+    category_ids: Optional[str] = Query(None, description="Filter by multiple category IDs"),
+    min_amount: Optional[float] = Query(None, description="Minimum amount filter"),
+    max_amount: Optional[float] = Query(None, description="Maximum amount filter"),
+    recipient: Optional[str] = Query(None, description="Recipient search query"),
+    purpose: Optional[str] = Query(None, description="Purpose search query"),
+    transaction_type: Optional[str] = Query(None, description="Transaction type filter"),
     db: Session = Depends(get_db)
 ):
     """
@@ -233,6 +301,13 @@ def get_account_categories_data(
         limit: Maximum number of categories to return
         from_date: Filter by start date
         to_date: Filter by end date
+        category_id: Filter by single category
+        category_ids: Filter by multiple categories
+        min_amount: Minimum amount filter
+        max_amount: Maximum amount filter
+        recipient: Recipient search query
+        purpose: Purpose search query
+        transaction_type: Transaction type filter
         
     Returns:
         List of category aggregations
@@ -253,7 +328,14 @@ def get_account_categories_data(
         account_id=account_id,
         from_date=from_date,
         to_date=to_date,
-        limit=limit
+        limit=limit,
+        category_id=category_id,
+        category_ids=category_ids,
+        min_amount=min_amount,
+        max_amount=max_amount,
+        recipient=recipient,
+        purpose=purpose,
+        transaction_type=transaction_type
     )
     
     return categories
@@ -266,7 +348,12 @@ def get_account_recipients_data(
     from_date: Optional[date] = Query(None, description="Start date filter"),
     to_date: Optional[date] = Query(None, description="End date filter"),
     transaction_type: str = Query('all', regex='^(all|income|expense)$', description="Transaction type filter"),
-    category_id: Optional[int] = Query(None, description="Category ID filter"),
+    category_id: Optional[int] = Query(None, description="Single category ID filter"),
+    category_ids: Optional[str] = Query(None, description="Multiple category IDs (comma-separated)"),
+    min_amount: Optional[float] = Query(None, description="Minimum amount filter"),
+    max_amount: Optional[float] = Query(None, description="Maximum amount filter"),
+    recipient: Optional[str] = Query(None, description="Recipient search query"),
+    purpose: Optional[str] = Query(None, description="Purpose search query"),
     db: Session = Depends(get_db)
 ):
     """
@@ -278,7 +365,12 @@ def get_account_recipients_data(
         from_date: Filter by start date
         to_date: Filter by end date
         transaction_type: Filter by transaction type ('all', 'income', 'expense')
-        category_id: Filter by category ID
+        category_id: Filter by single category ID
+        category_ids: Filter by multiple categories
+        min_amount: Minimum amount filter
+        max_amount: Maximum amount filter
+        recipient: Recipient search query
+        purpose: Purpose search query
         
     Returns:
         List of recipient aggregations
@@ -301,7 +393,12 @@ def get_account_recipients_data(
         to_date=to_date,
         limit=limit,
         transaction_type=transaction_type,
-        category_id=category_id
+        category_id=category_id,
+        category_ids=category_ids,
+        min_amount=min_amount,
+        max_amount=max_amount,
+        recipient=recipient,
+        purpose=purpose
     )
     
     return recipients

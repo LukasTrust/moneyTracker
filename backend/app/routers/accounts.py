@@ -7,6 +7,7 @@ from typing import List
 
 from app.database import get_db
 from app.models.account import Account
+from app.routers.deps import get_account_by_id
 from app.schemas.account import (
     AccountCreate,
     AccountUpdate,
@@ -30,7 +31,7 @@ def get_accounts(db: Session = Depends(get_db)):
 
 
 @router.get("/{account_id}", response_model=AccountResponse)
-def get_account(account_id: int, db: Session = Depends(get_db)):
+def get_account(account: Account = Depends(get_account_by_id)):
     """
     Get a specific account by ID
     
@@ -43,14 +44,6 @@ def get_account(account_id: int, db: Session = Depends(get_db)):
     Raises:
         404: Account not found
     """
-    account = db.query(Account).filter(Account.id == account_id).first()
-    
-    if not account:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Account with ID {account_id} not found"
-        )
-    
     return account
 
 
@@ -77,8 +70,8 @@ def create_account(account_data: AccountCreate, db: Session = Depends(get_db)):
 
 @router.put("/{account_id}", response_model=AccountResponse)
 def update_account(
-    account_id: int,
     account_data: AccountUpdate,
+    account: Account = Depends(get_account_by_id),
     db: Session = Depends(get_db)
 ):
     """
@@ -94,14 +87,6 @@ def update_account(
     Raises:
         404: Account not found
     """
-    account = db.query(Account).filter(Account.id == account_id).first()
-    
-    if not account:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Account with ID {account_id} not found"
-        )
-    
     # Update fields
     update_data = account_data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
@@ -114,7 +99,10 @@ def update_account(
 
 
 @router.delete("/{account_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_account(account_id: int, db: Session = Depends(get_db)):
+def delete_account(
+    account: Account = Depends(get_account_by_id),
+    db: Session = Depends(get_db)
+):
     """
     Delete an account
     
@@ -128,14 +116,6 @@ def delete_account(account_id: int, db: Session = Depends(get_db)):
         This will also delete all associated mappings and data rows
         due to CASCADE delete configuration
     """
-    account = db.query(Account).filter(Account.id == account_id).first()
-    
-    if not account:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Account with ID {account_id} not found"
-        )
-    
     db.delete(account)
     db.commit()
     

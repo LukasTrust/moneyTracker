@@ -11,17 +11,18 @@ from app.database import get_db
 from app.schemas.statistics import ComparisonResponse
 from app.services.data_aggregator import DataAggregator
 from app.models.account import Account
+from app.routers.deps import get_account_by_id
 
 router = APIRouter()
 
 
 @router.get("/{account_id}", response_model=dict)
 def get_period_comparison(
-    account_id: int,
     comparison_type: str = Query(..., description="Type of comparison: 'month' or 'year'"),
     period1: str = Query(..., description="First period (YYYY-MM for month, YYYY for year)"),
     period2: str = Query(..., description="Second period (YYYY-MM for month, YYYY for year)"),
     top_limit: int = Query(5, description="Number of top recipients to include", ge=1, le=20),
+    account: Account = Depends(get_account_by_id),
     db: Session = Depends(get_db)
 ):
     """
@@ -41,11 +42,6 @@ def get_period_comparison(
         GET /api/comparison/1?comparison_type=month&period1=2024-12&period2=2023-12
         GET /api/comparison/1?comparison_type=year&period1=2024&period2=2023
     """
-    # Verify account exists
-    account = db.query(Account).filter(Account.id == account_id).first()
-    if not account:
-        raise HTTPException(status_code=404, detail="Account not found")
-    
     # Validate and parse periods
     try:
         if comparison_type == 'month':
@@ -85,7 +81,7 @@ def get_period_comparison(
     # Get comparison data
     aggregator = DataAggregator(db)
     comparison_data = aggregator.get_period_comparison(
-        account_id=account_id,
+        account_id=account.id,
         period1_start=period1_start,
         period1_end=period1_end,
         period2_start=period2_start,
@@ -98,10 +94,10 @@ def get_period_comparison(
 
 @router.get("/{account_id}/quick-compare", response_model=dict)
 def get_quick_comparison(
-    account_id: int,
     compare_to: str = Query(..., description="Quick comparison: 'last_month', 'last_year', 'month_yoy', 'year_yoy'"),
     reference_period: Optional[str] = Query(None, description="Reference period (YYYY-MM or YYYY), defaults to current"),
     top_limit: int = Query(5, description="Number of top recipients to include", ge=1, le=20),
+    account: Account = Depends(get_account_by_id),
     db: Session = Depends(get_db)
 ):
     """
@@ -124,11 +120,6 @@ def get_quick_comparison(
         GET /api/comparison/1/quick-compare?compare_to=last_month
         GET /api/comparison/1/quick-compare?compare_to=month_yoy&reference_period=2024-12
     """
-    # Verify account exists
-    account = db.query(Account).filter(Account.id == account_id).first()
-    if not account:
-        raise HTTPException(status_code=404, detail="Account not found")
-    
     today = date.today()
     
     try:
@@ -201,7 +192,7 @@ def get_quick_comparison(
     # Get comparison data
     aggregator = DataAggregator(db)
     comparison_data = aggregator.get_period_comparison(
-        account_id=account_id,
+        account_id=account.id,
         period1_start=period1_start,
         period1_end=period1_end,
         period2_start=period2_start,

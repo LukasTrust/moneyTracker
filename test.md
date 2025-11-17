@@ -52,3 +52,14 @@ Logs: Fluentd oder ELK Stack
 Technisch:
 
 Status: ✅ Bereits gut umgesetzt!
+
+Backend (Critical):
+🔴 Code-Duplizierung - 22+ identische Account-Prüfungen in Routern
+🔴 Performance - O(n²) TransferMatcher lädt alle Daten in Memory
+🟡 Inkonsistente API-Struktur - Router-Prefixes nicht einheitlich
+🟡 Fehlendes Error-Handling - Generische Exception-Behandlung
+🟡 Memory-Probleme - CSV-Import ohne Size-Limits
+Frontend (Medium):
+🟡 Console.logs in Production - 20+ Debug-Statements
+🟡 Fehlende Error Boundaries - App kann bei Component-Crashes abstürzen
+🟢 4 offene TODOs - Dokumentierte aber nicht implementierte Features

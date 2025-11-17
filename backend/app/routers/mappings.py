@@ -8,6 +8,7 @@ from typing import List
 from app.database import get_db
 from app.models.mapping import Mapping
 from app.models.account import Account
+from app.routers.deps import get_account_by_id
 from app.schemas.mapping import (
     MappingResponse,
     MappingsUpdate
@@ -17,7 +18,10 @@ router = APIRouter()
 
 
 @router.get("/{account_id}/mappings", response_model=List[MappingResponse])
-def get_mappings(account_id: int, db: Session = Depends(get_db)):
+def get_mappings(
+    account: Account = Depends(get_account_by_id),
+    db: Session = Depends(get_db)
+):
     """
     Get all mappings for an account
     
@@ -30,22 +34,14 @@ def get_mappings(account_id: int, db: Session = Depends(get_db)):
     Raises:
         404: Account not found
     """
-    # Check if account exists
-    account = db.query(Account).filter(Account.id == account_id).first()
-    if not account:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Account with ID {account_id} not found"
-        )
-    
-    mappings = db.query(Mapping).filter(Mapping.account_id == account_id).all()
+    mappings = db.query(Mapping).filter(Mapping.account_id == account.id).all()
     return mappings
 
 
 @router.post("/{account_id}/mappings", response_model=List[MappingResponse])
 def save_mappings(
-    account_id: int,
     mappings_data: MappingsUpdate,
+    account: Account = Depends(get_account_by_id),
     db: Session = Depends(get_db)
 ):
     """
@@ -61,22 +57,14 @@ def save_mappings(
     Raises:
         404: Account not found
     """
-    # Check if account exists
-    account = db.query(Account).filter(Account.id == account_id).first()
-    if not account:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Account with ID {account_id} not found"
-        )
-    
     # Delete existing mappings
-    db.query(Mapping).filter(Mapping.account_id == account_id).delete()
+    db.query(Mapping).filter(Mapping.account_id == account.id).delete()
     
     # Create new mappings
     new_mappings = []
     for mapping_data in mappings_data.mappings:
         new_mapping = Mapping(
-            account_id=account_id,
+            account_id=account.id,
             csv_header=mapping_data.csv_header,
             standard_field=mapping_data.standard_field
         )
@@ -93,7 +81,10 @@ def save_mappings(
 
 
 @router.delete("/{account_id}/mappings", status_code=status.HTTP_204_NO_CONTENT)
-def delete_mappings(account_id: int, db: Session = Depends(get_db)):
+def delete_mappings(
+    account: Account = Depends(get_account_by_id),
+    db: Session = Depends(get_db)
+):
     """
     Delete all mappings for an account
     
@@ -103,16 +94,8 @@ def delete_mappings(account_id: int, db: Session = Depends(get_db)):
     Raises:
         404: Account not found
     """
-    # Check if account exists
-    account = db.query(Account).filter(Account.id == account_id).first()
-    if not account:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Account with ID {account_id} not found"
-        )
-    
     # Delete all mappings
-    db.query(Mapping).filter(Mapping.account_id == account_id).delete()
+    db.query(Mapping).filter(Mapping.account_id == account.id).delete()
     db.commit()
     
     return None

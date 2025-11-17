@@ -73,14 +73,14 @@ export default function TransactionTable({
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Datum
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Beschreibung
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Betrag
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Empfänger
               </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Betrag
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Verwendungszweck
               </th>
             </tr>
           </thead>
@@ -98,21 +98,21 @@ export default function TransactionTable({
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {formatDate(data.date)}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-900">
-                    <div className="max-w-xs truncate">
-                      {data.description || '-'}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
-                    <div className="max-w-xs truncate">
-                      {data.recipient || '-'}
-                    </div>
-                  </td>
-                  <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium text-right ${
-                    isNegative ? 'text-red-600' : 'text-green-600'
-                  }`}>
-                    {formatAmount(amount)} {symbol}
-                  </td>
+                    <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium text-right ${
+                      isNegative ? 'text-red-600' : 'text-green-600'
+                    }`}>
+                      {formatAmount(amount)} {symbol}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      <div className="max-w-xs truncate">
+                        {data.recipient || '-'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-900">
+                      <div className="max-w-xs truncate">
+                        {data.purpose || data.verwendungszweck || data.description || '-'}
+                      </div>
+                    </td>
                 </tr>
               );
             })}

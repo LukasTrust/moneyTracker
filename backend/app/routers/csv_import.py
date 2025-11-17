@@ -10,6 +10,7 @@ from app.database import get_db
 from app.models.account import Account
 from app.models.data_row import DataRow
 from app.models.mapping import Mapping
+from app.routers.deps import verify_account_exists
 from app.schemas.csv_import import (
     CsvImportPreview,
     CsvImportRequest,
@@ -266,12 +267,7 @@ async def import_csv_advanced(
         500: Server error during processing
     """
     # Check if account exists
-    account = db.query(Account).filter(Account.id == account_id).first()
-    if not account:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Account with ID {account_id} not found"
-        )
+    account = verify_account_exists(account_id, db)
     
     # Parse mapping JSON
     try:

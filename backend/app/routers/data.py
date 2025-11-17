@@ -10,6 +10,7 @@ from datetime import date, datetime
 from app.database import get_db
 from app.models.account import Account
 from app.models.data_row import DataRow
+from app.routers.deps import get_account_by_id
 from app.schemas.data_row import DataRowListResponse, DataRowResponse
 from app.schemas.statistics import (
     SummaryResponse,
@@ -24,22 +25,22 @@ router = APIRouter()
 
 @router.get("/{account_id}/data", response_model=DataRowListResponse)
 def get_account_data(
-    account_id: int,
     limit: int = Query(50, ge=1, le=1000, description="Items per page"),
     offset: int = Query(0, ge=0, description="Number of items to skip"),
     from_date: Optional[date] = Query(None, description="Start date filter"),
     to_date: Optional[date] = Query(None, description="End date filter"),
-    category_id: Optional[int] = Query(None, description="Single category ID filter (use -1 for uncategorized)"),
-    category_ids: Optional[str] = Query(None, description="Multiple category IDs (comma-separated, OR logic)"),
-    min_amount: Optional[float] = Query(None, description="Minimum amount filter"),
-    max_amount: Optional[float] = Query(None, description="Maximum amount filter"),
-    recipient: Optional[str] = Query(None, description="Recipient search query (case-insensitive)"),
-    purpose: Optional[str] = Query(None, description="Purpose/description search query (case-insensitive)"),
-    transaction_type: Optional[str] = Query(None, description="Transaction type: 'income', 'expense', 'all'"),
+    category_id: Optional[int] = Query(None, description="Filter by category ID (-1 for uncategorized)"),
+    category_ids: Optional[str] = Query(None, description="Filter by multiple category IDs (comma-separated, OR logic)"),
+    min_amount: Optional[float] = Query(None, description="Minimum amount filter (inclusive)"),
+    max_amount: Optional[float] = Query(None, description="Maximum amount filter (inclusive)"),
+    recipient: Optional[str] = Query(None, description="Filter by recipient (partial match, case-insensitive)"),
+    purpose: Optional[str] = Query(None, description="Filter by purpose (partial match, case-insensitive)"),
+    transaction_type: Optional[str] = Query(None, description="Filter by type: 'income' or 'expense'"),
+    account: Account = Depends(get_account_by_id),
     db: Session = Depends(get_db)
 ):
     """
-    Get paginated transaction data for an account with advanced filters
+    Get filtered and paginated transaction data for an account
     
     Args:
         account_id: Account ID
@@ -61,16 +62,8 @@ def get_account_data(
     Raises:
         404: Account not found
     """
-    # Check if account exists
-    account = db.query(Account).filter(Account.id == account_id).first()
-    if not account:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Account with ID {account_id} not found"
-        )
-    
     # Build query
-    query = db.query(DataRow).filter(DataRow.account_id == account_id)
+    query = db.query(DataRow).filter(DataRow.account_id == account.id)
     
     # Apply date filters using direct column access
     if from_date:
@@ -167,6 +160,7 @@ def get_account_summary(
     recipient: Optional[str] = Query(None, description="Recipient search query"),
     purpose: Optional[str] = Query(None, description="Purpose search query"),
     transaction_type: Optional[str] = Query(None, description="Transaction type filter"),
+    account: Account = Depends(get_account_by_id),
     db: Session = Depends(get_db)
 ):
     """
@@ -190,17 +184,9 @@ def get_account_summary(
     Raises:
         404: Account not found
     """
-    # Check if account exists
-    account = db.query(Account).filter(Account.id == account_id).first()
-    if not account:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Account with ID {account_id} not found"
-        )
-    
     aggregator = DataAggregator(db)
     summary = aggregator.get_summary(
-        account_id=account_id,
+        account_id=account.id,
         from_date=from_date,
         to_date=to_date,
         category_id=category_id,
@@ -228,6 +214,7 @@ def get_account_statistics(
     recipient: Optional[str] = Query(None, description="Recipient search query"),
     purpose: Optional[str] = Query(None, description="Purpose search query"),
     transaction_type: Optional[str] = Query(None, description="Transaction type filter"),
+    account: Account = Depends(get_account_by_id),
     db: Session = Depends(get_db)
 ):
     """
@@ -252,17 +239,9 @@ def get_account_statistics(
     Raises:
         404: Account not found
     """
-    # Check if account exists
-    account = db.query(Account).filter(Account.id == account_id).first()
-    if not account:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Account with ID {account_id} not found"
-        )
-    
     aggregator = DataAggregator(db)
     statistics = aggregator.get_balance_history(
-        account_id=account_id,
+        account_id=account.id,
         from_date=from_date,
         to_date=to_date,
         group_by=group_by,
@@ -280,7 +259,6 @@ def get_account_statistics(
 
 @router.get("/{account_id}/categories-data", response_model=list[CategoryDataResponse])
 def get_account_categories_data(
-    account_id: int,
     limit: int = Query(10, ge=1, le=50, description="Number of categories"),
     from_date: Optional[date] = Query(None, description="Start date filter"),
     to_date: Optional[date] = Query(None, description="End date filter"),
@@ -291,6 +269,7 @@ def get_account_categories_data(
     recipient: Optional[str] = Query(None, description="Recipient search query"),
     purpose: Optional[str] = Query(None, description="Purpose search query"),
     transaction_type: Optional[str] = Query(None, description="Transaction type filter"),
+    account: Account = Depends(get_account_by_id),
     db: Session = Depends(get_db)
 ):
     """
@@ -315,17 +294,9 @@ def get_account_categories_data(
     Raises:
         404: Account not found
     """
-    # Check if account exists
-    account = db.query(Account).filter(Account.id == account_id).first()
-    if not account:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Account with ID {account_id} not found"
-        )
-    
     aggregator = DataAggregator(db)
     categories = aggregator.get_category_aggregation(
-        account_id=account_id,
+        account_id=account.id,
         from_date=from_date,
         to_date=to_date,
         limit=limit,
@@ -354,6 +325,7 @@ def get_account_recipients_data(
     max_amount: Optional[float] = Query(None, description="Maximum amount filter"),
     recipient: Optional[str] = Query(None, description="Recipient search query"),
     purpose: Optional[str] = Query(None, description="Purpose search query"),
+    account: Account = Depends(get_account_by_id),
     db: Session = Depends(get_db)
 ):
     """
@@ -378,17 +350,9 @@ def get_account_recipients_data(
     Raises:
         404: Account not found
     """
-    # Check if account exists
-    account = db.query(Account).filter(Account.id == account_id).first()
-    if not account:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Account with ID {account_id} not found"
-        )
-    
     aggregator = DataAggregator(db)
     recipients = aggregator.get_recipient_aggregation(
-        account_id=account_id,
+        account_id=account.id,
         from_date=from_date,
         to_date=to_date,
         limit=limit,

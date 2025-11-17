@@ -9,6 +9,7 @@ from typing import Optional
 from app.database import get_db
 from app.models.recurring_transaction import RecurringTransaction
 from app.models.account import Account
+from app.routers.deps import get_account_by_id
 from app.schemas.recurring_transaction import (
     RecurringTransactionResponse,
     RecurringTransactionListResponse,
@@ -24,8 +25,8 @@ router = APIRouter()
 
 @router.get("/accounts/{account_id}/recurring", response_model=RecurringTransactionListResponse)
 def get_recurring_transactions_for_account(
-    account_id: int,
     include_inactive: bool = False,
+    account: Account = Depends(get_account_by_id),
     db: Session = Depends(get_db)
 ):
     """
@@ -38,17 +39,9 @@ def get_recurring_transactions_for_account(
     Returns:
         List of recurring transactions
     """
-    # Check if account exists
-    account = db.query(Account).filter(Account.id == account_id).first()
-    if not account:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Account {account_id} not found"
-        )
-    
     # Query recurring transactions
     query = db.query(RecurringTransaction).filter(
-        RecurringTransaction.account_id == account_id
+        RecurringTransaction.account_id == account.id
     )
     
     if not include_inactive:
@@ -113,11 +106,11 @@ def get_all_recurring_transactions(
 
 @router.get("/accounts/{account_id}/recurring/stats", response_model=RecurringTransactionStats)
 def get_recurring_stats_for_account(
-    account_id: int,
+    account: Account = Depends(get_account_by_id),
     db: Session = Depends(get_db)
 ):
     """
-    Get statistics about recurring transactions for an account
+    Get statistics for recurring transactions
     
     Args:
         account_id: Account ID
@@ -125,46 +118,10 @@ def get_recurring_stats_for_account(
     Returns:
         Statistics (counts, monthly costs)
     """
-    # Check if account exists
-    account = db.query(Account).filter(Account.id == account_id).first()
-    if not account:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Account {account_id} not found"
-        )
-    
     # Get all recurring transactions
     recurring = db.query(RecurringTransaction).filter(
-        RecurringTransaction.account_id == account_id
+        RecurringTransaction.account_id == account.id
     ).all()
-    
-    total_count = len(recurring)
-    active_count = sum(1 for r in recurring if r.is_active)
-    inactive_count = total_count - active_count
-    
-    # Calculate total monthly cost (only active)
-    total_monthly_cost = 0.0
-    by_category = {}
-    
-    for r in recurring:
-        if not r.is_active:
-            continue
-        
-        monthly_cost = float(r.average_amount) * (30 / r.average_interval_days)
-        total_monthly_cost += monthly_cost
-        
-        # Group by category
-        if r.category_id:
-            category_name = r.category.name if r.category else "Uncategorized"
-            by_category[category_name] = by_category.get(category_name, 0.0) + monthly_cost
-    
-    return RecurringTransactionStats(
-        total_count=total_count,
-        active_count=active_count,
-        inactive_count=inactive_count,
-        total_monthly_cost=round(total_monthly_cost, 2),
-        by_category={k: round(v, 2) for k, v in by_category.items()}
-    )
 
 
 @router.get("/recurring/stats", response_model=RecurringTransactionStats)
@@ -210,7 +167,7 @@ def get_all_recurring_stats(
 
 @router.post("/accounts/{account_id}/recurring/detect", response_model=RecurringTransactionDetectionStats)
 def detect_recurring_for_account(
-    account_id: int,
+    account: Account = Depends(get_account_by_id),
     db: Session = Depends(get_db)
 ):
     """
@@ -222,20 +179,12 @@ def detect_recurring_for_account(
     Returns:
         Detection statistics
     """
-    # Check if account exists
-    account = db.query(Account).filter(Account.id == account_id).first()
-    if not account:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Account {account_id} not found"
-        )
-    
     detector = RecurringTransactionDetector(db)
-    stats = detector.update_recurring_transactions(account_id)
+    stats = detector.update_recurring_transactions(account.id)
     
     # Get total count
     total = db.query(RecurringTransaction).filter(
-        RecurringTransaction.account_id == account_id
+        RecurringTransaction.account_id == account.id
     ).count()
     
     return RecurringTransactionDetectionStats(

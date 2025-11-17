@@ -40,7 +40,8 @@ export const dataService = {
       queryParams.append('category_ids', categoryIds);
     }
 
-    const response = await api.get(`/accounts/${accountId}/data?${queryParams}`);
+  // New RESTful path: transactions
+  const response = await api.get(`/accounts/${accountId}/transactions?${queryParams}`);
     return response.data;
   },
 
@@ -67,7 +68,8 @@ export const dataService = {
     if (transactionType && transactionType !== 'all') queryParams.append('transaction_type', transactionType);
 
     const response = await api.get(
-      `/accounts/${accountId}/summary?${queryParams}`
+      // New RESTful summary path under transactions
+      `/accounts/${accountId}/transactions/summary?${queryParams}`
     );
     return response.data;
   },
@@ -98,7 +100,7 @@ export const dataService = {
     if (transactionType && transactionType !== 'all') queryParams.append('transaction_type', transactionType);
 
     const response = await api.get(
-      `/accounts/${accountId}/statistics?${queryParams}`
+      `/accounts/${accountId}/transactions/statistics?${queryParams}`
     );
     return response.data;
   },
@@ -157,7 +159,7 @@ export const dataService = {
     if (purpose) queryParams.append('purpose', purpose);
 
     const response = await api.get(
-      `/accounts/${accountId}/recipients-data?${queryParams}`
+      `/accounts/${accountId}/transactions/recipients?${queryParams}`
     );
     return response.data;
   },

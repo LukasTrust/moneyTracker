@@ -11,7 +11,7 @@ import api from './api';
  * @returns {Promise} - Promise resolving to recurring transactions list
  */
 export const getRecurringForAccount = async (accountId, includeInactive = false) => {
-  const response = await api.get(`/accounts/${accountId}/recurring`, {
+  const response = await api.get(`/accounts/${accountId}/recurring-transactions`, {
     params: { include_inactive: includeInactive }
   });
   return response.data;
@@ -23,7 +23,7 @@ export const getRecurringForAccount = async (accountId, includeInactive = false)
  * @returns {Promise} - Promise resolving to recurring transactions list
  */
 export const getAllRecurring = async (includeInactive = false) => {
-  const response = await api.get('/recurring', {
+  const response = await api.get('/recurring-transactions', {
     params: { include_inactive: includeInactive }
   });
   return response.data;
@@ -35,7 +35,7 @@ export const getAllRecurring = async (includeInactive = false) => {
  * @returns {Promise} - Promise resolving to statistics
  */
 export const getRecurringStatsForAccount = async (accountId) => {
-  const response = await api.get(`/accounts/${accountId}/recurring/stats`);
+  const response = await api.get(`/accounts/${accountId}/recurring-transactions/stats`);
   return response.data;
 };
 
@@ -44,7 +44,7 @@ export const getRecurringStatsForAccount = async (accountId) => {
  * @returns {Promise} - Promise resolving to statistics
  */
 export const getAllRecurringStats = async () => {
-  const response = await api.get('/recurring/stats');
+  const response = await api.get('/recurring-transactions/stats');
   return response.data;
 };
 
@@ -54,7 +54,7 @@ export const getAllRecurringStats = async () => {
  * @returns {Promise} - Promise resolving to detection statistics
  */
 export const detectRecurringForAccount = async (accountId) => {
-  const response = await api.post(`/accounts/${accountId}/recurring/detect`);
+  const response = await api.post(`/accounts/${accountId}/recurring-transactions/detect`);
   return response.data;
 };
 
@@ -63,7 +63,7 @@ export const detectRecurringForAccount = async (accountId) => {
  * @returns {Promise} - Promise resolving to detection statistics
  */
 export const detectAllRecurring = async () => {
-  const response = await api.post('/recurring/detect-all');
+  const response = await api.post('/recurring-transactions/detect-all');
   return response.data;
 };
 
@@ -74,7 +74,7 @@ export const detectAllRecurring = async () => {
  * @returns {Promise} - Promise resolving to updated recurring transaction
  */
 export const updateRecurring = async (recurringId, updateData) => {
-  const response = await api.patch(`/recurring/${recurringId}`, updateData);
+  const response = await api.patch(`/recurring-transactions/${recurringId}`, updateData);
   return response.data;
 };
 
@@ -85,7 +85,7 @@ export const updateRecurring = async (recurringId, updateData) => {
  * @returns {Promise} - Promise resolving to updated recurring transaction
  */
 export const toggleRecurringStatus = async (recurringId, isRecurring) => {
-  const response = await api.post(`/recurring/${recurringId}/toggle`, {
+  const response = await api.post(`/recurring-transactions/${recurringId}/toggle`, {
     is_recurring: isRecurring
   });
   return response.data;
@@ -97,7 +97,7 @@ export const toggleRecurringStatus = async (recurringId, isRecurring) => {
  * @returns {Promise} - Promise resolving to void
  */
 export const deleteRecurring = async (recurringId) => {
-  const response = await api.delete(`/recurring/${recurringId}`);
+  const response = await api.delete(`/recurring-transactions/${recurringId}`);
   return response.data;
 };
 

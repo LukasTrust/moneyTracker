@@ -84,11 +84,11 @@ docker-compose logs -f backend
 - `POST /api/v1/accounts/{id}/upload` - CSV hochladen und importieren
 
 ### Data & Statistics
-- `GET /api/v1/accounts/{id}/data` - Transaktionsdaten (paginiert)
-- `GET /api/v1/accounts/{id}/summary` - Zusammenfassung (Einnahmen/Ausgaben)
-- `GET /api/v1/accounts/{id}/statistics` - Historische Statistiken
-- `GET /api/v1/accounts/{id}/categories-data` - Kategorie-Aggregation
-- `GET /api/v1/accounts/{id}/recipients-data` - Empfänger-Aggregation
+- `GET /api/v1/accounts/{id}/transactions` - Transaktionsdaten (paginiert)
+- `GET /api/v1/accounts/{id}/transactions/summary` - Zusammenfassung (Einnahmen/Ausgaben)
+- `GET /api/v1/accounts/{id}/transactions/statistics` - Historische Statistiken
+- `GET /api/v1/accounts/{id}/transactions/categories` - Kategorie-Aggregation (per account)
+- `GET /api/v1/accounts/{id}/transactions/recipients` - Empfänger-Aggregation (per account)
 
 ### Dashboard (All Accounts)
 - `GET /api/v1/dashboard/summary` - Gesamt-Zusammenfassung

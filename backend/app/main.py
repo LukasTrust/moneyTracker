@@ -189,7 +189,7 @@ app.include_router(
 
 app.include_router(
     recurring.router,
-    prefix=f"{settings.API_V1_PREFIX}",
+    prefix=f"{settings.API_V1_PREFIX}/accounts",
     tags=["recurring"]
 )
 

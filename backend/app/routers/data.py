@@ -23,7 +23,7 @@ from app.services.data_aggregator import DataAggregator
 router = APIRouter()
 
 
-@router.get("/{account_id}/data", response_model=DataRowListResponse)
+@router.get("/{account_id}/transactions", response_model=DataRowListResponse)
 def get_account_data(
     limit: int = Query(50, ge=1, le=1000, description="Items per page"),
     offset: int = Query(0, ge=0, description="Number of items to skip"),
@@ -148,7 +148,7 @@ def get_account_data(
     }
 
 
-@router.get("/{account_id}/summary", response_model=SummaryResponse)
+@router.get("/{account_id}/transactions/summary", response_model=SummaryResponse)
 def get_account_summary(
     account_id: int,
     from_date: Optional[date] = Query(None, description="Start date filter"),
@@ -201,7 +201,7 @@ def get_account_summary(
     return summary
 
 
-@router.get("/{account_id}/statistics", response_model=ChartDataResponse)
+@router.get("/{account_id}/transactions/statistics", response_model=ChartDataResponse)
 def get_account_statistics(
     account_id: int,
     group_by: str = Query('month', regex='^(day|month|year)$', description="Grouping period"),
@@ -257,7 +257,7 @@ def get_account_statistics(
     return statistics
 
 
-@router.get("/{account_id}/categories-data", response_model=list[CategoryDataResponse])
+@router.get("/{account_id}/transactions/categories", response_model=list[CategoryDataResponse])
 def get_account_categories_data(
     limit: int = Query(10, ge=1, le=50, description="Number of categories"),
     from_date: Optional[date] = Query(None, description="Start date filter"),
@@ -312,7 +312,7 @@ def get_account_categories_data(
     return categories
 
 
-@router.get("/{account_id}/recipients-data", response_model=list[RecipientDataResponse])
+@router.get("/{account_id}/transactions/recipients", response_model=list[RecipientDataResponse])
 def get_account_recipients_data(
     account_id: int,
     limit: int = Query(10, ge=1, le=50, description="Number of recipients"),

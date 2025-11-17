@@ -65,7 +65,8 @@ export const categoryService = {
     if (toDate) queryParams.append('to_date', toDate);
 
     const response = await api.get(
-      `/accounts/${accountId}/categories-data?${queryParams}`
+      // New RESTful path for category aggregations under transactions
+      `/accounts/${accountId}/transactions/categories?${queryParams}`
     );
     return response.data;
   },

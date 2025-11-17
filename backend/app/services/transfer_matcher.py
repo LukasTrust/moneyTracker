@@ -63,42 +63,60 @@ class TransferMatcher:
         if date_to:
             query = query.filter(DataRow.transaction_date <= date_to)
         
-        # Get transactions and exclude those already in transfers
+        # Exclude transactions that are already linked in transfers
+        existing_ids = []
         if exclude_existing:
             existing_transfer_ids = self.db.query(Transfer.from_transaction_id).union(
                 self.db.query(Transfer.to_transaction_id)
             ).all()
-            existing_ids = [tid[0] for tid in existing_transfer_ids]
-            if existing_ids:
-                query = query.filter(~DataRow.id.in_(existing_ids))
-        
-        transactions = query.order_by(DataRow.transaction_date).all()
-        
-        # Find matching pairs
+            # flatten
+            existing_ids = [tid[0] for tid in existing_transfer_ids if tid and tid[0] is not None]
+
         candidates = []
-        for i, tx1 in enumerate(transactions):
-            # Only consider negative amounts as potential "from" transactions
-            if tx1.amount >= 0:
-                continue
-            
-            # Look for matching positive amounts in other accounts
-            for tx2 in transactions[i+1:]:
-                # Skip if same account
-                if tx1.account_id == tx2.account_id:
-                    continue
-                
-                # Check if amounts match (inverted)
-                if tx2.amount != abs(tx1.amount):
-                    continue
-                
-                # Check date tolerance
+
+        # Instead of loading all transactions into memory (O(n^2) when matching),
+        # stream only negative transactions and for each one do a targeted query
+        # for matching positive transactions within the date tolerance and amount.
+        # This keeps memory usage low and leverages DB indexes for the inner lookup.
+
+        negatives_q = query.filter(DataRow.amount < 0).order_by(DataRow.transaction_date)
+
+        # Use yield_per so SQLAlchemy can stream results and not hydrate entire result set
+        try:
+            negatives_iter = negatives_q.yield_per(500)
+        except Exception:
+            # Some DBs/drivers may not support yield_per in the current context;
+            # fall back to normal iteration (still better than loading positives as well)
+            negatives_iter = negatives_q
+
+        for tx1 in negatives_iter:
+            # compute date window
+            date_min = tx1.transaction_date - timedelta(days=self.DATE_TOLERANCE_DAYS)
+            date_max = tx1.transaction_date + timedelta(days=self.DATE_TOLERANCE_DAYS)
+
+            # find matching positive transactions with same absolute amount
+            positives_q = (
+                self.db.query(DataRow)
+                .filter(
+                    DataRow.amount == abs(tx1.amount),
+                    DataRow.account_id != tx1.account_id,
+                    DataRow.transaction_date >= date_min,
+                    DataRow.transaction_date <= date_max,
+                )
+                .order_by(DataRow.transaction_date)
+            )
+
+            if exclude_existing and existing_ids:
+                positives_q = positives_q.filter(~DataRow.id.in_(existing_ids))
+
+            # Usually the number of candidates per tx1 is small; load them
+            for tx2 in positives_q.all():
                 date_diff = abs((tx2.transaction_date - tx1.transaction_date).days)
+                # double-check tolerance
                 if date_diff > self.DATE_TOLERANCE_DAYS:
                     continue
-                
-                # Calculate confidence score
+
                 confidence = self._calculate_confidence(tx1, tx2, date_diff)
-                
                 if confidence >= min_confidence:
                     candidates.append({
                         'from_transaction_id': tx1.id,
@@ -110,7 +128,7 @@ class TransferMatcher:
                         'confidence_score': confidence,
                         'match_reason': self._generate_match_reason(tx1, tx2, date_diff, confidence)
                     })
-        
+
         return candidates
     
     def _calculate_confidence(self, tx1: DataRow, tx2: DataRow, date_diff: int) -> float:

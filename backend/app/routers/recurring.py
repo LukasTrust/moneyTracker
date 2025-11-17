@@ -23,7 +23,7 @@ from app.services.recurring_transaction_detector import RecurringTransactionDete
 router = APIRouter()
 
 
-@router.get("/accounts/{account_id}/recurring", response_model=RecurringTransactionListResponse)
+@router.get("/{account_id}/recurring-transactions", response_model=RecurringTransactionListResponse)
 def get_recurring_transactions_for_account(
     include_inactive: bool = False,
     account: Account = Depends(get_account_by_id),
@@ -65,7 +65,7 @@ def get_recurring_transactions_for_account(
     )
 
 
-@router.get("/recurring", response_model=RecurringTransactionListResponse)
+@router.get("/recurring-transactions", response_model=RecurringTransactionListResponse)
 def get_all_recurring_transactions(
     include_inactive: bool = False,
     db: Session = Depends(get_db)
@@ -104,7 +104,7 @@ def get_all_recurring_transactions(
     )
 
 
-@router.get("/accounts/{account_id}/recurring/stats", response_model=RecurringTransactionStats)
+@router.get("/{account_id}/recurring-transactions/stats", response_model=RecurringTransactionStats)
 def get_recurring_stats_for_account(
     account: Account = Depends(get_account_by_id),
     db: Session = Depends(get_db)
@@ -158,7 +158,7 @@ def get_recurring_stats_for_account(
     )
 
 
-@router.get("/recurring/stats", response_model=RecurringTransactionStats)
+@router.get("/recurring-transactions/stats", response_model=RecurringTransactionStats)
 def get_all_recurring_stats(
     db: Session = Depends(get_db)
 ):
@@ -199,7 +199,7 @@ def get_all_recurring_stats(
     )
 
 
-@router.post("/accounts/{account_id}/recurring/detect", response_model=RecurringTransactionDetectionStats)
+@router.post("/{account_id}/recurring-transactions/detect", response_model=RecurringTransactionDetectionStats)
 def detect_recurring_for_account(
     account: Account = Depends(get_account_by_id),
     db: Session = Depends(get_db)
@@ -230,7 +230,7 @@ def detect_recurring_for_account(
     )
 
 
-@router.post("/recurring/detect-all", response_model=RecurringTransactionDetectionStats)
+@router.post("/recurring-transactions/detect-all", response_model=RecurringTransactionDetectionStats)
 def detect_recurring_for_all_accounts(
     db: Session = Depends(get_db)
 ):
@@ -264,7 +264,7 @@ def detect_recurring_for_all_accounts(
     )
 
 
-@router.patch("/recurring/{recurring_id}", response_model=RecurringTransactionResponse)
+@router.patch("/recurring-transactions/{recurring_id}", response_model=RecurringTransactionResponse)
 def update_recurring_transaction(
     recurring_id: int,
     update_data: RecurringTransactionUpdate,
@@ -311,7 +311,7 @@ def update_recurring_transaction(
     return response
 
 
-@router.post("/recurring/{recurring_id}/toggle", response_model=RecurringTransactionResponse)
+@router.post("/recurring-transactions/{recurring_id}/toggle", response_model=RecurringTransactionResponse)
 def toggle_recurring_status(
     recurring_id: int,
     toggle_data: RecurringTransactionToggleRequest,
@@ -346,7 +346,7 @@ def toggle_recurring_status(
     return response
 
 
-@router.delete("/recurring/{recurring_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/recurring-transactions/{recurring_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_recurring_transaction(
     recurring_id: int,
     db: Session = Depends(get_db)

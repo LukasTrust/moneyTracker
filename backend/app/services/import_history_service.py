@@ -11,10 +11,14 @@ from app.models.import_history import ImportHistory
 from app.models.data_row import DataRow
 from app.models.account import Account
 from app.schemas.import_history import (
-    ImportHistoryCreate,
     ImportHistoryStats,
     ImportRollbackResponse
 )
+from app.utils import get_logger
+
+
+# Module logger
+logger = get_logger("app.services.import_history")
 
 
 class ImportHistoryService:
@@ -56,7 +60,8 @@ class ImportHistoryService:
         db.add(import_record)
         db.commit()
         db.refresh(import_record)
-        
+        logger.info("Created import record %s for account %s (file=%s)", import_record.id, account_id, filename)
+
         return import_record
     
     @staticmethod
@@ -97,7 +102,8 @@ class ImportHistoryService:
         
         db.commit()
         db.refresh(import_record)
-        
+        logger.info("Updated import record %s: rows=%s inserted=%s duplicated=%s status=%s", import_id, row_count, rows_inserted, rows_duplicated, status)
+
         return import_record
     
     @staticmethod
@@ -236,7 +242,8 @@ class ImportHistoryService:
         import_record.error_message = f"Rolled back by user on {datetime.now().isoformat()}"
         
         db.commit()
-        
+        logger.info("Rolled back import %s, deleted %s rows", import_id, rows_to_delete)
+
         return ImportRollbackResponse(
             success=True,
             import_id=import_id,

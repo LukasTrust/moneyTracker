@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from app.config import settings
 from app.database import engine, Base, SessionLocal
 from app.routers import accounts, categories, data, dashboard, mappings, csv_import, recipients, budgets, recurring, comparison, import_history, transfers, insights
+from app.utils import get_logger
 from app.models.category import Category
 from app.models.budget import Budget
 
@@ -21,8 +22,9 @@ def init_default_categories():
     try:
         # Check if categories already exist
         existing_count = db.query(Category).count()
+        logger = get_logger("app.init")
         if existing_count > 0:
-            print(f"ℹ️  {existing_count} categories already exist - skipping defaults")
+            logger.info("%d categories already exist - skipping defaults", existing_count)
             return
         
         # Default categories with German names and patterns
@@ -81,12 +83,12 @@ def init_default_categories():
         for cat_data in default_categories:
             category = Category(**cat_data)
             db.add(category)
-        
+
         db.commit()
-        print(f"✅ Created {len(default_categories)} default categories")
-        
-    except Exception as e:
-        print(f"❌ Error creating default categories: {e}")
+        logger.info("Created %d default categories", len(default_categories))
+
+    except Exception:
+        logger.exception("Error creating default categories")
         db.rollback()
     finally:
         db.close()
@@ -98,16 +100,22 @@ async def lifespan(app: FastAPI):
     Application lifespan - create tables on startup
     """
     # Create database tables
+    logger = get_logger("app.lifespan")
     Base.metadata.create_all(bind=engine)
-    print("✅ Database tables created")
+    logger.info("Database tables ensured/created")
     
     # Initialize default categories (only if database is empty)
-    init_default_categories()
+    # Initialize default categories (only if database is empty)
+    try:
+        init_default_categories()
+        logger.info("Default categories initialization complete")
+    except Exception:
+        logger.exception("Initialization of default categories failed")
     
     yield
     
     # Cleanup (if needed)
-    print("🛑 Shutting down application")
+    logger.info("Shutting down application")
 
 
 # Create FastAPI application
@@ -127,6 +135,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+get_logger("app.main").info("CORS configured for origins: %s", settings.BACKEND_CORS_ORIGINS)
 
 
 # Include routers
@@ -207,6 +216,9 @@ app.include_router(
     prefix=f"{settings.API_V1_PREFIX}/insights",
     tags=["insights"]
 )
+
+# Log routes/routers summary
+get_logger("app.main").info("Included routers; total routes: %d", len(app.routes))
 
 
 @app.get("/")

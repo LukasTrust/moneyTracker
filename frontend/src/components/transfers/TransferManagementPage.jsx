@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Card from '../common/Card';
 import Button from '../common/Button';
 import LoadingSpinner from '../common/LoadingSpinner';
+import Modal from '../common/Modal';
 import { useToast } from '../../hooks/useToast';
 import { 
   getAllTransfers, 
@@ -25,6 +26,8 @@ export default function TransferManagementPage() {
   const [detecting, setDetecting] = useState(false);
   const [stats, setStats] = useState(null);
   const { showToast } = useToast();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmTarget, setConfirmTarget] = useState(null);
 
   useEffect(() => {
     loadTransfers();
@@ -96,18 +99,28 @@ export default function TransferManagementPage() {
   };
 
   const handleDelete = async (transferId) => {
-    if (!confirm('Are you sure you want to unlink this transfer?')) {
-      return;
-    }
+    setConfirmTarget(transferId);
+    setConfirmOpen(true);
+  };
 
+  const handleConfirmDelete = async () => {
+    if (!confirmTarget) return;
+    setConfirmOpen(false);
     try {
-      await deleteTransfer(transferId);
+      await deleteTransfer(confirmTarget);
       await loadTransfers();
       showToast('Transfer deleted successfully', 'success');
     } catch (error) {
       showToast('Failed to delete transfer', 'error');
       console.error('Error deleting transfer:', error);
+    } finally {
+      setConfirmTarget(null);
     }
+  };
+
+  const handleCancelConfirmDelete = () => {
+    setConfirmOpen(false);
+    setConfirmTarget(null);
   };
 
   if (loading) {
@@ -158,6 +171,19 @@ export default function TransferManagementPage() {
           </div>
         </div>
       </Card>
+
+      {/* Confirm Delete Modal */}
+      {confirmOpen && (
+        <Modal isOpen={confirmOpen} onClose={handleCancelConfirmDelete} title="Transfer löschen">
+          <div className="space-y-4">
+            <p>Transfer wirklich entkoppeln?</p>
+            <div className="flex justify-end gap-3 pt-4">
+              <button onClick={handleCancelConfirmDelete} className="px-4 py-2 rounded-lg border">Abbrechen</button>
+              <button onClick={handleConfirmDelete} className="px-4 py-2 bg-red-600 text-white rounded-lg">Entkoppeln</button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {/* Candidates Section */}
       {candidates.length > 0 && (

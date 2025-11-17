@@ -2,13 +2,18 @@
  * RecurringTransactionsList Component
  * Displays list of recurring transactions (Verträge) with actions
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRecurring } from '../../hooks/useRecurring';
+import { useToast } from '../../hooks/useToast';
+import Modal from '../common/Modal';
 
 const RecurringTransactionsList = ({ accountId = null, showTitle = true }) => {
-  const { recurring, stats, loading, error, triggerDetection, toggle, remove } = useRecurring(accountId);
+  const { recurring, stats, loading, error, triggerDetection, toggle, remove, refresh } = useRecurring(accountId);
+  const { showToast } = useToast();
   const [includeInactive, setIncludeInactive] = useState(false);
   const [detecting, setDetecting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmTarget, setConfirmTarget] = useState(null); // { id, recipient }
 
   /**
    * Handle detection trigger
@@ -17,9 +22,9 @@ const RecurringTransactionsList = ({ accountId = null, showTitle = true }) => {
     setDetecting(true);
     try {
       const result = await triggerDetection();
-      alert(`Erkennung abgeschlossen:\n✅ ${result.created} neu\n🔄 ${result.updated} aktualisiert\n❌ ${result.deleted} entfernt`);
+      showToast(`Erkennung abgeschlossen: ✅ ${result.created} neu, 🔄 ${result.updated} aktualisiert, ❌ ${result.deleted} entfernt`, 'success');
     } catch (err) {
-      alert('Fehler bei der Erkennung: ' + err.message);
+      showToast('Fehler bei der Erkennung: ' + (err.message || ''), 'error');
     } finally {
       setDetecting(false);
     }
@@ -32,7 +37,7 @@ const RecurringTransactionsList = ({ accountId = null, showTitle = true }) => {
     try {
       await toggle(recurringId, !currentStatus);
     } catch (err) {
-      alert('Fehler beim Ändern: ' + err.message);
+      showToast('Fehler beim Ändern: ' + (err.message || ''), 'error');
     }
   };
 
@@ -40,14 +45,40 @@ const RecurringTransactionsList = ({ accountId = null, showTitle = true }) => {
    * Handle delete
    */
   const handleDelete = async (recurringId, recipient) => {
-    if (!confirm(`Vertrag "${recipient}" wirklich löschen?`)) return;
-    
+    // open confirmation modal
+    setConfirmTarget({ id: recurringId, recipient });
+    setConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!confirmTarget) return;
+    const { id } = confirmTarget;
+    setConfirmOpen(false);
     try {
-      await remove(recurringId);
+      await remove(id);
+      showToast('Vertrag gelöscht', 'success');
     } catch (err) {
-      alert('Fehler beim Löschen: ' + err.message);
+      showToast('Fehler beim Löschen: ' + (err.message || ''), 'error');
+    } finally {
+      setConfirmTarget(null);
     }
   };
+
+  const handleCancelDelete = () => {
+    setConfirmOpen(false);
+    setConfirmTarget(null);
+  };
+
+  // Refresh when includeInactive changes
+  useEffect(() => {
+    // refresh can be async, don't block UI
+    try {
+      if (refresh) refresh(includeInactive);
+    } catch (e) {
+      // ignore refresh errors here - hook exposes loading/error state
+      console.error('Error refreshing recurring on includeInactive change', e);
+    }
+  }, [includeInactive, refresh]);
 
   /**
    * Format interval to readable text
@@ -246,6 +277,33 @@ const RecurringTransactionsList = ({ accountId = null, showTitle = true }) => {
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Confirm Delete Modal */}
+      {confirmOpen && confirmTarget && (
+        <Modal
+          isOpen={confirmOpen}
+          onClose={handleCancelDelete}
+          title="Vertrag löschen"
+        >
+          <div className="space-y-4">
+            <p>Vertrag "{confirmTarget.recipient}" wirklich löschen?</p>
+            <div className="flex justify-end gap-3 pt-4">
+              <button
+                onClick={handleCancelDelete}
+                className="px-4 py-2 rounded-lg border"
+              >
+                Abbrechen
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg"
+              >
+                Löschen
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );

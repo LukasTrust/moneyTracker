@@ -6,6 +6,7 @@ import Card from '../common/Card';
 import CategoryMappingEditor from './CategoryMappingEditor';
 import { useCategoryData } from '../../hooks/useDataFetch';
 import categoryService from '../../services/categoryService';
+import { useToast } from '../../hooks/useToast';
 
 /**
  * CategoryManager - CRUD-Interface für globale Kategorien
@@ -60,6 +61,8 @@ function CategoryManager({ accountId, onCategoryChange }) {
   const [editingCategory, setEditingCategory] = useState(null);
   const [isDeleting, setIsDeleting] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+  const [confirmDeleteTarget, setConfirmDeleteTarget] = useState(null);
   
   // Mapping Editor State
   const [showMappingEditor, setShowMappingEditor] = useState(false);
@@ -123,6 +126,8 @@ function CategoryManager({ accountId, onCategoryChange }) {
   /**
    * Speichert Kategorie (Erstellen oder Bearbeiten)
    */
+  const { showToast } = useToast();
+
   const handleSave = async () => {
     if (!validateForm()) return;
 
@@ -149,7 +154,7 @@ function CategoryManager({ accountId, onCategoryChange }) {
       if (onCategoryChange) onCategoryChange();
     } catch (err) {
       console.error('Error saving category:', err);
-      alert('Fehler beim Speichern der Kategorie');
+      showToast('Fehler beim Speichern der Kategorie', 'error');
     } finally {
       setIsSaving(false);
     }
@@ -159,21 +164,32 @@ function CategoryManager({ accountId, onCategoryChange }) {
    * Löscht Kategorie nach Bestätigung
    */
   const handleDelete = async (category) => {
-    if (!confirm(`Kategorie "${category.name}" wirklich löschen?`)) {
-      return;
-    }
+    // open confirmation modal
+    setConfirmDeleteTarget(category);
+    setShowConfirmDelete(true);
+  };
 
-    setIsDeleting(category.id);
+  const handleConfirmDelete = async () => {
+    if (!confirmDeleteTarget) return;
+    setShowConfirmDelete(false);
+    setIsDeleting(confirmDeleteTarget.id);
     try {
-      await categoryService.deleteCategory(category.id);
+      await categoryService.deleteCategory(confirmDeleteTarget.id);
       refetch();
       if (onCategoryChange) onCategoryChange();
+      showToast('Kategorie gelöscht', 'success');
     } catch (err) {
       console.error('Error deleting category:', err);
-      alert('Fehler beim Löschen der Kategorie');
+      showToast('Fehler beim Löschen der Kategorie', 'error');
     } finally {
       setIsDeleting(null);
+      setConfirmDeleteTarget(null);
     }
+  };
+
+  const handleCancelConfirmDelete = () => {
+    setShowConfirmDelete(false);
+    setConfirmDeleteTarget(null);
   };
 
   /**
@@ -515,6 +531,33 @@ function CategoryManager({ accountId, onCategoryChange }) {
             onSave={handleMappingsSaved}
             onCancel={handleCloseMappingEditor}
           />
+        </Modal>
+      )}
+      {/* Confirm Delete Modal */}
+      {showConfirmDelete && confirmDeleteTarget && (
+        <Modal
+          isOpen={showConfirmDelete}
+          onClose={handleCancelConfirmDelete}
+          title="Kategorie löschen"
+        >
+          <div className="space-y-4">
+            <p>Kategorie "{confirmDeleteTarget.name}" wirklich löschen?</p>
+            <div className="flex justify-end gap-3 pt-4">
+              <button
+                onClick={handleCancelConfirmDelete}
+                className="px-4 py-2 rounded-lg border"
+              >
+                Abbrechen
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg"
+                disabled={isDeleting === confirmDeleteTarget.id}
+              >
+                {isDeleting === confirmDeleteTarget.id ? 'Löscht...' : 'Löschen'}
+              </button>
+            </div>
+          </div>
         </Modal>
       )}
     </div>

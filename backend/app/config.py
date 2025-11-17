@@ -5,6 +5,22 @@ from pydantic_settings import BaseSettings
 from typing import List
 from pydantic import field_validator
 import json
+from app.utils import get_logger
+
+
+def _mask_db_url(url: str) -> str:
+    """Mask credentials in a DB URL for safe logging.
+
+    Very small helper: if URL contains '@' (user:pass@host), mask everything before '@'.
+    """
+    try:
+        if "@" in url and "://" in url:
+            prefix, rest = url.split("://", 1)
+            userinfo, host = rest.split("@", 1)
+            return f"{prefix}://***@{host}"
+    except Exception:
+        pass
+    return url
 
 
 class Settings(BaseSettings):
@@ -52,3 +68,13 @@ class Settings(BaseSettings):
 
 # Create settings instance
 settings = Settings()
+
+# Log a short, non-sensitive summary of loaded settings
+logger = get_logger("app.config")
+logger.info(
+    "Settings loaded: host=%s port=%s db=%s cors=%s",
+    settings.HOST,
+    settings.PORT,
+    _mask_db_url(settings.DATABASE_URL),
+    settings.BACKEND_CORS_ORIGINS,
+)

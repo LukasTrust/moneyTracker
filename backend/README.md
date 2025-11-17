@@ -194,6 +194,34 @@ backend/
 └── README.md
 ```
 
+## 🪵 Logging Utility (kurz)
+
+Die Anwendung enthält eine kleine, sofort nutzbare Logging-Utility unter `app.utils`.
+
+Kurze Anleitung:
+
+```py
+# Import
+from app.utils import get_logger
+
+# Logger holen
+log = get_logger(__name__)
+
+log.info("Server startet")
+```
+
+Verhalten:
+- Standardausgabe ist JSON-formatiert (gut für Docker: `docker logs` zeigt strukturierte Einträge).
+- Lokal kannst du hübsche, farbige Logs erhalten mit der Umgebungsvariable `LOG_PRETTY=1`.
+- Loglevel steuerbar über `LOG_LEVEL` (z.B. `DEBUG`, `INFO`).
+
+Beispiel (Docker):
+
+```bash
+# In Docker: docker-compose up -d
+docker-compose logs -f backend
+```
+
 ## 🔐 Sicherheit
 
 - CORS-Konfiguration für Frontend-Zugriff

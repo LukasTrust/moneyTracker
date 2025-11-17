@@ -118,10 +118,44 @@ def get_recurring_stats_for_account(
     Returns:
         Statistics (counts, monthly costs)
     """
-    # Get all recurring transactions
+
+    # Get all recurring transactions for this account
     recurring = db.query(RecurringTransaction).filter(
         RecurringTransaction.account_id == account.id
     ).all()
+
+    total_count = len(recurring)
+    active_count = sum(1 for r in recurring if r.is_active)
+    inactive_count = total_count - active_count
+
+    # Calculate total monthly cost (only active)
+    total_monthly_cost = 0.0
+    by_category = {}
+
+    for r in recurring:
+        if not r.is_active:
+            continue
+
+        # Protect against zero interval
+        if r.average_interval_days and r.average_interval_days > 0:
+            monthly_cost = float(r.average_amount) * (30 / r.average_interval_days)
+        else:
+            monthly_cost = 0.0
+
+        total_monthly_cost += monthly_cost
+
+        # Group by category name
+        if r.category_id:
+            category_name = r.category.name if r.category else "Uncategorized"
+            by_category[category_name] = by_category.get(category_name, 0.0) + monthly_cost
+
+    return RecurringTransactionStats(
+        total_count=total_count,
+        active_count=active_count,
+        inactive_count=inactive_count,
+        total_monthly_cost=round(total_monthly_cost, 2),
+        by_category={k: round(v, 2) for k, v in by_category.items()}
+    )
 
 
 @router.get("/recurring/stats", response_model=RecurringTransactionStats)

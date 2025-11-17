@@ -6,6 +6,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 from app.config import settings
+from app.utils import get_logger
 
 
 # Create database engine
@@ -15,6 +16,10 @@ engine = create_engine(
     connect_args={"check_same_thread": False} if "sqlite" in settings.DATABASE_URL else {},
     echo=False  # Set to True for SQL debugging
 )
+
+# Module logger
+logger = get_logger("app.database")
+logger.info("Created database engine for %s", settings.DATABASE_URL)
 
 # Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -34,6 +39,8 @@ def get_db():
     """
     db = SessionLocal()
     try:
+        logger.debug("Opening new DB session")
         yield db
     finally:
         db.close()
+        logger.debug("Closed DB session")

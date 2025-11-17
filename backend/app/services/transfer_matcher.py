@@ -7,6 +7,11 @@ from decimal import Decimal
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, func
 from app.models import DataRow, Transfer, Account
+from app.utils import get_logger
+
+
+# Module logger
+logger = get_logger("app.services.transfer_matcher")
 
 
 class TransferMatcher:
@@ -306,9 +311,16 @@ class TransferMatcher:
                     notes=candidate['match_reason']
                 )
                 created_transfers.append(transfer)
+                logger.info(
+                    "Created transfer %s between %s -> %s (confidence=%s)",
+                    getattr(transfer, 'id', None),
+                    candidate['from_transaction_id'],
+                    candidate['to_transaction_id'],
+                    candidate['confidence_score']
+                )
             except ValueError as e:
                 # Skip if validation fails (e.g., already linked)
-                print(f"Skipped candidate: {e}")
+                logger.warning("Skipped candidate: %s", e)
                 continue
         
         return len(created_transfers), created_transfers

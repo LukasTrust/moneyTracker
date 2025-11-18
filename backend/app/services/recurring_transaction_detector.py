@@ -60,10 +60,13 @@ class RecurringTransactionDetector:
         Returns:
             List of detected RecurringTransaction objects
         """
-        # Get all transactions for account, ordered by date
+        # Get all transactions for account, ordered by date, up to today
         transactions = (
             self.db.query(DataRow)
-            .filter(DataRow.account_id == account_id)
+            .filter(
+                DataRow.account_id == account_id,
+                DataRow.transaction_date <= date.today() # Only consider transactions up to today
+            )
             .order_by(DataRow.transaction_date)
             .all()
         )
@@ -340,38 +343,32 @@ class RecurringTransactionDetector:
             account_id: Account ID to update
             
         Returns:
-            Dictionary with statistics (created, updated, deleted counts)
+            Dictionary with statistics (created, updated, deleted, skipped counts)
         """
         # Detect current patterns
         detected_patterns = self.detect_recurring_for_account(account_id)
         
-        # Get existing recurring transactions (not manually overridden)
-        existing = (
-            self.db.query(RecurringTransaction)
-            .filter(
-                and_(
-                    RecurringTransaction.account_id == account_id,
-                    RecurringTransaction.is_manually_overridden == False
-                )
-            )
-            .all()
-        )
+        # Get all existing recurring transactions for the account
+        all_existing = self.db.query(RecurringTransaction).filter(
+            RecurringTransaction.account_id == account_id
+        ).all()
         
         stats = {"created": 0, "updated": 0, "deleted": 0, "skipped": 0}
         
-        # Match detected patterns to existing ones
-        existing_map = {(r.recipient.lower(), round(float(r.average_amount), 0)): r for r in existing}
-        detected_map = {(r.recipient.lower(), round(float(r.average_amount), 0)): r for r in detected_patterns}
+        # Create maps for matching
+        existing_map = {(r.recipient.lower(), round(float(r.average_amount), 0)): r for r in all_existing}
+        detected_map = {(p.recipient.lower(), round(float(p.average_amount), 0)): p for p in detected_patterns}
         
-        # Create new patterns
+        # Process detected patterns
         for key, pattern in detected_map.items():
-            if key not in existing_map:
-                self.db.add(pattern)
-                self._link_transactions(pattern)
-                stats["created"] += 1
-            else:
+            existing_pattern = existing_map.get(key)
+            
+            if existing_pattern:
+                if existing_pattern.is_manually_overridden:
+                    stats["skipped"] += 1
+                    continue  # Respect manual override
+                
                 # Update existing pattern
-                existing_pattern = existing_map[key]
                 existing_pattern.average_amount = pattern.average_amount
                 existing_pattern.average_interval_days = pattern.average_interval_days
                 existing_pattern.last_occurrence = pattern.last_occurrence
@@ -381,13 +378,17 @@ class RecurringTransactionDetector:
                 existing_pattern.confidence_score = pattern.confidence_score
                 existing_pattern.category_id = pattern.category_id
                 
-                # Re-link transactions
                 self._link_transactions(existing_pattern)
                 stats["updated"] += 1
+            else:
+                # Create new pattern
+                self.db.add(pattern)
+                self._link_transactions(pattern)
+                stats["created"] += 1
         
-        # Delete patterns that are no longer detected
+        # Delete auto-detected patterns that are no longer found
         for key, existing_pattern in existing_map.items():
-            if key not in detected_map:
+            if not existing_pattern.is_manually_overridden and key not in detected_map:
                 self.db.delete(existing_pattern)
                 stats["deleted"] += 1
         

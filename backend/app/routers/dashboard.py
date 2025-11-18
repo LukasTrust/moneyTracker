@@ -148,7 +148,7 @@ def get_dashboard_categories(
 
 @router.get("/balance-history", response_model=BalanceHistoryResponse)
 def get_dashboard_balance_history(
-    group_by: str = Query('month', regex='^(day|month|year)$', description="Grouping period"),
+    group_by: str = Query('month', pattern='^(day|month|year)$', description="Grouping period"),
     from_date: Optional[date] = Query(None, description="Start date filter"),
     to_date: Optional[date] = Query(None, description="End date filter"),
     category_id: Optional[int] = Query(None, description="Filter by single category ID"),
@@ -318,7 +318,7 @@ def get_dashboard_transactions(
 @router.get("/recipients-data", response_model=list[RecipientDataResponse])
 def get_dashboard_recipients_data(
     limit: int = Query(10, ge=1, le=50, description="Number of recipients"),
-    transaction_type: str = Query('expense', regex='^(all|income|expense)$', description="Transaction type filter"),
+    transaction_type: str = Query('expense', pattern='^(all|income|expense)$', description="Transaction type filter"),
     from_date: Optional[date] = Query(None, description="Start date filter"),
     to_date: Optional[date] = Query(None, description="End date filter"),
     category_id: Optional[int] = Query(None, description="Filter by single category"),

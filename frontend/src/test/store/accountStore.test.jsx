@@ -20,7 +20,7 @@ vi.mock('../../services/accountService', () => ({
 describe('accountStore', () => {
   beforeEach(() => {
     useAccountStore.setState({ accounts: [], currentAccount: null, loading: false, error: null })
-    vi.resetAllMocks()
+  vi.clearAllMocks()
   })
 
   it('fetchAccounts loads accounts', async () => {

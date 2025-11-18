@@ -29,7 +29,7 @@ function TestComp({ accountId }) {
 
 describe('useTransactionData hook', () => {
   beforeEach(() => {
-    vi.resetAllMocks()
+    vi.clearAllMocks()
   })
 
   it('fetches data when accountId provided', async () => {

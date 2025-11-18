@@ -21,7 +21,7 @@ function TestComp() {
 
 describe('useAccounts hook', () => {
   beforeEach(() => {
-    vi.resetAllMocks()
+  vi.clearAllMocks()
   })
 
   it('calls fetchAccounts on mount when accounts empty', () => {

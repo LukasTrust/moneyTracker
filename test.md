@@ -54,9 +54,8 @@ Technisch:
 Status: ✅ Bereits gut umgesetzt!
 
 Backend (Critical):
-🟡 Inkonsistente API-Struktur - Router-Prefixes nicht einheitlich
 🟡 Fehlendes Error-Handling - Generische Exception-Behandlung
-🟡 Memory-Probleme - CSV-Import ohne Size-Limits
+🟡 Memory-Probleme - CSV-Import ohne Size-Limits6,
 Frontend (Medium):
 🟡 Console.logs in Production - 20+ Debug-Statements
 🟡 Fehlende Error Boundaries - App kann bei Component-Crashes abstürzen

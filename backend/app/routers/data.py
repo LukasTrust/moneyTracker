@@ -204,7 +204,7 @@ def get_account_summary(
 @router.get("/{account_id}/transactions/statistics", response_model=ChartDataResponse)
 def get_account_statistics(
     account_id: int,
-    group_by: str = Query('month', regex='^(day|month|year)$', description="Grouping period"),
+    group_by: str = Query('month', pattern='^(day|month|year)$', description="Grouping period"),
     from_date: Optional[date] = Query(None, description="Start date filter"),
     to_date: Optional[date] = Query(None, description="End date filter"),
     category_id: Optional[int] = Query(None, description="Filter by single category ID"),
@@ -318,7 +318,7 @@ def get_account_recipients_data(
     limit: int = Query(10, ge=1, le=50, description="Number of recipients"),
     from_date: Optional[date] = Query(None, description="Start date filter"),
     to_date: Optional[date] = Query(None, description="End date filter"),
-    transaction_type: str = Query('all', regex='^(all|income|expense)$', description="Transaction type filter"),
+    transaction_type: str = Query('all', pattern='^(all|income|expense)$', description="Transaction type filter"),
     category_id: Optional[int] = Query(None, description="Single category ID filter"),
     category_ids: Optional[str] = Query(None, description="Multiple category IDs (comma-separated)"),
     min_amount: Optional[float] = Query(None, description="Minimum amount filter"),

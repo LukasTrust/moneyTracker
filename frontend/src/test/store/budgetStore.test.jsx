@@ -24,7 +24,7 @@ vi.mock('../../services/budgetService', () => ({
 describe('budgetStore', () => {
   beforeEach(() => {
     useBudgetStore.setState({ budgets: [], budgetsWithProgress: [], summary: null, loading: false, error: null, lastFetch: null })
-    vi.resetAllMocks()
+  vi.clearAllMocks()
   })
 
   it('fetchBudgets sets budgets', async () => {

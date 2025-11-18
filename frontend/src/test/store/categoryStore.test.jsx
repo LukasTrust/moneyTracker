@@ -18,7 +18,7 @@ vi.mock('../../services/categoryService', () => ({
 describe('categoryStore', () => {
   beforeEach(() => {
     useCategoryStore.setState({ categories: [], mappings: {}, loading: false, error: null, lastFetch: null })
-    vi.resetAllMocks()
+  vi.clearAllMocks()
   })
 
   it('fetchCategories sets categories', async () => {

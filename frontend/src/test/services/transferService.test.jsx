@@ -17,7 +17,7 @@ vi.mock('../../services/api', () => ({
 import transferService, { getAllTransfers, getTransfer, createTransfer, updateTransfer, deleteTransfer, detectTransfers, getTransferStats, getTransferForTransaction, bulkDetectAndCreate } from '../../services/transferService'
 
 beforeEach(() => {
-  vi.resetAllMocks()
+  vi.clearAllMocks()
 })
 
 describe('transferService', () => {

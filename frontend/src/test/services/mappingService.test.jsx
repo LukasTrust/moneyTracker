@@ -14,7 +14,7 @@ vi.mock('../../services/api', () => ({
 
 import mappingService from '../../services/mappingService'
 
-beforeEach(() => vi.resetAllMocks())
+beforeEach(() => vi.clearAllMocks())
 
 describe('mappingService', () => {
   it('getMappings/saveMappings/deleteMappings call api correctly', async () => {

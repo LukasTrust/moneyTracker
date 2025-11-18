@@ -444,34 +444,6 @@ function AccountSettings({ account }) {
         </div>
       </Card>
 
-      {/* DEVELOPER NOTE: Erweiterungsmöglichkeiten */}
-      {/*
-      TODO: Weitere Settings hinzufügen:
-      
-      1. Account-Berechtigungen:
-         - Teilen mit anderen Benutzern (Nur lesen / Bearbeiten)
-         - Zugriffsprotokoll
-      
-      2. Account-Archivierung:
-         - Alternative zu Löschen: Account archivieren (ausblenden aber behalten)
-         - Später wiederherstellen möglich
-      
-      3. Export-Funktionen:
-         - CSV-Export aller Transaktionen
-         - PDF-Report generieren
-         - Zeitraum auswählen
-      
-      4. Account-Customization:
-         - Farbe/Icon für Account wählen
-         - Standard-Kategorien pro Account
-         - Custom Fields
-      
-      5. Automatisierungen:
-         - Auto-Import von Bank-Konten (API-Integration)
-         - Regelmäßige Email-Reports
-         - Budget-Alerts
-      */}
-
       {/* Delete Confirmation Modal */}
       <Modal
         isOpen={showDeleteModal}

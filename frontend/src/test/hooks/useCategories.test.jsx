@@ -35,7 +35,7 @@ function MappingsComp({ accountId }) {
 
 describe('useCategories hook', () => {
   beforeEach(() => {
-    vi.resetAllMocks()
+  vi.clearAllMocks()
   })
 
   it('calls fetchCategories on mount when autoFetch true', () => {

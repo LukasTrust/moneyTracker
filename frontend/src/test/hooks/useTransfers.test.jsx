@@ -47,7 +47,7 @@ function StatsComp() {
 }
 
 describe('useTransfers hooks', () => {
-  beforeEach(() => vi.resetAllMocks())
+  beforeEach(() => vi.clearAllMocks())
 
   it('useTransfers loads transfers on mount', async () => {
     const { container } = render(<UseTransfersComp />)

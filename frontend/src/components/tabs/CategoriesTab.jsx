@@ -96,11 +96,9 @@ function CategoriesTab({ accountId, currency = 'EUR' }) {
 
   /**
    * Handler für Segment-Klick im Pie Chart
-   * DEVELOPER NOTE: Hier kann Drill-down zu Transaktionen implementiert werden
    */
   const handleSegmentClick = useCallback((segment) => {
     console.log('Kategorie-Segment angeklickt:', segment);
-    // TODO: Navigate to transactions filtered by category
     // Example: navigate(`/accounts/${accountId}/transactions?category=${segment.categoryId}&from=${fromDate}&to=${toDate}`);
   }, [accountId, fromDate, toDate]);
 

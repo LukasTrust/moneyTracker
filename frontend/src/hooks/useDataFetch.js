@@ -22,8 +22,17 @@ export function useTransactionData(accountId, params = {}) {
 
     try {
       const response = await dataService.getData(accountId, params);
-      setData(response.data || []);
-      setTotal(response.total || 0);
+      // Guard against undefined/null responses (some tests/mocks reset implementations)
+      if (!response) {
+        // ensure callers/tests see an error state instead of silently passing empty values
+        setData([]);
+        setTotal(0);
+        setError('No response from data service');
+        return;
+      }
+
+      setData(response?.data || []);
+      setTotal(response?.total || 0);
     } catch (err) {
       console.error('Error fetching transactions:', err);
       setError(err.response?.data?.message || 'Fehler beim Laden der Daten');

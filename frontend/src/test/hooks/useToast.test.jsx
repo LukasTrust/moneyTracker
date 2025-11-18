@@ -38,7 +38,7 @@ function TestComp() {
 
 describe('useToast hook', () => {
   beforeEach(() => {
-    vi.resetAllMocks()
+  vi.clearAllMocks()
   })
 
   it('calls underlying store methods', () => {

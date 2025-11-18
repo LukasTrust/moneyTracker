@@ -629,35 +629,6 @@ function DashboardGraphOverview() {
           )}
         </Card>
       </div>
-
-      {/* DEVELOPER NOTE: Erweiterungsmöglichkeiten */}
-      {/* 
-      TODO: Weitere Features:
-      
-      1. Drilldown:
-         - Klick auf Kategorie öffnet Modal mit Transaktionsliste
-         - Klick auf Monat filtert alle Daten auf diesen Monat
-      
-      2. Account-Filter:
-         - Dropdown zum Filtern auf bestimmte Accounts
-         - Mehrfachauswahl möglich
-      
-      3. Export:
-         - CSV-Export aller aggregierten Daten
-         - PDF-Report mit Charts
-      
-      4. Vergleich:
-         - Jahr-über-Jahr Vergleich (2023 vs 2024)
-         - Monat-über-Monat Trend-Anzeige
-      
-      5. Prognosen:
-         - Basierend auf historischen Daten
-         - "Auf diesem Niveau würden Sie Ende Jahr X€ haben"
-      
-      6. Budgets:
-         - Budget pro Kategorie setzen
-         - Warnung wenn Budget überschritten
-      */}
     </div>
   );
 }

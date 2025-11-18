@@ -16,7 +16,7 @@ vi.mock('../../services/api', () => ({
 
 import accountService from '../../services/accountService'
 
-beforeEach(() => vi.resetAllMocks())
+beforeEach(() => vi.clearAllMocks())
 
 describe('accountService', () => {
   it('getAccounts/getAccount/create/update/delete call api', async () => {

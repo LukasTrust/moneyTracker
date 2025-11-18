@@ -276,15 +276,6 @@ function CategoryPieChart({
           </div>
         </div>
       </div>
-
-      {/* DEVELOPER NOTE: Weitere Visualisierungen */}
-      {/*
-      TODO: Zusätzliche Chart-Typen hinzufügen:
-      - Balkendiagramm für zeitlichen Verlauf (Monat-über-Monat)
-      - Trendlinie für Kategorie-Entwicklung
-      - Vergleich mit Vormonat/Vorjahr
-      - Heatmap für Ausgabenmuster über Zeit
-      */}
     </Card>
   );
 }

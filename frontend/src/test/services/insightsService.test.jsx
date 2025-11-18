@@ -14,7 +14,7 @@ vi.mock('../../services/api', () => ({
 
 import insightsService from '../../services/insightsService'
 
-beforeEach(() => vi.resetAllMocks())
+beforeEach(() => vi.clearAllMocks())
 
 describe('insightsService', () => {
   it('getSeverityColors and getInsightTypeLabel pure helpers', () => {

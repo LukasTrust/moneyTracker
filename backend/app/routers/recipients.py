@@ -54,8 +54,8 @@ async def get_recipients(
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
     search: Optional[str] = None,
-    sort_by: str = Query("transaction_count", regex="^(name|transaction_count|created_at)$"),
-    sort_order: str = Query("desc", regex="^(asc|desc)$"),
+    sort_by: str = Query("transaction_count", pattern="^(name|transaction_count|created_at)$"),
+    sort_order: str = Query("desc", pattern="^(asc|desc)$"),
     db: Session = Depends(get_db)
 ):
     """

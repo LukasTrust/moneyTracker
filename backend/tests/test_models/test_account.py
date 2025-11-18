@@ -95,3 +95,41 @@ def test_account_default_initial_balance():
     initial_balance_col = Account.__table__.columns['initial_balance']
     assert initial_balance_col.default is not None
     assert float(initial_balance_col.default.arg) == 0.0
+
+
+def test_account_column_constraints():
+    """Test Account column constraints like nullable and length"""
+    from app.models.account import Account
+    
+    # name is not nullable
+    assert not Account.name.nullable
+    
+    # currency is not nullable and has length 3
+    assert not Account.currency.nullable
+    assert Account.currency.type.length == 3
+    
+    # initial_balance is not nullable
+    assert not Account.initial_balance.nullable
+    
+    # Check precision and scale for initial_balance
+    assert Account.initial_balance.type.precision == 15
+    assert Account.initial_balance.type.scale == 2
+
+
+def test_account_repr_edge_cases():
+    """Test Account __repr__ with edge case values"""
+    from app.models.account import Account
+    from types import SimpleNamespace
+    
+    # Test with empty strings
+    account_empty = SimpleNamespace(id=3, name='', bank_name='')
+    repr_str = Account.__repr__(account_empty)
+    assert 'Account' in repr_str
+    assert "name=''" in repr_str
+    assert "bank=''" in repr_str
+    
+    # Test with special characters
+    account_special = SimpleNamespace(id=4, name='Test & Account', bank_name='Bank@123')
+    repr_str = Account.__repr__(account_special)
+    assert 'Test & Account' in repr_str
+    assert 'Bank@123' in repr_str

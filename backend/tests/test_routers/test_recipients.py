@@ -252,6 +252,34 @@ async def test_update_recipient(mock_get_db):
 
 @patch('app.routers.recipients.get_db')
 @pytest.mark.asyncio
+async def test_update_recipient_not_found(mock_get_db):
+    """Test update_recipient endpoint with recipient not found"""
+    from app.routers.recipients import update_recipient, RecipientUpdate
+    from fastapi import HTTPException
+    
+    # Mock DB session
+    mock_db = MagicMock()
+    mock_get_db.return_value = mock_db
+    
+    # Mock query chain to return None (recipient not found)
+    mock_filtered_query = MagicMock()
+    mock_filtered_query.first.return_value = None
+    mock_query = MagicMock()
+    mock_query.filter.return_value = mock_filtered_query
+    mock_db.query.return_value = mock_query
+    
+    # Call function and expect HTTPException
+    update_data = RecipientUpdate(name="New Name", aliases=["new", "alias"])
+    
+    with pytest.raises(HTTPException) as exc_info:
+        await update_recipient(recipient_id=999, update=update_data, db=mock_db)
+    
+    assert exc_info.value.status_code == 404
+    assert "Recipient with ID 999 not found" in exc_info.value.detail
+
+
+@patch('app.routers.recipients.get_db')
+@pytest.mark.asyncio
 async def test_delete_recipient(mock_get_db):
     """Test delete_recipient endpoint"""
     from app.routers.recipients import delete_recipient
@@ -292,6 +320,32 @@ async def test_delete_recipient(mock_get_db):
     
     # Verify result
     assert result == {"message": "Recipient 'Test Recipient' deleted successfully"}
+
+
+@patch('app.routers.recipients.get_db')
+@pytest.mark.asyncio
+async def test_delete_recipient_not_found(mock_get_db):
+    """Test delete_recipient endpoint with recipient not found"""
+    from app.routers.recipients import delete_recipient
+    from fastapi import HTTPException
+    
+    # Mock DB session
+    mock_db = MagicMock()
+    mock_get_db.return_value = mock_db
+    
+    # Mock query chain to return None (recipient not found)
+    mock_filtered_query = MagicMock()
+    mock_filtered_query.first.return_value = None
+    mock_query = MagicMock()
+    mock_query.filter.return_value = mock_filtered_query
+    mock_db.query.return_value = mock_query
+    
+    # Call function and expect HTTPException
+    with pytest.raises(HTTPException) as exc_info:
+        await delete_recipient(recipient_id=999, db=mock_db)
+    
+    assert exc_info.value.status_code == 404
+    assert "Recipient with ID 999 not found" in exc_info.value.detail
 
 
 @patch('app.routers.recipients.RecipientMatcher')
@@ -407,6 +461,32 @@ async def test_get_merge_suggestions(mock_get_db, mock_matcher_class):
 
 @patch('app.routers.recipients.get_db')
 @pytest.mark.asyncio
+async def test_get_merge_suggestions_not_found(mock_get_db):
+    """Test get_merge_suggestions endpoint with recipient not found"""
+    from app.routers.recipients import get_merge_suggestions
+    from fastapi import HTTPException
+    
+    # Mock DB session
+    mock_db = MagicMock()
+    mock_get_db.return_value = mock_db
+    
+    # Mock query chain to return None (recipient not found)
+    mock_filtered_query = MagicMock()
+    mock_filtered_query.first.return_value = None
+    mock_query = MagicMock()
+    mock_query.filter.return_value = mock_filtered_query
+    mock_db.query.return_value = mock_query
+    
+    # Call function and expect HTTPException
+    with pytest.raises(HTTPException) as exc_info:
+        await get_merge_suggestions(recipient_id=999, limit=5, db=mock_db)
+    
+    assert exc_info.value.status_code == 404
+    assert "Recipient with ID 999 not found" in exc_info.value.detail
+
+
+@patch('app.routers.recipients.get_db')
+@pytest.mark.asyncio
 async def test_update_all_transaction_counts(mock_get_db):
     """Test update_all_transaction_counts endpoint"""
     from app.routers.recipients import update_all_transaction_counts
@@ -449,3 +529,218 @@ async def test_update_all_transaction_counts(mock_get_db):
     # Verify result
     assert result["message"] == "Transaction counts updated"
     assert result["updated_count"] == 2
+
+
+@patch('app.routers.recipients.get_db')
+@pytest.mark.asyncio
+async def test_get_recipients_sort_asc(mock_get_db):
+    """Test get_recipients endpoint with ascending sort"""
+    from app.routers.recipients import get_recipients
+    
+    # Mock DB session
+    mock_db = MagicMock()
+    mock_get_db.return_value = mock_db
+    
+    # Mock recipients
+    mock_recipient1 = MagicMock()
+    mock_recipient1.to_dict.return_value = {"id": 1, "name": "Test Recipient 1"}
+    mock_recipient2 = MagicMock()
+    mock_recipient2.to_dict.return_value = {"id": 2, "name": "Test Recipient 2"}
+    
+    # Mock query chain - need to properly chain the methods
+    mock_query = MagicMock()
+    mock_offset = MagicMock()
+    mock_limit = MagicMock()
+    mock_limit.all.return_value = [mock_recipient1, mock_recipient2]
+    mock_offset.limit.return_value = mock_limit
+    mock_query.offset.return_value = mock_offset
+    mock_query.order_by.return_value = mock_query  # For sorting
+    mock_db.query.return_value = mock_query
+    
+    # Call function with asc sort
+    result = await get_recipients(limit=10, offset=0, search=None, sort_by="transaction_count", sort_order="asc", db=mock_db)
+    
+    # Verify DB query was called
+    mock_db.query.assert_called_once()
+    mock_query.offset.assert_called_once_with(0)
+    mock_offset.limit.assert_called_once_with(10)
+    mock_limit.all.assert_called_once()
+    
+    # Verify result
+    assert len(result) == 2
+
+
+@patch('app.routers.recipients.get_db')
+@pytest.mark.asyncio
+async def test_update_recipient_name_only(mock_get_db):
+    """Test update_recipient endpoint with name only (no aliases)"""
+    from app.routers.recipients import update_recipient, RecipientUpdate
+    
+    # Mock DB session
+    mock_db = MagicMock()
+    mock_get_db.return_value = mock_db
+    
+    # Mock recipient
+    mock_recipient = MagicMock()
+    mock_recipient.name = "Old Name"
+    mock_recipient.normalized_name = "old name"
+    mock_recipient.aliases = "old,alias"
+    mock_recipient.to_dict.return_value = {"id": 1, "name": "New Name", "normalized_name": "new name", "aliases": ["old", "alias"]}
+    
+    # Mock query chain
+    mock_filtered_query = MagicMock()
+    mock_filtered_query.first.return_value = mock_recipient
+    mock_query = MagicMock()
+    mock_query.filter.return_value = mock_filtered_query
+    mock_db.query.return_value = mock_query
+    
+    # Call function with name only
+    update_data = RecipientUpdate(name="New Name", aliases=None)
+    result = await update_recipient(recipient_id=1, update=update_data, db=mock_db)
+    
+    # Verify DB operations
+    mock_db.commit.assert_called_once()
+    mock_db.refresh.assert_called_once_with(mock_recipient)
+    
+    # Verify recipient name was updated but aliases unchanged
+    assert mock_recipient.name == "New Name"
+    # Aliases should not be changed since aliases=None means not updating
+    assert mock_recipient.aliases == "old,alias"
+    
+    # Verify result
+    assert result == {"id": 1, "name": "New Name", "normalized_name": "new name", "aliases": ["old", "alias"]}
+
+
+@patch('app.routers.recipients.get_db')
+@pytest.mark.asyncio
+async def test_delete_recipient_data_row_update(mock_get_db):
+    """Test delete_recipient endpoint with proper DataRow update"""
+    from app.routers.recipients import delete_recipient
+    
+    # Mock DB session
+    mock_db = MagicMock()
+    mock_get_db.return_value = mock_db
+    
+    # Mock recipient
+    mock_recipient = MagicMock()
+    mock_recipient.name = "Test Recipient"
+    
+    # Mock query chains
+    mock_recipient_query = MagicMock()
+    mock_recipient_filtered = MagicMock()
+    mock_recipient_filtered.first.return_value = mock_recipient
+    mock_recipient_query.filter.return_value = mock_recipient_filtered
+    
+    mock_data_row_query = MagicMock()
+    mock_data_row_filtered = MagicMock()
+    mock_data_row_filtered.update.return_value = None
+    mock_data_row_query.filter.return_value = mock_data_row_filtered
+    
+    def mock_query_side_effect(model):
+        if hasattr(model, '__name__') and model.__name__ == 'Recipient':
+            return mock_recipient_query
+        elif hasattr(model, '__name__') and model.__name__ == 'DataRow':
+            return mock_data_row_query
+        return MagicMock()
+    
+    mock_db.query.side_effect = mock_query_side_effect
+    
+    # Call function
+    result = await delete_recipient(recipient_id=1, db=mock_db)
+    
+    # Verify DB operations
+    mock_db.delete.assert_called_once_with(mock_recipient)
+    mock_db.commit.assert_called_once()
+    
+    # Verify data_rows were updated
+    mock_data_row_query.filter.assert_called_once()
+    mock_data_row_filtered.update.assert_called_once_with({"recipient_id": None})
+    
+    # Verify result
+    assert result == {"message": "Recipient 'Test Recipient' deleted successfully"}
+
+
+@patch('app.routers.recipients.RecipientMatcher')
+@patch('app.routers.recipients.get_db')
+@pytest.mark.asyncio
+async def test_get_merge_suggestions_matcher_call(mock_get_db, mock_matcher_class):
+    """Test get_merge_suggestions endpoint with matcher call"""
+    from app.routers.recipients import get_merge_suggestions
+    
+    # Mock DB session
+    mock_db = MagicMock()
+    mock_get_db.return_value = mock_db
+    
+    # Mock recipient
+    mock_recipient = MagicMock()
+    mock_recipient.id = 1
+    mock_recipient.name = "Test Recipient"
+    
+    # Mock similar recipient
+    mock_similar_recipient = MagicMock()
+    mock_similar_recipient.id = 2
+    mock_similar_recipient.to_dict.return_value = {"id": 2, "name": "Similar Recipient"}
+    
+    # Mock matcher
+    mock_matcher = MagicMock()
+    mock_matcher.get_recipient_suggestions.return_value = [(mock_similar_recipient, 0.85)]
+    mock_matcher_class.return_value = mock_matcher
+    
+    # Mock query chain
+    mock_filtered_query = MagicMock()
+    mock_filtered_query.first.return_value = mock_recipient
+    mock_query = MagicMock()
+    mock_query.filter.return_value = mock_filtered_query
+    mock_db.query.return_value = mock_query
+    
+    # Call function
+    result = await get_merge_suggestions(recipient_id=1, limit=5, db=mock_db)
+    
+    # Verify matcher was instantiated and called
+    mock_matcher_class.assert_called_once_with(mock_db)
+    mock_matcher.get_recipient_suggestions.assert_called_once_with("Test Recipient", limit=6)
+    
+    # Verify result
+    assert len(result) == 1
+    assert result[0]["recipient"] == {"id": 2, "name": "Similar Recipient"}
+    assert result[0]["similarity"] == 0.85
+
+
+@patch('app.routers.recipients.get_db')
+@pytest.mark.asyncio
+async def test_update_recipient_aliases_only(mock_get_db):
+    """Test update_recipient endpoint with aliases only (no name)"""
+    from app.routers.recipients import update_recipient, RecipientUpdate
+    
+    # Mock DB session
+    mock_db = MagicMock()
+    mock_get_db.return_value = mock_db
+    
+    # Mock recipient
+    mock_recipient = MagicMock()
+    mock_recipient.name = "Old Name"
+    mock_recipient.normalized_name = "old name"
+    mock_recipient.aliases = "old,alias"
+    mock_recipient.to_dict.return_value = {"id": 1, "name": "Old Name", "normalized_name": "old name", "aliases": ["new", "alias"]}
+    
+    # Mock query chain
+    mock_filtered_query = MagicMock()
+    mock_filtered_query.first.return_value = mock_recipient
+    mock_query = MagicMock()
+    mock_query.filter.return_value = mock_filtered_query
+    mock_db.query.return_value = mock_query
+    
+    # Call function with aliases only
+    update_data = RecipientUpdate(name=None, aliases=["new", "alias"])
+    result = await update_recipient(recipient_id=1, update=update_data, db=mock_db)
+    
+    # Verify DB operations
+    mock_db.commit.assert_called_once()
+    mock_db.refresh.assert_called_once_with(mock_recipient)
+    
+    # Verify recipient name was not changed but aliases were
+    assert mock_recipient.name == "Old Name"  # Name unchanged
+    assert mock_recipient.aliases == "new,alias"
+    
+    # Verify result
+    assert result == {"id": 1, "name": "Old Name", "normalized_name": "old name", "aliases": ["new", "alias"]}

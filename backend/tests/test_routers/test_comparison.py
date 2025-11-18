@@ -338,3 +338,155 @@ async def test_get_quick_comparison_invalid_reference_period():
     
     assert exc_info.value.status_code == 400
     assert "Invalid period format" in str(exc_info.value.detail)
+
+
+async def test_get_quick_comparison_last_month_with_reference():
+    """Test get_quick_comparison with last_month and reference_period"""
+    from app.routers.comparison import get_quick_comparison
+    
+    # Mock dependencies
+    mock_db = MagicMock()
+    mock_account = MagicMock()
+    mock_account.id = 1
+    
+    mock_aggregator = MagicMock()
+    mock_comparison_data = {"summary": "test data"}
+    mock_aggregator.get_period_comparison.return_value = mock_comparison_data
+    
+    with patch('app.routers.comparison.DataAggregator', return_value=mock_aggregator), \
+         patch('app.routers.comparison.date') as mock_date:
+        mock_date.today.return_value = date(2024, 3, 15)
+        mock_date.side_effect = lambda *args, **kwargs: date(*args, **kwargs) if args or kwargs else mock_date
+        
+        result = get_quick_comparison(
+            compare_to="last_month",
+            reference_period="2024-02",
+            top_limit=5,
+            account=mock_account,
+            db=mock_db
+        )
+        
+        assert result == mock_comparison_data
+        # Should compare Jan 2024 vs Feb 2024 (reference_period is Feb, so period2=Feb, period1=Jan)
+        mock_aggregator.get_period_comparison.assert_called_once_with(
+            account_id=1,
+            period1_start=date(2024, 1, 1),
+            period1_end=date(2024, 1, 31),
+            period2_start=date(2024, 2, 1),
+            period2_end=date(2024, 2, 29),
+            top_limit=5
+        )
+
+
+async def test_get_quick_comparison_last_year_with_reference():
+    """Test get_quick_comparison with last_year and reference_period"""
+    from app.routers.comparison import get_quick_comparison
+    
+    # Mock dependencies
+    mock_db = MagicMock()
+    mock_account = MagicMock()
+    mock_account.id = 1
+    
+    mock_aggregator = MagicMock()
+    mock_comparison_data = {"summary": "test data"}
+    mock_aggregator.get_period_comparison.return_value = mock_comparison_data
+    
+    with patch('app.routers.comparison.DataAggregator', return_value=mock_aggregator), \
+         patch('app.routers.comparison.date') as mock_date:
+        mock_date.today.return_value = date(2024, 6, 15)
+        mock_date.side_effect = lambda *args, **kwargs: date(*args, **kwargs) if args or kwargs else mock_date
+        
+        result = get_quick_comparison(
+            compare_to="last_year",
+            reference_period="2023",
+            top_limit=5,
+            account=mock_account,
+            db=mock_db
+        )
+        
+        assert result == mock_comparison_data
+        # Should compare 2022 vs 2023 (reference_period is 2023, so period2=2023, period1=2022)
+        mock_aggregator.get_period_comparison.assert_called_once_with(
+            account_id=1,
+            period1_start=date(2022, 1, 1),
+            period1_end=date(2022, 12, 31),
+            period2_start=date(2023, 1, 1),
+            period2_end=date(2023, 12, 31),
+            top_limit=5
+        )
+
+
+async def test_get_quick_comparison_month_yoy_without_reference():
+    """Test get_quick_comparison with month_yoy without reference_period"""
+    from app.routers.comparison import get_quick_comparison
+    
+    # Mock dependencies
+    mock_db = MagicMock()
+    mock_account = MagicMock()
+    mock_account.id = 1
+    
+    mock_aggregator = MagicMock()
+    mock_comparison_data = {"summary": "test data"}
+    mock_aggregator.get_period_comparison.return_value = mock_comparison_data
+    
+    with patch('app.routers.comparison.DataAggregator', return_value=mock_aggregator), \
+         patch('app.routers.comparison.date') as mock_date:
+        mock_date.today.return_value = date(2024, 3, 15)
+        mock_date.side_effect = lambda *args, **kwargs: date(*args, **kwargs) if args or kwargs else mock_date
+        
+        result = get_quick_comparison(
+            compare_to="month_yoy",
+            reference_period=None,
+            top_limit=5,
+            account=mock_account,
+            db=mock_db
+        )
+        
+        assert result == mock_comparison_data
+        # Should compare Mar 2023 vs Mar 2024 (current month is Mar 2024, so period2=Mar 2024, period1=Mar 2023)
+        mock_aggregator.get_period_comparison.assert_called_once_with(
+            account_id=1,
+            period1_start=date(2023, 3, 1),
+            period1_end=date(2023, 3, 31),
+            period2_start=date(2024, 3, 1),
+            period2_end=date(2024, 3, 31),
+            top_limit=5
+        )
+
+
+async def test_get_quick_comparison_year_yoy_without_reference():
+    """Test get_quick_comparison with year_yoy without reference_period"""
+    from app.routers.comparison import get_quick_comparison
+    
+    # Mock dependencies
+    mock_db = MagicMock()
+    mock_account = MagicMock()
+    mock_account.id = 1
+    
+    mock_aggregator = MagicMock()
+    mock_comparison_data = {"summary": "test data"}
+    mock_aggregator.get_period_comparison.return_value = mock_comparison_data
+    
+    with patch('app.routers.comparison.DataAggregator', return_value=mock_aggregator), \
+         patch('app.routers.comparison.date') as mock_date:
+        mock_date.today.return_value = date(2024, 6, 15)
+        mock_date.side_effect = lambda *args, **kwargs: date(*args, **kwargs) if args or kwargs else mock_date
+        
+        result = get_quick_comparison(
+            compare_to="year_yoy",
+            reference_period=None,
+            top_limit=5,
+            account=mock_account,
+            db=mock_db
+        )
+        
+        assert result == mock_comparison_data
+        # Should compare 2023 vs 2024 (current year is 2024, so period2=2024, period1=2023)
+        mock_aggregator.get_period_comparison.assert_called_once_with(
+            account_id=1,
+            period1_start=date(2023, 1, 1),
+            period1_end=date(2023, 12, 31),
+            period2_start=date(2024, 1, 1),
+            period2_end=date(2024, 12, 31),
+            top_limit=5
+        )

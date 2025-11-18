@@ -62,6 +62,22 @@ def test_account_repr():
     assert 'Test Bank' in repr_str
 
 
+def test_account_repr_with_none_bank():
+    """Test Account __repr__ method when bank_name is None"""
+    from app.models.account import Account
+    
+    # Create mock account with None bank_name
+    from types import SimpleNamespace
+    account = SimpleNamespace(id=2, name='Another Account', bank_name=None)
+    
+    # Call the actual __repr__ method
+    repr_str = Account.__repr__(account)
+    
+    assert 'Account' in repr_str
+    assert 'Another Account' in repr_str
+    assert 'None' in repr_str
+
+
 def test_account_default_currency():
     """Test that Account has default currency EUR"""
     from app.models.account import Account

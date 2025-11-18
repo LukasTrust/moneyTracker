@@ -35,3 +35,29 @@ def test_import_history_has_account_relationship():
     from app.models.import_history import ImportHistory
     
     assert hasattr(ImportHistory, 'account')
+
+
+def test_import_history_repr():
+    """Test that ImportHistory __repr__ method works correctly"""
+    from app.models.import_history import ImportHistory
+    from types import SimpleNamespace
+    from types import MethodType
+    
+    # Create a mock instance using SimpleNamespace
+    mock_instance = SimpleNamespace()
+    
+    # Set attributes that __repr__ uses
+    mock_instance.id = 1
+    mock_instance.account_id = 123
+    mock_instance.filename = "test.csv"
+    mock_instance.status = "success"
+    mock_instance.rows_inserted = 100
+    mock_instance.row_count = 105
+    
+    # Bind the __repr__ method to our mock instance
+    mock_instance.__repr__ = MethodType(ImportHistory.__repr__, mock_instance)
+    
+    # Test the __repr__ method
+    result = mock_instance.__repr__()
+    expected = "<ImportHistory(id=1, account_id=123, filename='test.csv', status='success', rows=100/105)>"
+    assert result == expected

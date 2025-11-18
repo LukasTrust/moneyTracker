@@ -35,3 +35,25 @@ def test_mapping_has_account_relationship():
     from app.models.mapping import Mapping
     
     assert hasattr(Mapping, 'account')
+
+
+def test_mapping_repr():
+    """Test Mapping __repr__ method"""
+    from app.models.mapping import Mapping
+    from types import SimpleNamespace
+    
+    # Create mock mapping
+    mapping = SimpleNamespace(
+        id=1,
+        account_id=1,
+        csv_header='Buchungsdatum',
+        standard_field='date'
+    )
+    
+    # Call the actual __repr__ method
+    repr_str = Mapping.__repr__(mapping)
+    
+    assert 'Mapping' in repr_str
+    assert '1' in repr_str
+    assert 'Buchungsdatum' in repr_str
+    assert 'date' in repr_str

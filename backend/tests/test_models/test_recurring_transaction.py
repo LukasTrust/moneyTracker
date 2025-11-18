@@ -56,3 +56,41 @@ def test_recurring_link_model_exists():
     
     assert RecurringTransactionLink is not None
     assert hasattr(RecurringTransactionLink, '__tablename__')
+
+
+def test_recurring_transaction_repr():
+    """Test __repr__ method for RecurringTransaction"""
+    from app.models.recurring_transaction import RecurringTransaction
+    from types import SimpleNamespace
+    
+    # Create mock recurring transaction
+    recurring = SimpleNamespace(
+        id=1,
+        recipient="Netflix",
+        average_amount=15.99,
+        average_interval_days=30
+    )
+    # Bind the __repr__ method to the mock object
+    recurring.__repr__ = RecurringTransaction.__repr__.__get__(recurring, RecurringTransaction)
+    
+    # Test __repr__
+    expected = "<RecurringTransaction(id=1, recipient='Netflix', amount=15.99, interval=30d)>"
+    assert recurring.__repr__() == expected
+
+
+def test_recurring_transaction_link_repr():
+    """Test __repr__ method for RecurringTransactionLink"""
+    from app.models.recurring_transaction import RecurringTransactionLink
+    from types import SimpleNamespace
+    
+    # Create mock recurring transaction link
+    link = SimpleNamespace(
+        recurring_transaction_id=5,
+        data_row_id=123
+    )
+    # Bind the __repr__ method to the mock object
+    link.__repr__ = RecurringTransactionLink.__repr__.__get__(link, RecurringTransactionLink)
+    
+    # Test __repr__
+    expected = "<RecurringTransactionLink(recurring_id=5, data_row_id=123)>"
+    assert link.__repr__() == expected

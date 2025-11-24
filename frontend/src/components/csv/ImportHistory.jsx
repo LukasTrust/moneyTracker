@@ -7,6 +7,7 @@ import {
 } from '../../services/importHistoryService';
 import Button from '../common/Button';
 import LoadingSpinner from '../common/LoadingSpinner';
+import Pagination from '../common/Pagination';
 import { useToast } from '../../hooks/useToast';
 
 /**
@@ -22,18 +23,27 @@ export default function ImportHistory({ accountId, onRollbackSuccess, refreshTri
   const [confirmRollbackId, setConfirmRollbackId] = useState(null);
   const { showToast } = useToast();
 
-  // Fetch import history on mount and when refreshTrigger changes
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(25);
+  const [total, setTotal] = useState(0);
+  const pages = Math.max(1, Math.ceil(total / limit));
+
+  // Fetch import history on mount and when refreshTrigger, page or limit changes
   useEffect(() => {
     loadImportHistory();
-  }, [accountId, refreshTrigger]);
+  }, [accountId, refreshTrigger, page, limit]);
 
   const loadImportHistory = async () => {
     setLoading(true);
     setError(null);
 
     try {
-      const data = await getImportHistory(accountId, 100, 0);
+      const offset = (page - 1) * limit;
+      const data = await getImportHistory(accountId, limit, offset);
+      // data shape: { imports: [...], total: N }
       setImports(data.imports || []);
+      setTotal(typeof data.total === 'number' ? data.total : (data.imports || []).length);
     } catch (err) {
       console.error('Error loading import history:', err);
       setError('Fehler beim Laden der Import-Historie');
@@ -105,13 +115,7 @@ export default function ImportHistory({ accountId, onRollbackSuccess, refreshTri
     }).format(amount);
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center py-12">
-        <LoadingSpinner />
-      </div>
-    );
-  }
+  // Don't early-return on loading — render skeleton inside the normal layout
 
   if (error) {
     return (
@@ -147,12 +151,36 @@ export default function ImportHistory({ accountId, onRollbackSuccess, refreshTri
         </Button>
       </div>
 
+      {/* Pagination (above the list) */}
+      <Pagination
+        page={page}
+        pages={pages}
+        pageSize={limit}
+        total={total}
+        loading={loading}
+        onPageChange={(p) => setPage(p)}
+        onPageSizeChange={(s) => { setLimit(s); setPage(1); }}
+      />
+
       {/* Import List */}
       <div className="space-y-3">
-        {imports.map((importItem) => (
+        {loading
+          ? // Skeleton placeholders while loading
+            Array.from({ length: Math.min(limit, 6) }).map((_, i) => (
+              <div key={`skeleton-${i}`} className="bg-white border border-gray-200 rounded-lg p-4 animate-pulse">
+                <div className="h-4 bg-gray-200 rounded w-1/3 mb-3"></div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-3 pt-3 border-t border-gray-100">
+                  <div className="h-6 bg-gray-200 rounded"></div>
+                  <div className="h-6 bg-gray-200 rounded"></div>
+                  <div className="h-6 bg-gray-200 rounded"></div>
+                  <div className="h-6 bg-gray-200 rounded"></div>
+                </div>
+              </div>
+            ))
+          : imports.map((importItem) => (
           <div
             key={importItem.id}
-            className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+            className={`bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow transition-opacity duration-200 ${""}`}
           >
             {/* Header Row */}
             <div className="flex justify-between items-start mb-3">
@@ -254,6 +282,17 @@ export default function ImportHistory({ accountId, onRollbackSuccess, refreshTri
           </div>
         ))}
       </div>
+
+      {/* Pagination */}
+      <Pagination
+        page={page}
+        pages={pages}
+        pageSize={limit}
+        total={total}
+        loading={loading}
+        onPageChange={(p) => setPage(p)}
+        onPageSizeChange={(s) => { setLimit(s); setPage(1); }}
+      />
     </div>
   );
 }

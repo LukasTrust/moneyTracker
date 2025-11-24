@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Card from '../common/Card';
 import Button from '../common/Button';
 import LoadingSpinner from '../common/LoadingSpinner';
+import Pagination from '../common/Pagination';
 import Modal from '../common/Modal';
 import { useToast } from '../../hooks/useToast';
 import { 
@@ -28,6 +29,11 @@ export default function TransferManagementPage() {
   const { showToast } = useToast();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmTarget, setConfirmTarget] = useState(null);
+  // Pagination (client-side - backend currently returns all transfers)
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(25);
+  const [total, setTotal] = useState(0);
+  const pages = Math.max(1, Math.ceil(total / limit));
 
   useEffect(() => {
     loadTransfers();
@@ -36,8 +42,11 @@ export default function TransferManagementPage() {
   const loadTransfers = async () => {
     try {
       setLoading(true);
+      // Keep calling existing API (returns full list). We'll paginate client-side to avoid backend changes.
       const data = await getAllTransfers({ include_details: true });
-      setTransfers(data);
+      const list = Array.isArray(data) ? data : (data.transfers || []);
+      setTransfers(list);
+      setTotal(list.length);
     } catch (error) {
       showToast('Failed to load transfers', 'error');
       console.error('Error loading transfers:', error);
@@ -123,13 +132,7 @@ export default function TransferManagementPage() {
     setConfirmTarget(null);
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
-  }
+  // Do not early-return — show skeleton inside the page for smoother transitions
 
   return (
     <div className="space-y-6">
@@ -207,17 +210,41 @@ export default function TransferManagementPage() {
       {/* Existing Transfers */}
       <Card 
         title="Active Transfers"
-        subtitle={`${transfers.length} linked transfer${transfers.length !== 1 ? 's' : ''}`}
+        subtitle={`${total} linked transfer${total !== 1 ? 's' : ''}`}
       >
-        {transfers.length === 0 ? (
+        {/* Pagination above the list */}
+        <Pagination
+          page={page}
+          pages={pages}
+          pageSize={limit}
+          total={total}
+          loading={loading}
+          onPageChange={(p) => setPage(p)}
+          onPageSizeChange={(s) => { setLimit(s); setPage(1); }}
+        />
+
+        {loading ? (
+          <div className="space-y-3">
+            {Array.from({ length: Math.min(limit, 6) }).map((_, i) => (
+              <div key={`t-skel-${i}`} className="bg-gray-50 border border-gray-100 rounded-lg p-4 animate-pulse">
+                <div className="h-4 bg-gray-200 rounded w-1/3 mb-3"></div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="h-6 bg-gray-200 rounded"></div>
+                  <div className="h-6 bg-gray-200 rounded"></div>
+                  <div className="h-6 bg-gray-200 rounded"></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : transfers.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             <div className="text-5xl mb-3 opacity-50">🔄</div>
             <p>No transfers found</p>
             <p className="text-sm mt-1">Use Auto-Detect to find potential transfers</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {transfers.map((transfer) => (
+          <div className={`space-y-3 transition-opacity duration-200`} key={`transfers-page-${page}`}>
+            {transfers.slice((page - 1) * limit, page * limit).map((transfer) => (
               <TransferRow
                 key={transfer.id}
                 transfer={transfer}

@@ -42,10 +42,10 @@ export default function AccountDetailPage() {
   const [activeTab, setActiveTab] = useState('data');
   const [importHistoryRefresh, setImportHistoryRefresh] = useState(0);
 
-  // Pagination State
+  // Pagination State (page is 1-based)
   const [pagination, setPagination] = useState({
+    page: 1,
     limit: 50,
-    offset: 0,
   });
 
   // Convert Date objects to ISO strings for API and add other filters
@@ -80,13 +80,19 @@ export default function AccountDetailPage() {
     return params;
   }, [fromDate, toDate, selectedCategoryIds, minAmount, maxAmount, recipientQuery, purposeQuery, transactionType]);
 
+  // Reset to first page whenever filters change
+  useEffect(() => {
+    setPagination((prev) => ({ ...prev, page: 1 }));
+  }, [filterParams]);
+
   // Custom Hooks für Daten mit automatischem Reload
   const { 
     data: transactions, 
     total: totalTransactions,
     loading: transactionsLoading 
   } = useTransactionData(id, {
-    ...pagination,
+    limit: pagination.limit,
+    offset: (Math.max(1, pagination.page) - 1) * pagination.limit,
     ...filterParams,
   });
 
@@ -253,11 +259,13 @@ export default function AccountDetailPage() {
                 transactions={transactions}
                 currency={currentAccount.currency}
                 loading={transactionsLoading}
-                hasMore={pagination.offset + pagination.limit < totalTransactions}
-                onLoadMore={() => setPagination((prev) => ({
-                  ...prev,
-                  offset: prev.offset + prev.limit,
-                }))}
+                // New pagination props
+                page={pagination.page}
+                pages={Math.max(1, Math.ceil((totalTransactions || 0) / pagination.limit))}
+                pageSize={pagination.limit}
+                total={totalTransactions}
+                onPageChange={(newPage) => setPagination((prev) => ({ ...prev, page: newPage }))}
+                onPageSizeChange={(newSize) => setPagination({ page: 1, limit: newSize })}
               />
             )}
           </div>

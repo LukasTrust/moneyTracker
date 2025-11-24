@@ -111,7 +111,7 @@ const RecurringTransactionsWidget = ({ accountId = null }) => {
         </div>
       ) : (
         <div className="text-center py-8 text-gray-500">
-          <p className="text-sm">Keine Verträge erkannt</p>
+          <p className="text-sm">Keine Verträge gefunden</p>
           <p className="text-xs mt-1">
             Importiere Transaktionen für automatische Erkennung
           </p>

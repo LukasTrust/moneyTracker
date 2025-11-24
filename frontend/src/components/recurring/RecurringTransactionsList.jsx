@@ -177,7 +177,7 @@ const RecurringTransactionsList = ({ accountId = null, showTitle = true }) => {
       {/* List */}
       {recurring.length === 0 ? (
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
-          <p className="text-gray-600">Keine wiederkehrenden Transaktionen gefunden.</p>
+          <p className="text-gray-600">Keine Verträge gefunden.</p>
           <p className="text-sm text-gray-500 mt-2">
             Importiere mehr Transaktionen oder klicke auf "Erkennung starten".
           </p>

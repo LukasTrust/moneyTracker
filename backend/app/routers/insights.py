@@ -209,19 +209,39 @@ def generate_insights(
                 message=f"Insights wurden heute bereits generiert. {existing_count} aktive Insights vorhanden."
             )
     
-    # Generate insights
+    # Generate insights (use dict-based generator with small per-process cache)
     generation_types = request.generation_types
     if generation_types and 'full_analysis' in generation_types:
         generation_types = None  # Generate all types
-    
-    new_insights = generator.generate_all_insights(
+
+    new_insights_dicts = generator.generate_all_insights_dict(
         account_id=request.account_id,
-        generation_types=generation_types
+        generation_types=generation_types,
+        force_regenerate=request.force_regenerate
     )
-    
-    # Save insights to database
-    for insight in new_insights:
-        db.add(insight)
+
+    # Convert dicts into ORM Insight objects and persist
+    for ins in new_insights_dicts:
+        valid_until = None
+        if ins.get('valid_until'):
+            try:
+                valid_until = datetime.fromisoformat(ins.get('valid_until'))
+            except Exception:
+                valid_until = None
+
+        orm_insight = Insight(
+            account_id=ins.get('account_id'),
+            insight_type=ins.get('insight_type'),
+            severity=ins.get('severity') or 'info',
+            title=ins.get('title') or '',
+            description=ins.get('description') or '',
+            insight_data=ins.get('insight_data'),
+            priority=ins.get('priority') or 5,
+            cooldown_hours=ins.get('cooldown_hours') or 24,
+            valid_until=valid_until
+        )
+
+        db.add(orm_insight)
     
     # Log generation
     log_entry = InsightGenerationLog(

@@ -11,87 +11,93 @@ from app.routers import accounts, categories, data, dashboard, mappings, csv_imp
 from app.utils import get_logger
 from app.models.category import Category
 from app.models.budget import Budget
+import asyncio
+
+
+DEFAULT_CATEGORIES = [
+    {
+        "name": "Lebensmittel",
+        "color": "#10b981",
+        "icon": "🛒",
+        "mappings": {"patterns": ["REWE", "EDEKA", "ALDI", "LIDL", "Kaufland", "Netto", "Penny"]}
+    },
+    {
+        "name": "Transport",
+        "color": "#3b82f6",
+        "icon": "🚗",
+        "mappings": {"patterns": ["Tankstelle", "Shell", "Aral", "DB", "Deutsche Bahn", "MVG", "BVG"]}
+    },
+    {
+        "name": "Wohnung",
+        "color": "#f59e0b",
+        "icon": "🏠",
+        "mappings": {"patterns": ["Miete", "Strom", "Gas", "Wasser", "Stadtwerke", "Vonovia"]}
+    },
+    {
+        "name": "Gehalt",
+        "color": "#22c55e",
+        "icon": "💰",
+        "mappings": {"patterns": ["Gehalt", "Lohn", "Arbeitgeber"]}
+    },
+    {
+        "name": "Online Shopping",
+        "color": "#f97316",
+        "icon": "📦",
+        "mappings": {"patterns": ["Amazon", "Ebay", "Zalando", "Otto"]}
+    },
+    {
+        "name": "Restaurant",
+        "color": "#ef4444",
+        "icon": "🍽️",
+        "mappings": {"patterns": ["Restaurant", "Lieferando", "McDonald", "Burger King"]}
+    },
+    {
+        "name": "Freizeit",
+        "color": "#8b5cf6",
+        "icon": "🎮",
+        "mappings": {"patterns": ["Netflix", "Spotify", "Steam", "PlayStation", "Kino"]}
+    },
+    {
+        "name": "Gesundheit",
+        "color": "#ec4899",
+        "icon": "💊",
+        "mappings": {"patterns": ["Apotheke", "Arzt", "Krankenversicherung", "AOK", "TK"]}
+    },
+]
 
 
 def init_default_categories():
+    """Initialize default categories if database is empty.
+
+    This function is intentionally synchronous and safe to run in a thread
+    via `asyncio.to_thread(...)` from an async startup hook so it won't
+    block the event loop during potentially slow database operations.
     """
-    Initialize default categories if database is empty.
-    Only runs once on first startup.
-    """
+    logger = get_logger("app.init")
     db = SessionLocal()
     try:
         # Check if categories already exist
         existing_count = db.query(Category).count()
-        logger = get_logger("app.init")
         if existing_count > 0:
             logger.info("%d categories already exist - skipping defaults", existing_count)
             return
-        
-        # Default categories with German names and patterns
-        default_categories = [
-            {
-                "name": "Lebensmittel",
-                "color": "#10b981",
-                "icon": "🛒",
-                "mappings": {"patterns": ["REWE", "EDEKA", "ALDI", "LIDL", "Kaufland", "Netto", "Penny"]}
-            },
-            {
-                "name": "Transport",
-                "color": "#3b82f6",
-                "icon": "🚗",
-                "mappings": {"patterns": ["Tankstelle", "Shell", "Aral", "DB", "Deutsche Bahn", "MVG", "BVG"]}
-            },
-            {
-                "name": "Wohnung",
-                "color": "#f59e0b",
-                "icon": "🏠",
-                "mappings": {"patterns": ["Miete", "Strom", "Gas", "Wasser", "Stadtwerke", "Vonovia"]}
-            },
-            {
-                "name": "Gehalt",
-                "color": "#22c55e",
-                "icon": "💰",
-                "mappings": {"patterns": ["Gehalt", "Lohn", "Arbeitgeber"]}
-            },
-            {
-                "name": "Online Shopping",
-                "color": "#f97316",
-                "icon": "📦",
-                "mappings": {"patterns": ["Amazon", "Ebay", "Zalando", "Otto"]}
-            },
-            {
-                "name": "Restaurant",
-                "color": "#ef4444",
-                "icon": "🍽️",
-                "mappings": {"patterns": ["Restaurant", "Lieferando", "McDonald", "Burger King"]}
-            },
-            {
-                "name": "Freizeit",
-                "color": "#8b5cf6",
-                "icon": "🎮",
-                "mappings": {"patterns": ["Netflix", "Spotify", "Steam", "PlayStation", "Kino"]}
-            },
-            {
-                "name": "Gesundheit",
-                "color": "#ec4899",
-                "icon": "💊",
-                "mappings": {"patterns": ["Apotheke", "Arzt", "Krankenversicherung", "AOK", "TK"]}
-            },
-        ]
-        
-        # Create categories
-        for cat_data in default_categories:
-            category = Category(**cat_data)
-            db.add(category)
+
+        for cat_data in DEFAULT_CATEGORIES:
+            db.add(Category(**cat_data))
 
         db.commit()
-        logger.info("Created %d default categories", len(default_categories))
-
+        logger.info("Created %d default categories", len(DEFAULT_CATEGORIES))
     except Exception:
         logger.exception("Error creating default categories")
-        db.rollback()
+        try:
+            db.rollback()
+        except Exception:
+            logger.debug("Rollback failed or session not available", exc_info=True)
     finally:
-        db.close()
+        try:
+            db.close()
+        except Exception:
+            logger.debug("Closing DB session failed", exc_info=True)
 
 
 @asynccontextmanager
@@ -99,15 +105,17 @@ async def lifespan(app: FastAPI):
     """
     Application lifespan - create tables on startup
     """
-    # Create database tables
+    # Create database tables in a thread to avoid blocking the event loop
     logger = get_logger("app.lifespan")
-    Base.metadata.create_all(bind=engine)
-    logger.info("Database tables ensured/created")
-    
-    # Initialize default categories (only if database is empty)
-    # Initialize default categories (only if database is empty)
     try:
-        init_default_categories()
+        await asyncio.to_thread(Base.metadata.create_all, bind=engine)
+        logger.info("Database tables ensured/created")
+    except Exception:
+        logger.exception("Creating database tables failed")
+
+    # Initialize default categories (only if database is empty) in a thread
+    try:
+        await asyncio.to_thread(init_default_categories)
         logger.info("Default categories initialization complete")
     except Exception:
         logger.exception("Initialization of default categories failed")
@@ -139,6 +147,15 @@ get_logger("app.main").info("CORS configured for origins: %s", settings.BACKEND_
 
 
 # Include routers
+# Register recurring routes earlier so static paths are matched before
+# generic account-id routes (prevents '/recurring-transactions' being
+# interpreted as an account_id for routes like '/{account_id}/...').
+app.include_router(
+    recurring.router,
+    prefix=f"{settings.API_V1_PREFIX}/accounts",
+    tags=["recurring"]
+)
+
 app.include_router(
     accounts.router,
     prefix=f"{settings.API_V1_PREFIX}/accounts",
@@ -187,11 +204,6 @@ app.include_router(
     tags=["budgets"]
 )
 
-app.include_router(
-    recurring.router,
-    prefix=f"{settings.API_V1_PREFIX}/accounts",
-    tags=["recurring"]
-)
 
 app.include_router(
     comparison.router,

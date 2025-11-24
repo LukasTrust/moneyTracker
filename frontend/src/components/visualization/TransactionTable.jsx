@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import Card from '../common/Card';
-import Button from '../common/Button';
+import Pagination from '../common/Pagination';
 
 /**
  * Transaktions-Tabelle mit Pagination
@@ -11,8 +11,13 @@ export default function TransactionTable({
   transactions = [], 
   currency = 'EUR',
   loading = false,
-  onLoadMore,
-  hasMore = false,
+  // Pagination props
+  page = 1,
+  pages = 1,
+  pageSize = 50,
+  total = 0,
+  onPageChange = () => {},
+  onPageSizeChange = () => {},
 }) {
   const currencySymbols = {
     EUR: '€',
@@ -66,6 +71,16 @@ export default function TransactionTable({
 
   return (
     <Card title="Transaktionen">
+      <Pagination
+        page={page}
+        pages={pages}
+        pageSize={pageSize}
+        total={total}
+        loading={loading}
+        onPageChange={onPageChange}
+        onPageSizeChange={onPageSizeChange}
+      />
+
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
@@ -120,18 +135,7 @@ export default function TransactionTable({
         </table>
       </div>
 
-      {/* Load More Button */}
-      {hasMore && (
-        <div className="mt-4 text-center">
-          <Button
-            variant="secondary"
-            onClick={onLoadMore}
-            loading={loading}
-          >
-            Mehr laden
-          </Button>
-        </div>
-      )}
+      
     </Card>
   );
 }

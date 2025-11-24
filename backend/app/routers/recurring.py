@@ -1,7 +1,7 @@
 """
 Recurring Transactions Router - Verträge / Wiederkehrende Zahlungen
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, func
 from typing import Optional
@@ -18,42 +18,57 @@ from app.schemas.recurring_transaction import (
     RecurringTransactionUpdate,
     RecurringTransactionToggleRequest
 )
-from app.services.recurring_transaction_detector import RecurringTransactionDetector
+from app.services.recurring_transaction_detector import (
+    RecurringTransactionDetector,
+    run_update_recurring_transactions,
+    run_update_recurring_transactions_all,
+)
+from app.utils import get_logger
+
+logger = get_logger(__name__)
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 
 router = APIRouter()
 
 
-@router.get("/{account_id}/recurring-transactions", response_model=RecurringTransactionListResponse)
-def get_recurring_transactions_for_account(
+@router.get('/jobs/{job_id}')
+def get_job_status(job_id: int, db: Session = Depends(get_db)):
+    """Get background job status by id"""
+    from app.services.job_service import JobService
+    job = JobService.get_job(db, job_id)
+    if not job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Job {job_id} not found")
+    return job.to_dict()
+
+
+@router.get("/recurring-transactions", response_model=RecurringTransactionListResponse)
+def get_all_recurring_transactions(
     include_inactive: bool = False,
-    account: Account = Depends(get_account_by_id),
     db: Session = Depends(get_db)
 ):
     """
-    Get all recurring transactions (Verträge) for a specific account
+    Get all recurring transactions (Verträge) across all accounts
     
     Args:
-        account_id: Account ID
         include_inactive: Include inactive recurring transactions
         
     Returns:
         List of recurring transactions
     """
-    # Query recurring transactions
-    query = db.query(RecurringTransaction).filter(
-        RecurringTransaction.account_id == account.id
-    )
+    query = db.query(RecurringTransaction)
     
     if not include_inactive:
         query = query.filter(RecurringTransaction.is_active == True)
     
-    recurring = query.order_by(RecurringTransaction.average_amount.desc()).all()
+    recurring = query.order_by(
+        RecurringTransaction.account_id,
+        RecurringTransaction.average_amount.desc()
+    ).all()
     
     # Add computed monthly_cost field
     result = []
     for r in recurring:
         r_dict = RecurringTransactionResponse.from_orm(r)
-        # Calculate monthly cost based on interval
         if r.average_interval_days > 0:
             monthly_cost = float(r.average_amount) * (30 / r.average_interval_days)
             r_dict.monthly_cost = round(monthly_cost, 2)
@@ -63,6 +78,40 @@ def get_recurring_transactions_for_account(
         total=len(result),
         recurring_transactions=result
     )
+
+
+@router.get("/{account_id}/recurring-transactions", response_model=RecurringTransactionListResponse)
+def get_recurring_transactions_for_account(
+    account_id: int,
+    include_inactive: bool = False,
+    db: Session = Depends(get_db)
+):
+    """
+    Get recurring transactions for a specific account (by id)
+    """
+    # Validate account exists
+    account = db.query(Account).filter(Account.id == account_id).first()
+    if not account:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Account {account_id} not found")
+
+    query = db.query(RecurringTransaction).filter(
+        RecurringTransaction.account_id == account.id
+    )
+
+    if not include_inactive:
+        query = query.filter(RecurringTransaction.is_active == True)
+
+    recurring = query.order_by(RecurringTransaction.average_amount.desc()).all()
+
+    result = []
+    for r in recurring:
+        r_dict = RecurringTransactionResponse.from_orm(r)
+        if r.average_interval_days and r.average_interval_days > 0:
+            monthly_cost = float(r.average_amount) * (30 / r.average_interval_days)
+            r_dict.monthly_cost = round(monthly_cost, 2)
+        result.append(r_dict)
+
+    return RecurringTransactionListResponse(total=len(result), recurring_transactions=result)
 
 
 @router.get("/recurring-transactions", response_model=RecurringTransactionListResponse)
@@ -202,7 +251,8 @@ def get_all_recurring_stats(
 @router.post("/{account_id}/recurring-transactions/detect", response_model=RecurringTransactionDetectionStats)
 def detect_recurring_for_account(
     account: Account = Depends(get_account_by_id),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    background_tasks: BackgroundTasks = None
 ):
     """
     Manually trigger recurring transaction detection for an account
@@ -213,14 +263,34 @@ def detect_recurring_for_account(
     Returns:
         Detection statistics
     """
+    # If a BackgroundTasks instance is provided, enqueue and return queued response
+    if background_tasks is not None:
+        from app.services.job_service import JobService
+        job = JobService.create_job(db, task_type="recurring_detection", account_id=account.id)
+        background_tasks.add_task(run_update_recurring_transactions, account.id)
+        logger.info("Enqueued recurring detection for account %s (job %s)", account.id, job.id)
+
+        # Return a quick response indicating background job queued. Keep totals accurate synchronously.
+        total = db.query(RecurringTransaction).filter(
+            RecurringTransaction.account_id == account.id
+        ).count()
+        return RecurringTransactionDetectionStats(
+            created=0,
+            updated=0,
+            deleted=0,
+            skipped=0,
+            total_recurring=total
+        )
+
+    # Fallback: run synchronously (e.g., during tests)
     detector = RecurringTransactionDetector(db)
     stats = detector.update_recurring_transactions(account.id)
-    
+
     # Get total count
     total = db.query(RecurringTransaction).filter(
         RecurringTransaction.account_id == account.id
     ).count()
-    
+
     return RecurringTransactionDetectionStats(
         created=stats["created"],
         updated=stats["updated"],
@@ -232,7 +302,8 @@ def detect_recurring_for_account(
 
 @router.post("/recurring-transactions/detect-all", response_model=RecurringTransactionDetectionStats)
 def detect_recurring_for_all_accounts(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    background_tasks: BackgroundTasks = None
 ):
     """
     Trigger recurring transaction detection for all accounts
@@ -240,21 +311,34 @@ def detect_recurring_for_all_accounts(
     Returns:
         Aggregated detection statistics
     """
+    if background_tasks is not None:
+        from app.services.job_service import JobService
+        job = JobService.create_job(db, task_type="recurring_detection_bulk")
+        background_tasks.add_task(run_update_recurring_transactions_all)
+        logger.info("Enqueued bulk recurring detection (job %s)", job.id)
+
+        total = db.query(RecurringTransaction).count()
+        return RecurringTransactionDetectionStats(
+            created=0,
+            updated=0,
+            deleted=0,
+            skipped=0,
+            total_recurring=total
+        )
+
+    # Fallback synchronous execution
     detector = RecurringTransactionDetector(db)
-    
-    # Get all accounts
     accounts = db.query(Account).all()
-    
+
     total_stats = {"created": 0, "updated": 0, "deleted": 0, "skipped": 0}
-    
     for account in accounts:
         stats = detector.update_recurring_transactions(account.id)
         for key in total_stats:
             total_stats[key] += stats[key]
-    
+
     # Get total count
     total = db.query(RecurringTransaction).count()
-    
+
     return RecurringTransactionDetectionStats(
         created=total_stats["created"],
         updated=total_stats["updated"],

@@ -23,7 +23,7 @@ export const getRecurringForAccount = async (accountId, includeInactive = false)
  * @returns {Promise} - Promise resolving to recurring transactions list
  */
 export const getAllRecurring = async (includeInactive = false) => {
-  const response = await api.get('/recurring-transactions', {
+  const response = await api.get('/accounts/recurring-transactions', {
     params: { include_inactive: includeInactive }
   });
   return response.data;
@@ -44,7 +44,7 @@ export const getRecurringStatsForAccount = async (accountId) => {
  * @returns {Promise} - Promise resolving to statistics
  */
 export const getAllRecurringStats = async () => {
-  const response = await api.get('/recurring-transactions/stats');
+  const response = await api.get('/accounts/recurring-transactions/stats');
   return response.data;
 };
 
@@ -63,7 +63,7 @@ export const detectRecurringForAccount = async (accountId) => {
  * @returns {Promise} - Promise resolving to detection statistics
  */
 export const detectAllRecurring = async () => {
-  const response = await api.post('/recurring-transactions/detect-all');
+  const response = await api.post('/accounts/recurring-transactions/detect-all');
   return response.data;
 };
 
@@ -74,7 +74,7 @@ export const detectAllRecurring = async () => {
  * @returns {Promise} - Promise resolving to updated recurring transaction
  */
 export const updateRecurring = async (recurringId, updateData) => {
-  const response = await api.patch(`/recurring-transactions/${recurringId}`, updateData);
+  const response = await api.patch(`/accounts/recurring-transactions/${recurringId}`, updateData);
   return response.data;
 };
 
@@ -85,7 +85,7 @@ export const updateRecurring = async (recurringId, updateData) => {
  * @returns {Promise} - Promise resolving to updated recurring transaction
  */
 export const toggleRecurringStatus = async (recurringId, isRecurring) => {
-  const response = await api.post(`/recurring-transactions/${recurringId}/toggle`, {
+  const response = await api.post(`/accounts/recurring-transactions/${recurringId}/toggle`, {
     is_recurring: isRecurring
   });
   return response.data;
@@ -97,7 +97,7 @@ export const toggleRecurringStatus = async (recurringId, isRecurring) => {
  * @returns {Promise} - Promise resolving to void
  */
 export const deleteRecurring = async (recurringId) => {
-  const response = await api.delete(`/recurring-transactions/${recurringId}`);
+  const response = await api.delete(`/accounts/recurring-transactions/${recurringId}`);
   return response.data;
 };
 

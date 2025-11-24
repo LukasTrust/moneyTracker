@@ -11,6 +11,7 @@ from .recurring_transaction import RecurringTransaction, RecurringTransactionLin
 from .import_history import ImportHistory
 from .transfer import Transfer
 from .insight import Insight, InsightGenerationLog
+from .background_job import BackgroundJob
 
 __all__ = [
     "Account",
@@ -25,4 +26,5 @@ __all__ = [
     "Transfer",
     "Insight",
     "InsightGenerationLog",
+    "BackgroundJob",
 ]

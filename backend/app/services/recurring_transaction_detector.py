@@ -10,6 +10,11 @@ import statistics
 
 from app.models.data_row import DataRow
 from app.models.recurring_transaction import RecurringTransaction, RecurringTransactionLink
+from app.database import SessionLocal
+from app.utils import get_logger
+from app.models.account import Account
+
+logger = get_logger(__name__)
 
 
 class RecurringTransactionDetector:
@@ -457,3 +462,101 @@ class RecurringTransactionDetector:
         
         self.db.commit()
         return recurring
+
+
+def run_update_recurring_transactions(account_id: int) -> None:
+    """
+    Background runner that creates its own DB session and runs the detector.
+    This is safe to call from FastAPI BackgroundTasks or any background worker.
+    """
+    db = SessionLocal()
+    try:
+        logger.info("Starting background recurring detection for account %s", account_id)
+        # Create a job record if desired (try to import JobService lazily to avoid cycles)
+        try:
+            from app.services.job_service import JobService
+            job = JobService.create_job(db, task_type="recurring_detection", account_id=account_id)
+            JobService.update_status(db, job.id, "running", started=True)
+            job_id = job.id
+        except Exception:
+            job_id = None
+
+        detector = RecurringTransactionDetector(db)
+        stats = detector.update_recurring_transactions(account_id)
+
+        # Mark job completed if present
+        if job_id:
+            try:
+                from app.services.job_service import JobService
+                JobService.update_status(db, job_id, "completed", finished=True)
+            except Exception:
+                logger.debug("Failed to update job status to completed for job %s", job_id)
+
+        logger.info(
+            "Completed recurring detection for account %s: created=%s updated=%s deleted=%s skipped=%s",
+            account_id,
+            stats.get("created"),
+            stats.get("updated"),
+            stats.get("deleted"),
+            stats.get("skipped")
+        )
+    except Exception:
+        logger.exception("Error running recurring detection for account %s", account_id)
+        # If job exists, mark failed
+        try:
+            if 'job_id' in locals() and job_id:
+                from app.services.job_service import JobService
+                JobService.update_status(db, job_id, "failed", finished=True)
+        except Exception:
+            logger.debug("Failed to mark job failed for job %s", job_id)
+    finally:
+        try:
+            db.close()
+        except Exception:
+            logger.debug("Failed to close DB session for background recurring detection")
+
+
+def run_update_recurring_transactions_all() -> None:
+    """Background runner to update recurring transactions for all accounts."""
+    db = SessionLocal()
+    try:
+        logger.info("Starting background recurring detection for all accounts")
+        try:
+            from app.services.job_service import JobService
+            job = JobService.create_job(db, task_type="recurring_detection_bulk")
+            JobService.update_status(db, job.id, "running", started=True)
+            bulk_job_id = job.id
+        except Exception:
+            bulk_job_id = None
+
+        detector = RecurringTransactionDetector(db)
+        accounts = db.query(Account).all()
+        total_stats = {"created": 0, "updated": 0, "deleted": 0, "skipped": 0}
+        for account in accounts:
+            try:
+                stats = detector.update_recurring_transactions(account.id)
+                for k in total_stats:
+                    total_stats[k] += stats.get(k, 0)
+            except Exception:
+                logger.exception("Error updating account %s during bulk recurring detection", account.id)
+
+        # Mark job completed if present
+        if bulk_job_id:
+            try:
+                from app.services.job_service import JobService
+                JobService.update_status(db, bulk_job_id, "completed", finished=True)
+            except Exception:
+                logger.debug("Failed to update bulk job status to completed for job %s", bulk_job_id)
+
+        logger.info(
+            "Completed bulk recurring detection: created=%s updated=%s deleted=%s skipped=%s",
+            total_stats["created"],
+            total_stats["updated"],
+            total_stats["deleted"],
+            total_stats["skipped"]
+        )
+    finally:
+        try:
+            db.close()
+        except Exception:
+            logger.debug("Failed to close DB session after bulk recurring detection")

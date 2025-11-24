@@ -14,7 +14,11 @@ const api = axios.create({
 // Request Interceptor für Logging (optional)
 api.interceptors.request.use(
   (config) => {
-    console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
+    // Only log requests in development to avoid leaking information in production
+    if (import.meta.env.DEV) {
+      // use console.debug which is easier to filter
+      console.debug(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
+    }
     return config;
   },
   (error) => {
@@ -26,14 +30,15 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response) {
-      // Server hat mit Error geantwortet
-      console.error('API Error:', error.response.status, error.response.data);
-    } else if (error.request) {
-      // Request wurde gesendet, aber keine Response
-      console.error('Network Error:', error.message);
-    } else {
-      console.error('Error:', error.message);
+    // Log errors; minimize noise in production
+    if (import.meta.env.DEV) {
+      if (error.response) {
+        console.error('API Error:', error.response.status, error.response.data);
+      } else if (error.request) {
+        console.error('Network Error:', error.message);
+      } else {
+        console.error('Error:', error.message);
+      }
     }
     return Promise.reject(error);
   }

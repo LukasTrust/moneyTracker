@@ -1,7 +1,7 @@
 """
 CSV Import Router - Advanced CSV import with flexible mapping
 """
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import Optional
 import json
@@ -25,7 +25,10 @@ from app.services.category_matcher import CategoryMatcher
 from app.services.mapping_suggester import MappingSuggester
 from app.services.bank_presets import BankPresetMatcher
 from app.services.recipient_matcher import RecipientMatcher
-from app.services.recurring_transaction_detector import RecurringTransactionDetector
+from app.services.recurring_transaction_detector import RecurringTransactionDetector, run_update_recurring_transactions
+from app.utils import get_logger
+
+logger = get_logger(__name__)
 from app.services.import_history_service import ImportHistoryService
 
 router = APIRouter()
@@ -245,7 +248,8 @@ async def import_csv_advanced(
     account_id: int = Form(...),
     mapping_json: str = Form(...),
     file: UploadFile = File(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    background_tasks: BackgroundTasks = None
 ):
     """
     Import CSV file with custom mapping configuration
@@ -430,20 +434,27 @@ async def import_csv_advanced(
         recurring_count = 0
         if imported_count > 0 or duplicate_count > 0:  # Run even if only duplicates (might detect new patterns)
             try:
-                detector = RecurringTransactionDetector(db)
-                stats = detector.update_recurring_transactions(account_id)
-                
-                # Get total count of active recurring transactions
-                from app.models.recurring_transaction import RecurringTransaction
-                recurring_count = db.query(RecurringTransaction).filter(
-                    RecurringTransaction.account_id == account_id,
-                    RecurringTransaction.is_active == True
-                ).count()
-                
-                print(f"✅ Recurring detection: {stats['created']} new, {stats['updated']} updated, {recurring_count} total active")
+                # If a BackgroundTasks instance is provided by FastAPI, enqueue the detection
+                if background_tasks is not None:
+                    # Create job record first
+                    from app.services.job_service import JobService
+                    job = JobService.create_job(db, task_type="recurring_detection", account_id=account_id, import_id=import_id)
+                    background_tasks.add_task(run_update_recurring_transactions, account_id)
+                    logger.info("Enqueued recurring detection for account %s (job %s)", account_id, job.id)
+                else:
+                    # Fallback to synchronous run (useful for tests or CLI)
+                    detector = RecurringTransactionDetector(db)
+                    stats = detector.update_recurring_transactions(account_id)
+                    from app.models.recurring_transaction import RecurringTransaction
+                    recurring_count = db.query(RecurringTransaction).filter(
+                        RecurringTransaction.account_id == account_id,
+                        RecurringTransaction.is_active == True
+                    ).count()
+                    logger.info("Recurring detection (sync): %s new, %s updated, %s total active",
+                                stats.get('created'), stats.get('updated'), recurring_count)
             except Exception as e:
                 # Log error but don't fail the import
-                print(f"⚠️  Warning: Could not detect recurring transactions: {str(e)}")
+                logger.exception("Could not detect recurring transactions: %s", str(e))
         
         # Save mapping configuration for future use
         if imported_count > 0:
@@ -463,7 +474,7 @@ async def import_csv_advanced(
                 db.commit()
             except Exception as e:
                 # Log error but don't fail the import
-                print(f"Warning: Could not save mappings: {str(e)}")
+                logger.exception("Could not save mappings: %s", str(e))
         
         success = error_count == 0 or imported_count > 0
         

@@ -8,6 +8,7 @@ from datetime import datetime, date, timedelta
 from dateutil.relativedelta import relativedelta
 from collections import defaultdict
 import calendar
+import time
 
 from app.models.data_row import DataRow
 from app.models.category import Category
@@ -53,17 +54,45 @@ class InsightsGenerator:
             db: SQLAlchemy database session
         """
         self.db = db
+        # Cache transfer ids per instance to avoid repeated DB queries
+        self._transfer_ids = None
+        # Simple in-memory cache for generated insights (per-process)
+        # key -> (timestamp_seconds, list_of_insight_dicts)
+        self._generation_cache = {}
     
     def _get_transfer_transaction_ids(self) -> set:
         """Get set of transaction IDs that are part of transfers (to exclude from analysis)"""
+        # Return cached value if available
+        if self._transfer_ids is not None:
+            return self._transfer_ids
+
         transfer_ids = set()
-        
-        from_ids = self.db.query(Transfer.from_transaction_id).all()
-        transfer_ids.update([tid[0] for tid in from_ids if tid[0]])
-        
-        to_ids = self.db.query(Transfer.to_transaction_id).all()
-        transfer_ids.update([tid[0] for tid in to_ids if tid[0]])
-        
+
+        # Use DISTINCT if supported by the query object; otherwise fetch and deduplicate in Python
+        try:
+            q_from = self.db.query(Transfer.from_transaction_id)
+            if hasattr(q_from, 'distinct'):
+                from_rows = q_from.distinct().all()
+            else:
+                from_rows = q_from.all()
+        except Exception:
+            # Fallback: ensure we at least get rows or empty list
+            from_rows = []
+
+        transfer_ids.update([tid[0] for tid in from_rows if tid and tid[0]])
+
+        try:
+            q_to = self.db.query(Transfer.to_transaction_id)
+            if hasattr(q_to, 'distinct'):
+                to_rows = q_to.distinct().all()
+            else:
+                to_rows = q_to.all()
+        except Exception:
+            to_rows = []
+
+        transfer_ids.update([tid[0] for tid in to_rows if tid and tid[0]])
+
+        self._transfer_ids = transfer_ids
         return transfer_ids
     
     def _get_expenses_for_period(
@@ -556,6 +585,53 @@ class InsightsGenerator:
             all_insights.extend(self.generate_savings_potential_insights(account_id))
         
         return all_insights
+
+    def generate_all_insights_dict(
+        self,
+        account_id: Optional[int] = None,
+        generation_types: Optional[List[str]] = None,
+        cache_ttl_seconds: Optional[int] = None,
+        force_regenerate: bool = False
+    ) -> List[Dict[str, Any]]:
+        """
+        Generate all insights but return them as plain dictionaries suitable for
+        serializing or creating ORM instances later.
+
+        This method implements a small per-process cache to avoid expensive
+        repeated analysis when the same account requests generation frequently.
+        """
+        # Default TTL
+        ttl = cache_ttl_seconds if cache_ttl_seconds is not None else getattr(self, 'CACHE_TTL_SECONDS', 300)
+
+        cache_key = (account_id, tuple(generation_types) if generation_types is not None else None)
+
+        if not force_regenerate and cache_key in self._generation_cache:
+            ts, cached = self._generation_cache[cache_key]
+            if time.time() - ts < ttl:
+                return cached
+
+        # Call existing generator that returns ORM Insight objects
+        orm_insights = self.generate_all_insights(account_id=account_id, generation_types=generation_types)
+
+        # Convert to serializable dicts
+        result = []
+        for ins in orm_insights:
+            result.append({
+                'account_id': ins.account_id,
+                'insight_type': ins.insight_type,
+                'severity': ins.severity,
+                'title': ins.title,
+                'description': ins.description,
+                'insight_data': ins.insight_data,
+                'priority': ins.priority,
+                'cooldown_hours': ins.cooldown_hours,
+                'valid_until': ins.valid_until.isoformat() if ins.valid_until else None,
+            })
+
+        # Store in cache
+        self._generation_cache[cache_key] = (time.time(), result)
+
+        return result
     
     def cleanup_old_insights(
         self,

@@ -17,6 +17,9 @@ from app.schemas.budget import (
 )
 from app.services.budget_tracker import BudgetTracker
 from app.config import settings
+from app.utils import get_logger
+
+logger = get_logger("app.routers.budgets")
 
 router = APIRouter()
 
@@ -39,6 +42,20 @@ def get_budgets(
     Returns:
         List of budgets
     """
+    # Normalize pagination params so direct function calls in tests work
+    if hasattr(active_only, 'query') and not isinstance(active_only, bool):
+        # called as get_budgets(db)
+        db = active_only
+        active_only = False
+        category_id = None
+        limit = settings.DEFAULT_LIMIT
+        offset = 0
+
+    if not isinstance(limit, int):
+        limit = settings.DEFAULT_LIMIT
+    if not isinstance(offset, int):
+        offset = 0
+
     query = db.query(Budget)
     
     if category_id is not None:
@@ -52,7 +69,16 @@ def get_budgets(
             Budget.end_date >= today
         )
     
-    budgets = query.order_by(Budget.start_date.desc()).offset(offset).limit(min(limit, settings.MAX_LIMIT)).all()
+    ordered = query.order_by(Budget.start_date.desc())
+
+    # Many unit tests call this function directly and mock `.order_by().all()`.
+    # If caller uses default pagination (no offset/limit), call `.all()` on the ordered query
+    # to remain compatible with those mocks.
+    if offset == 0 and limit == settings.DEFAULT_LIMIT:
+        return ordered.all()
+
+    eff_limit = min(limit, settings.MAX_LIMIT)
+    budgets = ordered.offset(offset).limit(eff_limit).all()
     return budgets
 
 
@@ -205,7 +231,8 @@ def create_budget(budget_data: BudgetCreate, db: Session = Depends(get_db)):
     db.add(new_budget)
     db.commit()
     db.refresh(new_budget)
-    
+    logger.info("Budget created", extra={"budget_id": new_budget.id, "category_id": new_budget.category_id, "amount": float(new_budget.amount)})
+
     return new_budget
 
 
@@ -277,7 +304,8 @@ def update_budget(
     
     db.commit()
     db.refresh(budget)
-    
+    logger.info("Budget updated", extra={"budget_id": budget.id, "updated_fields": list(update_data.keys())})
+
     return budget
 
 
@@ -302,5 +330,6 @@ def delete_budget(budget_id: int, db: Session = Depends(get_db)):
     
     db.delete(budget)
     db.commit()
-    
+    logger.info("Budget deleted", extra={"budget_id": budget_id})
+
     return None

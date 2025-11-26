@@ -21,11 +21,12 @@ from app.schemas.statistics import (
 from app.services.data_aggregator import DataAggregator
 
 router = APIRouter()
+from app.config import settings
 
 
 @router.get("/{account_id}/transactions", response_model=DataRowListResponse)
 def get_account_data(
-    limit: int = Query(50, ge=1, le=1000, description="Items per page"),
+    limit: int = Query(settings.DEFAULT_LIMIT, ge=1, le=settings.MAX_LIMIT, description="Items per page"),
     offset: int = Query(0, ge=0, description="Number of items to skip"),
     from_date: Optional[date] = Query(None, description="Start date filter"),
     to_date: Optional[date] = Query(None, description="End date filter"),
@@ -132,19 +133,20 @@ def get_account_data(
     # Now done in SQL instead of Python!
     query = query.order_by(DataRow.transaction_date.desc())
     
-    # Apply pagination
-    data_rows = query.offset(offset).limit(limit).all()
+    # Apply pagination (enforce server-side max limit)
+    eff_limit = min(limit, settings.MAX_LIMIT)
+    data_rows = query.offset(offset).limit(eff_limit).all()
     
     # Calculate pages
-    pages = (total + limit - 1) // limit  # Ceiling division
-    page = (offset // limit) + 1
+    pages = (total + eff_limit - 1) // eff_limit  # Ceiling division
+    page = (offset // eff_limit) + 1
     
     return {
         "data": data_rows,
         "total": total,
         "page": page,
         "pages": pages,
-        "limit": limit
+        "limit": eff_limit
     }
 
 

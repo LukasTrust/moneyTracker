@@ -4,25 +4,6 @@ Dieses Dokument listet priorisierte Verbesserungen, Architektur- und Sicherheits
 
 ---
 
-## 1) Logging & Observability (Backend)
-- Motivation: Strukturierte Logs, besseres Debugging in Produktion, weniger „print()“-Noise.
-- Ziel: Einheitliches JSON-Logging, korrekte Log-Level, keine Duplikate, korrekte Kontextinfos.
-- Umsetzungsschritte:
-  1. Stelle sicher, dass `app/utils/logger.py` JSON-Formatter als Default hat (ist bereits implementiert). Setze `logger.propagate = False` für Modul-Logger.
-  2. Ersetze alle `print(...)` in `backend/app/routers` und `services` mit `logger.debug/info/warning/error(...)`. (Bereits teilweise durchgeführt für `categories` und `dashboard`.)
-  3. Füge strukturierte `extra` Felder hinzu, z. B. `logger.info("user_login", extra={"user_id": user.id})` für wichtige Events.
-  4. Ergänze korrekte Log-Level (INFO für normal, DEBUG für ausführliche Daten, WARNING/ERROR für Probleme).
-- Dateien/Module:
-  - `backend/app/utils/logger.py` (Konfiguration)
-  - Alle Router-Dateien in `backend/app/routers/*.py`
-- Tests / Verifikation:
-  - Linting für `print`-Vorkommen: `grep -R "print(" backend/app` sollte keine Treffer mehr liefern.
-  - Starten und beobachten der Logs lokal: `uvicorn backend.app.main:app --reload`.
-- Breaking-Change-Risiko: gering.
-
----
-
-
 ## 6) API Design: Pagination & Limits
 - Motivation: Viele Endpunkte liefern potenziell große Listen.
 - Ziel: Konsistente Pagination (limit/offset) mit vernünftigen Max-Limits; Cursor-based optional.

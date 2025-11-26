@@ -17,6 +17,7 @@ from app.schemas.data_row import DataRowListResponse
 from app.services.data_aggregator import DataAggregator
 from app.models.data_row import DataRow
 from app.utils import get_logger
+from app.config import settings
 
 router = APIRouter()
 logger = get_logger("app.routers.dashboard")
@@ -101,7 +102,7 @@ def get_dashboard_summary(
 
 @router.get("/categories", response_model=list[CategoryDataResponse])
 def get_dashboard_categories(
-    limit: int = Query(10, ge=1, le=50, description="Number of categories"),
+    limit: int = Query(10, ge=1, le=settings.MAX_LIMIT, description="Number of categories"),
     from_date: Optional[date] = Query(None, description="Start date filter"),
     to_date: Optional[date] = Query(None, description="End date filter"),
     category_id: Optional[int] = Query(None, description="Filter by single category ID"),
@@ -211,7 +212,7 @@ def get_dashboard_balance_history(
 
 @router.get("/transactions", response_model=DataRowListResponse)
 def get_dashboard_transactions(
-    limit: int = Query(50, ge=1, le=1000, description="Items per page"),
+    limit: int = Query(settings.DEFAULT_LIMIT, ge=1, le=settings.MAX_LIMIT, description="Items per page"),
     offset: int = Query(0, ge=0, description="Number of items to skip"),
     category_id: Optional[int] = Query(None, description="Single category ID filter"),
     category_ids: Optional[str] = Query(None, description="Multiple category IDs (comma-separated, OR logic)"),
@@ -310,12 +311,13 @@ def get_dashboard_transactions(
     # Apply sorting
     query = query.order_by(DataRow.transaction_date.desc())
     
-    # Apply pagination
-    data_rows = query.offset(offset).limit(limit).all()
-    
+    # Apply pagination (enforce server-side max limit)
+    eff_limit = min(limit, settings.MAX_LIMIT)
+    data_rows = query.offset(offset).limit(eff_limit).all()
+
     # Calculate pages
-    pages = (total + limit - 1) // limit  # Ceiling division
-    page = (offset // limit) + 1
+    pages = (total + eff_limit - 1) // eff_limit  # Ceiling division
+    page = (offset // eff_limit) + 1
     
     return {
         "data": data_rows,

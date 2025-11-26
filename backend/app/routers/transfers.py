@@ -20,6 +20,9 @@ from app.schemas.transfer import (
 )
 from app.services.transfer_matcher import TransferMatcher
 from app.config import settings
+from app.utils import get_logger
+
+logger = get_logger("app.routers.transfers")
 
 router = APIRouter()
 
@@ -161,6 +164,15 @@ def create_transfer(
             is_auto_detected=False,
             notes=transfer.notes
         )
+        logger.info(
+            "Transfer created",
+            extra={
+                "transfer_id": getattr(new_transfer, "id", None),
+                "from_transaction_id": getattr(new_transfer, "from_transaction_id", None),
+                "to_transaction_id": getattr(new_transfer, "to_transaction_id", None),
+                "is_auto_detected": getattr(new_transfer, "is_auto_detected", False),
+            },
+        )
         return new_transfer
     except ValueError as e:
         raise HTTPException(
@@ -190,7 +202,8 @@ def update_transfer(
     
     db.commit()
     db.refresh(transfer)
-    
+    logger.info("Transfer updated", extra={"transfer_id": transfer.id, "notes": transfer.notes})
+
     return transfer
 
 
@@ -211,7 +224,8 @@ def delete_transfer(
     
     db.delete(transfer)
     db.commit()
-    
+    logger.info("Transfer deleted", extra={"transfer_id": transfer_id})
+
     return None
 
 
@@ -254,7 +268,9 @@ def detect_transfers(
             except ValueError:
                 # Skip if validation fails
                 continue
-    
+
+    logger.info("Transfer detection completed", extra={"total_found": len(candidates), "auto_created": auto_created})
+
     return TransferDetectionResponse(
         candidates=candidates,
         total_found=len(candidates),

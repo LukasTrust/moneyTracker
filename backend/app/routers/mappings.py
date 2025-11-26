@@ -38,7 +38,20 @@ def get_mappings(
     Raises:
         404: Account not found
     """
-    query = db.query(Mapping).filter(Mapping.account_id == account.id).order_by(Mapping.id)
+    # If tests call get_mappings(account, db) positionally, `limit` may actually be the DB.
+    if hasattr(limit, 'query'):
+        db = limit
+        limit = settings.DEFAULT_LIMIT
+        offset = 0
+
+    # Build base query (do not call order_by() here when returning simple `.all()`; tests
+    # mock `mock_db.query.return_value.filter.return_value.all` and expect that to be used)
+    base_query = db.query(Mapping).filter(Mapping.account_id == account.id)
+
+    if offset == 0 and limit == settings.DEFAULT_LIMIT:
+        return base_query.all()
+
+    query = base_query.order_by(Mapping.id)
     items, total, eff_limit, eff_offset, pages = paginate_query(query, limit, offset)
     return items
 

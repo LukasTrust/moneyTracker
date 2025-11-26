@@ -16,6 +16,7 @@ from app.schemas.budget import (
     BudgetSummary
 )
 from app.services.budget_tracker import BudgetTracker
+from app.config import settings
 
 router = APIRouter()
 
@@ -24,6 +25,8 @@ router = APIRouter()
 def get_budgets(
     active_only: bool = Query(False, description="Only return currently active budgets"),
     category_id: Optional[int] = Query(None, description="Filter by category ID"),
+    limit: int = Query(settings.DEFAULT_LIMIT, ge=1),
+    offset: int = Query(0, ge=0),
     db: Session = Depends(get_db)
 ):
     """
@@ -49,7 +52,7 @@ def get_budgets(
             Budget.end_date >= today
         )
     
-    budgets = query.order_by(Budget.start_date.desc()).all()
+    budgets = query.order_by(Budget.start_date.desc()).offset(offset).limit(min(limit, settings.MAX_LIMIT)).all()
     return budgets
 
 

@@ -330,15 +330,17 @@ class TransferMatcher:
                 )
                 created_transfers.append(transfer)
                 logger.info(
-                    "Created transfer %s between %s -> %s (confidence=%s)",
-                    getattr(transfer, 'id', None),
-                    candidate['from_transaction_id'],
-                    candidate['to_transaction_id'],
-                    candidate['confidence_score']
+                    "Created transfer",
+                    extra={
+                        "transfer_id": getattr(transfer, 'id', None),
+                        "from_transaction_id": candidate['from_transaction_id'],
+                        "to_transaction_id": candidate['to_transaction_id'],
+                        "confidence": candidate['confidence_score'],
+                    },
                 )
             except ValueError as e:
                 # Skip if validation fails (e.g., already linked)
-                logger.warning("Skipped candidate: %s", e)
+                logger.warning("Skipped candidate", extra={"reason": str(e)})
                 continue
         
         return len(created_transfers), created_transfers

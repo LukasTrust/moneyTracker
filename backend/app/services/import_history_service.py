@@ -60,7 +60,7 @@ class ImportHistoryService:
         db.add(import_record)
         db.commit()
         db.refresh(import_record)
-        logger.info("Created import record %s for account %s (file=%s)", import_record.id, account_id, filename)
+        logger.info("Created import record", extra={"import_id": import_record.id, "account_id": account_id, "file": filename})
 
         return import_record
     
@@ -102,7 +102,16 @@ class ImportHistoryService:
         
         db.commit()
         db.refresh(import_record)
-        logger.info("Updated import record %s: rows=%s inserted=%s duplicated=%s status=%s", import_id, row_count, rows_inserted, rows_duplicated, status)
+        logger.info(
+            "Updated import record",
+            extra={
+                "import_id": import_id,
+                "row_count": row_count,
+                "rows_inserted": rows_inserted,
+                "rows_duplicated": rows_duplicated,
+                "status": status,
+            },
+        )
 
         return import_record
     
@@ -242,7 +251,7 @@ class ImportHistoryService:
         import_record.error_message = f"Rolled back by user on {datetime.now().isoformat()}"
         
         db.commit()
-        logger.info("Rolled back import %s, deleted %s rows", import_id, rows_to_delete)
+        logger.info("Rolled back import", extra={"import_id": import_id, "rows_deleted": rows_to_delete})
 
         return ImportRollbackResponse(
             success=True,

@@ -21,7 +21,7 @@ class JobService:
         db.add(job)
         db.commit()
         db.refresh(job)
-        logger.info("Created job %s for task %s", job.id, task_type)
+        logger.info("Created job", extra={"job_id": getattr(job, 'id', None), "task_type": task_type, "account_id": account_id, "import_id": import_id})
         return job
 
     @staticmethod
@@ -36,7 +36,7 @@ class JobService:
             job.finished_at = datetime.utcnow()
         db.commit()
         db.refresh(job)
-        logger.info("Updated job %s status to %s", job_id, status)
+        logger.info("Updated job status", extra={"job_id": job_id, "status": status})
         return job
 
     @staticmethod

@@ -1,7 +1,7 @@
 """
 Transfer Router - API endpoints for inter-account transfers
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_, and_
 from typing import List, Optional
@@ -19,6 +19,7 @@ from app.schemas.transfer import (
     TransferStats
 )
 from app.services.transfer_matcher import TransferMatcher
+from app.config import settings
 
 router = APIRouter()
 
@@ -29,6 +30,8 @@ def get_all_transfers(
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
     include_details: bool = False,
+    limit: int = Query(settings.DEFAULT_LIMIT, ge=1),
+    offset: int = Query(0, ge=0),
     db: Session = Depends(get_db)
 ):
     """
@@ -61,7 +64,7 @@ def get_all_transfers(
     if date_to:
         query = query.filter(Transfer.transfer_date <= date_to)
     
-    transfers = query.order_by(Transfer.transfer_date.desc()).all()
+    transfers = query.order_by(Transfer.transfer_date.desc()).offset(offset).limit(min(limit, settings.MAX_LIMIT)).all()
     
     if not include_details:
         return transfers
@@ -281,21 +284,40 @@ def get_transfer_stats(
             )
         )
     
-    transfers = query.all()
-    
-    total_transfers = len(transfers)
-    auto_detected = sum(1 for t in transfers if t.is_auto_detected)
+    from sqlalchemy import func
+
+    total_transfers = query.count()
+    auto_detected = query.filter(Transfer.is_auto_detected == True).count()
     manual = total_transfers - auto_detected
-    total_amount = sum(t.amount for t in transfers)
-    
+
+    total_amount = db.query(func.sum(Transfer.amount)).select_from(Transfer)
+    # Reapply same filters for amount and date range
+    if account_id:
+        from_tx_ids = db.query(DataRow.id).filter(DataRow.account_id == account_id).subquery()
+        to_tx_ids = db.query(DataRow.id).filter(DataRow.account_id == account_id).subquery()
+        total_amount = total_amount.filter(
+            or_(
+                Transfer.from_transaction_id.in_(from_tx_ids),
+                Transfer.to_transaction_id.in_(to_tx_ids),
+            )
+        )
+    total_amount = total_amount.scalar() or 0
+
+    # Date range via aggregates
+    min_max = db.query(func.min(Transfer.transfer_date), func.max(Transfer.transfer_date))
+    if account_id:
+        from_tx_ids = db.query(DataRow.id).filter(DataRow.account_id == account_id).subquery()
+        to_tx_ids = db.query(DataRow.id).filter(DataRow.account_id == account_id).subquery()
+        min_max = min_max.filter(
+            or_(
+                Transfer.from_transaction_id.in_(from_tx_ids),
+                Transfer.to_transaction_id.in_(to_tx_ids),
+            )
+        )
+    min_date, max_date = min_max.one()
     date_range = None
-    if transfers:
-        min_date = min(t.transfer_date for t in transfers)
-        max_date = max(t.transfer_date for t in transfers)
-        date_range = {
-            'from': min_date.isoformat(),
-            'to': max_date.isoformat()
-        }
+    if min_date and max_date:
+        date_range = {'from': min_date.isoformat(), 'to': max_date.isoformat()}
     
     return TransferStats(
         total_transfers=total_transfers,

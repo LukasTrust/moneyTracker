@@ -10,15 +10,20 @@ from app.utils import get_logger
 
 # Create database engine
 # For SQLite, we need to enable check_same_thread=False
+is_sqlite = isinstance(settings.DATABASE_URL, str) and settings.DATABASE_URL.lower().startswith("sqlite://")
+connect_args = {"check_same_thread": False} if is_sqlite else {}
+
 engine = create_engine(
     settings.DATABASE_URL,
-    connect_args={"check_same_thread": False} if "sqlite" in settings.DATABASE_URL else {},
-    echo=False  # Set to True for SQL debugging
+    connect_args=connect_args,
+    echo=False,  # Set to True for SQL debugging
+    future=True,
+    pool_pre_ping=True,
 )
 
 # Module logger
 logger = get_logger("app.database")
-logger.info("Created database engine for %s", settings.DATABASE_URL)
+logger.info("Created database engine (dialect=%s)", engine.dialect.name)
 
 # Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

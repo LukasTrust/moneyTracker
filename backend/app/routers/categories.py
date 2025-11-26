@@ -14,20 +14,29 @@ from app.schemas.category import (
     CategoryResponse
 )
 from app.services.category_matcher import CategoryMatcher
+from app.utils import get_logger
+from app.utils.pagination import paginate_query
+from app.config import settings
 
 router = APIRouter()
+logger = get_logger("app.routers.categories")
 
 
 @router.get("", response_model=List[CategoryResponse])
-def get_categories(db: Session = Depends(get_db)):
+def get_categories(
+    limit: int = Query(settings.DEFAULT_LIMIT, ge=1),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+):
     """
     Get all categories
     
     Returns:
         List of all categories with their mapping rules
     """
-    categories = db.query(Category).all()
-    return categories
+    query = db.query(Category).order_by(Category.name)
+    items, total, eff_limit, eff_offset, pages = paginate_query(query, limit, offset)
+    return items
 
 
 @router.get("/{category_id}", response_model=CategoryResponse)
@@ -132,16 +141,16 @@ def remove_pattern_from_category(
     # Update category
     category.mappings = {'patterns': new_patterns}
     attributes.flag_modified(category, 'mappings')
-    
+
     db.commit()
     db.refresh(category)
-    
-    # Clear cache
+
+    # Clear matcher cache
     matcher = CategoryMatcher(db)
     matcher.clear_cache()
-    
-    print(f"✅ Removed pattern '{pattern}' from category {category_id}")
-    
+
+    logger.info("Removed pattern for category", extra={"category_id": category_id, "pattern": pattern})
+
     return category
 
 
@@ -228,9 +237,7 @@ def update_category(
     update_data = category_data.model_dump(exclude_unset=True)
     
     # Debug logging
-    print(f"🔍 Update Category {category_id}")
-    print(f"   Current mappings in DB: {category.mappings}")
-    print(f"   Update data received: {update_data}")
+    logger.debug("Update Category %s - update_data keys=%s", category_id, list(update_data.keys()))
     
     if 'name' in update_data and update_data['name'] != category.name:
         existing = db.query(Category).filter(
@@ -266,7 +273,7 @@ def update_category(
             )
         
         update_data['mappings'] = {'patterns': unique_patterns}
-        print(f"   Cleaned patterns: {unique_patterns}")
+        logger.debug("Cleaned patterns for category_id=%s count=%d", category_id, len(unique_patterns))
     
     # Update fields
     for field, value in update_data.items():
@@ -280,14 +287,14 @@ def update_category(
     
     db.commit()
     db.refresh(category)
-    
+
     # Clear CategoryMatcher cache after category update
     matcher = CategoryMatcher(db)
     matcher.clear_cache()
-    
-    print(f"✅ Category {category_id} updated successfully")
-    print(f"   New mappings in DB: {category.mappings}")
-    
+
+    logger.info("Category updated", extra={"category_id": category_id})
+    logger.debug("New mappings in DB", extra={"category_id": category_id, "mappings": category.mappings})
+
     return category
 
 
@@ -356,9 +363,10 @@ def recategorize_transactions(
     if account_id:
         query = query.filter(DataRow.account_id == account_id)
     
-    transactions = query.all()
-    
-    if not transactions:
+    total_transactions = db.query(DataRow).filter(DataRow.account_id == account_id) if account_id else db.query(DataRow)
+    total_count = total_transactions.count()
+
+    if total_count == 0:
         return {
             "total_transactions": 0,
             "categorized": 0,
@@ -366,56 +374,104 @@ def recategorize_transactions(
             "updated_count": 0,
             "category_distribution": {}
         }
-    
+
     # Initialize matcher
     matcher = CategoryMatcher(db)
     matcher.clear_cache()  # Ensure fresh category data
-    
-    # Statistics
+
+    # Statistics accumulators
     updated_count = 0
-    categorized_count = 0
-    uncategorized_count = 0
-    category_distribution = {}
+    # Prefetch category id -> name map to avoid N+1 queries
+    category_map = {c.id: c.name for c in db.query(Category).all()}
+
+    # Process transactions in chunks to avoid loading all into memory
+    batch_size = 1000
+    offset = 0
+    from sqlalchemy import func
+    while True:
+        batch_query = query.order_by(DataRow.id).offset(offset).limit(batch_size)
+        transactions = batch_query.all()
+        if not transactions:
+            break
+
+        # Build list of transaction payloads for bulk matching
+        tx_payloads = []
+        tx_ids = []
+        old_category_map = {}
+        for tx in transactions:
+            tx_ids.append(tx.id)
+            old_category_map[tx.id] = tx.category_id
+            tx_payloads.append({
+                'recipient': tx.recipient,
+                'purpose': tx.purpose,
+            })
+
+        # Bulk match using precompiled patterns
+        new_categories = matcher.match_bulk(tx_payloads)
+
+        # Map of target_category -> list of transaction ids to update
+        updates_by_category: dict = {}
+        uncategorized_ids = []
+
+        for tx_id, new_cat in zip(tx_ids, new_categories):
+            old_cat = old_category_map.get(tx_id)
+            if new_cat != old_cat:
+                # Schedule update
+                if new_cat is None:
+                    uncategorized_ids.append(tx_id)
+                else:
+                    updates_by_category.setdefault(new_cat, []).append(tx_id)
+
+        # Apply updates in batches for performance
+        def _chunks(lst, n=500):
+            for i in range(0, len(lst), n):
+                yield lst[i:i+n]
+
+        # Update categorized -> category_id
+        for category_id, ids in updates_by_category.items():
+            for chunk in _chunks(ids, 500):
+                db.query(DataRow).filter(DataRow.id.in_(chunk)).update({DataRow.category_id: category_id}, synchronize_session=False)
+                updated_count += len(chunk)
+
+        # Update uncategorized (set category_id = None)
+        for chunk in _chunks(uncategorized_ids, 500):
+            db.query(DataRow).filter(DataRow.id.in_(chunk)).update({DataRow.category_id: None}, synchronize_session=False)
+            updated_count += len(chunk)
+
+        # Commit batched updates for this chunk
+        db.commit()
+
+        offset += batch_size
+
+    # Compute final statistics from database counts to be accurate
+    categorized_count = db.query(func.count(DataRow.id)).filter(DataRow.account_id == account_id, DataRow.category_id.isnot(None)).scalar() if account_id else db.query(func.count(DataRow.id)).filter(DataRow.category_id.isnot(None)).scalar()
+    categorized_count = categorized_count or 0
+    uncategorized_count = total_count - categorized_count
+
+    # Rebuild category_distribution by querying counts grouped by category_id
+    distribution = {}
+    rows = db.query(DataRow.category_id, func.count(DataRow.id)).filter(DataRow.category_id.isnot(None))
+    if account_id:
+        rows = rows.filter(DataRow.account_id == account_id)
+    rows = rows.group_by(DataRow.category_id).all()
+    for cat_id, cnt in rows:
+        name = category_map.get(cat_id)
+        if name:
+            distribution[name] = cnt
+    category_distribution = distribution
     
-    # Recategorize each transaction
-    for transaction in transactions:
-        old_category_id = transaction.category_id
-        
-        # Build transaction data dict for matching
-        transaction_data = {
-            'recipient': transaction.recipient,
-            'purpose': transaction.purpose
-        }
-        
-        # Match category
-        new_category_id = matcher.match_category(transaction_data)
-        
-        # Update if changed
-        if new_category_id != old_category_id:
-            transaction.category_id = new_category_id
-            updated_count += 1
-        
-        # Count statistics
-        if new_category_id:
-            categorized_count += 1
-            # Get category name for distribution
-            category = db.query(Category).filter(Category.id == new_category_id).first()
-            if category:
-                category_name = category.name
-                category_distribution[category_name] = category_distribution.get(category_name, 0) + 1
-        else:
-            uncategorized_count += 1
-    
-    # Commit all changes
-    db.commit()
-    
-    print(f"✅ Recategorized {len(transactions)} transactions")
-    print(f"   Updated: {updated_count}")
-    print(f"   Categorized: {categorized_count}")
-    print(f"   Uncategorized: {uncategorized_count}")
+    logger.info(
+        "Recategorized transactions",
+        extra={
+            "total": len(transactions),
+            "updated": updated_count,
+            "categorized": categorized_count,
+            "uncategorized": uncategorized_count,
+        },
+    )
     
     return {
-        "total_transactions": len(transactions),
+        "total_transactions": total_transactions,
         "categorized": categorized_count,
         "uncategorized": uncategorized_count,
         "updated_count": updated_count,

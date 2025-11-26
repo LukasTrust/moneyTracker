@@ -54,7 +54,7 @@ class RecipientMatcher:
         ).first()
         
         if recipient:
-            logger.debug("Found exact recipient match: %s (id=%s)", recipient.name, getattr(recipient, 'id', None))
+            logger.debug("Found exact recipient match", extra={"recipient_id": getattr(recipient, 'id', None), "recipient_name": recipient.name})
             return recipient
         
         # Try fuzzy matching
@@ -64,7 +64,7 @@ class RecipientMatcher:
             similar_recipient.add_alias(normalized)
             similar_recipient.transaction_count += 1
             self.db.commit()
-            logger.info("Found similar recipient and added alias: %s -> existing id=%s", normalized, getattr(similar_recipient, 'id', None))
+            logger.info("Found similar recipient and added alias", extra={"normalized": normalized, "existing_id": getattr(similar_recipient, 'id', None)})
             return similar_recipient
         
         # Create new recipient
@@ -76,7 +76,7 @@ class RecipientMatcher:
         self.db.add(new_recipient)
         self.db.commit()
         self.db.refresh(new_recipient)
-        logger.info("Created new recipient: %s (id=%s)", new_recipient.name, getattr(new_recipient, 'id', None))
+        logger.info("Created new recipient", extra={"recipient_id": getattr(new_recipient, 'id', None), "recipient_name": new_recipient.name})
         return new_recipient
     
     def _find_similar_recipient(self, normalized_name: str) -> Optional[Recipient]:

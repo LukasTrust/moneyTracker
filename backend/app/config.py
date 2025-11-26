@@ -60,6 +60,9 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     RELOAD: bool = True
+    # Pagination defaults
+    DEFAULT_LIMIT: int = 50
+    MAX_LIMIT: int = 1000
     
     class Config:
         env_file = ".env"

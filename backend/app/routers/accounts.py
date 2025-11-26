@@ -1,7 +1,7 @@
 """
 Account Router - CRUD operations for accounts
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -14,20 +14,28 @@ from app.schemas.account import (
     AccountResponse,
     AccountListResponse
 )
+from app.utils.pagination import paginate_query
+from app.config import settings
 
 router = APIRouter()
 
 
 @router.get("", response_model=AccountListResponse)
-def get_accounts(db: Session = Depends(get_db)):
+def get_accounts(
+    limit: int = Query(settings.DEFAULT_LIMIT, ge=1),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+):
     """
     Get all accounts
     
     Returns:
         List of all accounts
     """
-    accounts = db.query(Account).all()
-    return {"accounts": accounts}
+    query = db.query(Account).order_by(Account.id)
+    items, total, eff_limit, eff_offset, pages = paginate_query(query, limit, offset)
+    page = (eff_offset // eff_limit) + 1 if eff_limit > 0 else 1
+    return {"accounts": items, "total": total, "limit": eff_limit, "offset": eff_offset, "pages": pages, "page": page}
 
 
 @router.get("/{account_id}", response_model=AccountResponse)

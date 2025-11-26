@@ -1,7 +1,7 @@
 """
 Mapping Router - Manage CSV header mappings
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -13,6 +13,8 @@ from app.schemas.mapping import (
     MappingResponse,
     MappingsUpdate
 )
+from app.utils.pagination import paginate_query
+from app.config import settings
 
 router = APIRouter()
 
@@ -20,6 +22,8 @@ router = APIRouter()
 @router.get("/{account_id}/mappings", response_model=List[MappingResponse])
 def get_mappings(
     account: Account = Depends(get_account_by_id),
+    limit: int = Query(settings.DEFAULT_LIMIT, ge=1),
+    offset: int = Query(0, ge=0),
     db: Session = Depends(get_db)
 ):
     """
@@ -34,8 +38,9 @@ def get_mappings(
     Raises:
         404: Account not found
     """
-    mappings = db.query(Mapping).filter(Mapping.account_id == account.id).all()
-    return mappings
+    query = db.query(Mapping).filter(Mapping.account_id == account.id).order_by(Mapping.id)
+    items, total, eff_limit, eff_offset, pages = paginate_query(query, limit, offset)
+    return items
 
 
 @router.post("/{account_id}/mappings", response_model=List[MappingResponse])

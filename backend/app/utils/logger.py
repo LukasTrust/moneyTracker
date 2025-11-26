@@ -128,7 +128,9 @@ def get_logger(name: str | None = None) -> logging.Logger:
     _configure_root()
     logger = logging.getLogger(name)
     # Avoid duplicate handlers when libraries configure loggers directly
-    logger.propagate = True
+    # Set propagate to False so the logger does not unintentionally duplicate
+    # messages if other handlers are attached to ancestor loggers.
+    logger.propagate = False
     return logger
 
 

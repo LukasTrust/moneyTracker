@@ -440,7 +440,7 @@ async def import_csv_advanced(
                     from app.services.job_service import JobService
                     job = JobService.create_job(db, task_type="recurring_detection", account_id=account_id, import_id=import_id)
                     background_tasks.add_task(run_update_recurring_transactions, account_id)
-                    logger.info("Enqueued recurring detection for account %s (job %s)", account_id, job.id)
+                    logger.info("Enqueued recurring detection for account", extra={"account_id": account_id, "job_id": getattr(job, 'id', None), "import_id": import_id})
                 else:
                     # Fallback to synchronous run (useful for tests or CLI)
                     detector = RecurringTransactionDetector(db)
@@ -450,11 +450,10 @@ async def import_csv_advanced(
                         RecurringTransaction.account_id == account_id,
                         RecurringTransaction.is_active == True
                     ).count()
-                    logger.info("Recurring detection (sync): %s new, %s updated, %s total active",
-                                stats.get('created'), stats.get('updated'), recurring_count)
+                    logger.info("Recurring detection (sync)", extra={"created": stats.get('created'), "updated": stats.get('updated'), "total_active": recurring_count, "account_id": account_id})
             except Exception as e:
                 # Log error but don't fail the import
-                logger.exception("Could not detect recurring transactions: %s", str(e))
+                logger.exception("Could not detect recurring transactions", exc_info=True, extra={"account_id": account_id, "import_id": import_id})
         
         # Save mapping configuration for future use
         if imported_count > 0:
@@ -474,7 +473,7 @@ async def import_csv_advanced(
                 db.commit()
             except Exception as e:
                 # Log error but don't fail the import
-                logger.exception("Could not save mappings: %s", str(e))
+                logger.exception("Could not save mappings", exc_info=True, extra={"account_id": account_id, "import_id": import_id})
         
         success = error_count == 0 or imported_count > 0
         

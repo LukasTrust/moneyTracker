@@ -45,3 +45,8 @@ class AccountResponse(AccountBase):
 class AccountListResponse(BaseModel):
     """Schema for list of accounts"""
     accounts: List[AccountResponse]
+    total: int
+    limit: int
+    offset: int
+    pages: int
+    page: int

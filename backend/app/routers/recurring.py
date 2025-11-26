@@ -1,7 +1,7 @@
 """
 Recurring Transactions Router - Verträge / Wiederkehrende Zahlungen
 """
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, func
 from typing import Optional
@@ -24,6 +24,8 @@ from app.services.recurring_transaction_detector import (
     run_update_recurring_transactions_all,
 )
 from app.utils import get_logger
+from app.utils.pagination import paginate_query
+from app.config import settings
 
 logger = get_logger(__name__)
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
@@ -44,6 +46,8 @@ def get_job_status(job_id: int, db: Session = Depends(get_db)):
 @router.get("/recurring-transactions", response_model=RecurringTransactionListResponse)
 def get_all_recurring_transactions(
     include_inactive: bool = False,
+    limit: int = Query(settings.DEFAULT_LIMIT, ge=1),
+    offset: int = Query(0, ge=0),
     db: Session = Depends(get_db)
 ):
     """
@@ -56,34 +60,31 @@ def get_all_recurring_transactions(
         List of recurring transactions
     """
     query = db.query(RecurringTransaction)
-    
+
     if not include_inactive:
         query = query.filter(RecurringTransaction.is_active == True)
-    
-    recurring = query.order_by(
-        RecurringTransaction.account_id,
-        RecurringTransaction.average_amount.desc()
-    ).all()
-    
-    # Add computed monthly_cost field
+
+    base_query = query.order_by(RecurringTransaction.account_id, RecurringTransaction.average_amount.desc())
+    items, total, eff_limit, eff_offset, pages = paginate_query(base_query, limit, offset)
+
     result = []
-    for r in recurring:
+    for r in items:
         r_dict = RecurringTransactionResponse.from_orm(r)
         if r.average_interval_days > 0:
             monthly_cost = float(r.average_amount) * (30 / r.average_interval_days)
             r_dict.monthly_cost = round(monthly_cost, 2)
         result.append(r_dict)
-    
-    return RecurringTransactionListResponse(
-        total=len(result),
-        recurring_transactions=result
-    )
+
+    page = (eff_offset // eff_limit) + 1 if eff_limit > 0 else 1
+    return RecurringTransactionListResponse(total=total, recurring_transactions=result, limit=eff_limit, offset=eff_offset, pages=pages, page=page)
 
 
 @router.get("/{account_id}/recurring-transactions", response_model=RecurringTransactionListResponse)
 def get_recurring_transactions_for_account(
     account_id: int,
     include_inactive: bool = False,
+    limit: int = Query(settings.DEFAULT_LIMIT, ge=1),
+    offset: int = Query(0, ge=0),
     db: Session = Depends(get_db)
 ):
     """
@@ -101,22 +102,26 @@ def get_recurring_transactions_for_account(
     if not include_inactive:
         query = query.filter(RecurringTransaction.is_active == True)
 
-    recurring = query.order_by(RecurringTransaction.average_amount.desc()).all()
+    base_query = query.order_by(RecurringTransaction.average_amount.desc())
+    items, total, eff_limit, eff_offset, pages = paginate_query(base_query, limit, offset)
 
     result = []
-    for r in recurring:
+    for r in items:
         r_dict = RecurringTransactionResponse.from_orm(r)
         if r.average_interval_days and r.average_interval_days > 0:
             monthly_cost = float(r.average_amount) * (30 / r.average_interval_days)
             r_dict.monthly_cost = round(monthly_cost, 2)
         result.append(r_dict)
 
-    return RecurringTransactionListResponse(total=len(result), recurring_transactions=result)
+    page = (eff_offset // eff_limit) + 1 if eff_limit > 0 else 1
+    return RecurringTransactionListResponse(total=total, recurring_transactions=result, limit=eff_limit, offset=eff_offset, pages=pages, page=page)
 
 
 @router.get("/recurring-transactions", response_model=RecurringTransactionListResponse)
 def get_all_recurring_transactions(
     include_inactive: bool = False,
+    limit: int = Query(settings.DEFAULT_LIMIT, ge=1),
+    offset: int = Query(0, ge=0),
     db: Session = Depends(get_db)
 ):
     """
@@ -126,31 +131,26 @@ def get_all_recurring_transactions(
         include_inactive: Include inactive recurring transactions
         
     Returns:
-        List of recurring transactions
+        List of recurring transactions (paginated)
     """
     query = db.query(RecurringTransaction)
-    
+
     if not include_inactive:
         query = query.filter(RecurringTransaction.is_active == True)
-    
-    recurring = query.order_by(
-        RecurringTransaction.account_id,
-        RecurringTransaction.average_amount.desc()
-    ).all()
-    
-    # Add computed monthly_cost field
+
+    base_query = query.order_by(RecurringTransaction.account_id, RecurringTransaction.average_amount.desc())
+    items, total, eff_limit, eff_offset, pages = paginate_query(base_query, limit, offset)
+
     result = []
-    for r in recurring:
+    for r in items:
         r_dict = RecurringTransactionResponse.from_orm(r)
         if r.average_interval_days > 0:
             monthly_cost = float(r.average_amount) * (30 / r.average_interval_days)
             r_dict.monthly_cost = round(monthly_cost, 2)
         result.append(r_dict)
-    
-    return RecurringTransactionListResponse(
-        total=len(result),
-        recurring_transactions=result
-    )
+
+    page = (eff_offset // eff_limit) + 1 if eff_limit > 0 else 1
+    return RecurringTransactionListResponse(total=total, recurring_transactions=result, limit=eff_limit, offset=eff_offset, pages=pages, page=page)
 
 
 @router.get("/{account_id}/recurring-transactions/stats", response_model=RecurringTransactionStats)
@@ -268,7 +268,7 @@ def detect_recurring_for_account(
         from app.services.job_service import JobService
         job = JobService.create_job(db, task_type="recurring_detection", account_id=account.id)
         background_tasks.add_task(run_update_recurring_transactions, account.id)
-        logger.info("Enqueued recurring detection for account %s (job %s)", account.id, job.id)
+        logger.info("Enqueued recurring detection for account", extra={"account_id": account.id, "job_id": getattr(job, 'id', None)})
 
         # Return a quick response indicating background job queued. Keep totals accurate synchronously.
         total = db.query(RecurringTransaction).filter(
@@ -315,7 +315,7 @@ def detect_recurring_for_all_accounts(
         from app.services.job_service import JobService
         job = JobService.create_job(db, task_type="recurring_detection_bulk")
         background_tasks.add_task(run_update_recurring_transactions_all)
-        logger.info("Enqueued bulk recurring detection (job %s)", job.id)
+        logger.info("Enqueued bulk recurring detection", extra={"job_id": getattr(job, 'id', None)})
 
         total = db.query(RecurringTransaction).count()
         return RecurringTransactionDetectionStats(

@@ -11,6 +11,7 @@ from app.models.recipient import Recipient
 from app.models.data_row import DataRow
 from app.services.recipient_matcher import RecipientMatcher
 from pydantic import BaseModel
+from app.config import settings
 
 router = APIRouter()
 
@@ -51,7 +52,7 @@ class RecipientSuggestion(BaseModel):
 
 @router.get("/", response_model=List[RecipientResponse])
 async def get_recipients(
-    limit: int = Query(100, ge=1, le=1000),
+    limit: int = Query(settings.DEFAULT_LIMIT, ge=1),
     offset: int = Query(0, ge=0),
     search: Optional[str] = None,
     sort_by: str = Query("transaction_count", pattern="^(name|transaction_count|created_at)$"),

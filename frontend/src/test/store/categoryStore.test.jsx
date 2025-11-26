@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import useCategoryStore from '../../store/categoryStore'
+import { useCategoryStore } from '../../store/categoryStore'
 
 const mockGetCategories = vi.fn()
 const mockGetMappings = vi.fn()

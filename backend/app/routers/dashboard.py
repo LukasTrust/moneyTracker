@@ -16,8 +16,10 @@ from app.schemas.statistics import (
 from app.schemas.data_row import DataRowListResponse
 from app.services.data_aggregator import DataAggregator
 from app.models.data_row import DataRow
+from app.utils import get_logger
 
 router = APIRouter()
+logger = get_logger("app.routers.dashboard")
 
 
 @router.get("/summary", response_model=dict)
@@ -65,7 +67,10 @@ def get_dashboard_summary(
         purpose=purpose,
         transaction_type=transaction_type
     )
-    print(f"[dashboard] get_dashboard_summary called with from_date={from_date} to_date={to_date} category_id={category_id}; summary_keys={list(summary.keys())}")
+    logger.debug(
+        "get_dashboard_summary called from_date=%s to_date=%s category_id=%s summary_keys=%s",
+        from_date, to_date, category_id, list(summary.keys())
+    )
     
     # Count unique accounts
     query = db.query(DataRow.account_id).distinct()
@@ -141,7 +146,10 @@ def get_dashboard_categories(
         purpose=purpose,
         transaction_type=transaction_type
     )
-    print(f"[dashboard] get_dashboard_categories called with from_date={from_date} to_date={to_date} category_id={category_id} limit={limit}; returned_count={len(categories) if categories is not None else 'None'}")
+    logger.debug(
+        "get_dashboard_categories called from_date=%s to_date=%s category_id=%s limit=%s returned_count=%s",
+        from_date, to_date, category_id, limit, len(categories) if categories is not None else 'None'
+    )
     
     return categories
 
@@ -193,7 +201,10 @@ def get_dashboard_balance_history(
         purpose=purpose,
         transaction_type=transaction_type
     )
-    print(f"[dashboard] get_dashboard_balance_history called with group_by={group_by} from_date={from_date} to_date={to_date} category_id={category_id}; labels_len={len(history.get('labels') if isinstance(history, dict) and history.get('labels') else [])}")
+    logger.debug(
+        "get_dashboard_balance_history called group_by=%s from_date=%s to_date=%s category_id=%s labels_len=%s",
+        group_by, from_date, to_date, category_id, len(history.get('labels') if isinstance(history, dict) and history.get('labels') else [])
+    )
     
     return history
 
@@ -362,6 +373,9 @@ def get_dashboard_recipients_data(
         recipient=recipient,
         purpose=purpose
     )
-    print(f"[dashboard] get_dashboard_recipients_data called with transaction_type={transaction_type} from_date={from_date} to_date={to_date} category_id={category_id} limit={limit}; returned_count={len(recipients) if recipients is not None else 'None'}")
+    logger.debug(
+        "get_dashboard_recipients_data called transaction_type=%s from_date=%s to_date=%s category_id=%s limit=%s returned_count=%s",
+        transaction_type, from_date, to_date, category_id, limit, len(recipients) if recipients is not None else 'None'
+    )
     
     return recipients

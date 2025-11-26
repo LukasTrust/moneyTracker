@@ -2,9 +2,12 @@
 Category Matcher - Match transactions to categories based on rules
 """
 import re
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 from sqlalchemy.orm import Session
 from app.models.category import Category
+
+
+CompiledPattern = Tuple[re.Pattern, int, str]
 
 
 class CategoryMatcher:
@@ -21,6 +24,8 @@ class CategoryMatcher:
         """
         self.db = db
         self._categories_cache = None
+        # Precompiled flat list of (regex, category_id, pattern)
+        self._compiled_patterns: List[CompiledPattern] = []
     
     def _load_categories(self) -> List[Category]:
         """
@@ -31,6 +36,25 @@ class CategoryMatcher:
         """
         if self._categories_cache is None:
             self._categories_cache = self.db.query(Category).all()
+            # Build compiled pattern cache for faster matching
+            compiled: List[CompiledPattern] = []
+            for category in self._categories_cache:
+                mappings = category.mappings or {}
+                patterns = mappings.get('patterns', [])
+                # Sort patterns by length desc to prefer longer (more specific) patterns
+                patterns_sorted = sorted(patterns, key=lambda p: len(p or ""), reverse=True)
+                for pattern in patterns_sorted:
+                    if not pattern:
+                        continue
+                    try:
+                        regex = re.compile(r"\b" + re.escape(pattern.lower()) + r"\b")
+                        compiled.append((regex, category.id, pattern))
+                    except re.error:
+                        # Skip invalid patterns but keep system stable
+                        continue
+
+            self._compiled_patterns = compiled
+
         return self._categories_cache
     
     def match_category(self, transaction_data: Dict[str, Any]) -> Optional[int]:
@@ -55,25 +79,19 @@ class CategoryMatcher:
             >>> category_id = matcher.match_category(transaction_data)
             2  # Lebensmittel category
         """
-        categories = self._load_categories()
-        
+        # Ensure compiled patterns are ready
+        self._load_categories()
+
         recipient = transaction_data.get('recipient', '') or ''
         purpose = transaction_data.get('purpose', '') or ''
-        
+
         # Combine text for pattern matching (case-insensitive)
         search_text = f"{recipient} {purpose}".lower()
-        
-        for category in categories:
-            mappings = category.mappings or {}
-            
-            # Check patterns (simplified structure: {"patterns": ["REWE", "Edeka", ...]})
-            patterns = mappings.get('patterns', [])
-            for pattern in patterns:
-                # Word-boundary matching: pattern must be a complete word
-                # \b ensures we match whole words only
-                pattern_regex = r'\b' + re.escape(pattern.lower()) + r'\b'
-                if re.search(pattern_regex, search_text):
-                    return category.id
+
+        # Iterate precompiled patterns (already prioritized by length)
+        for regex, category_id, pattern in self._compiled_patterns:
+            if regex.search(search_text):
+                return category_id
         
         return None
     
@@ -87,10 +105,27 @@ class CategoryMatcher:
         Returns:
             List of category IDs (None for unmatched)
         """
-        return [self.match_category(t) for t in transactions]
+        # Bulk match using precompiled patterns for efficiency
+        # Prepare compiled list if not present
+        self._load_categories()
+
+        results: List[Optional[int]] = []
+        for t in transactions:
+            recipient = t.get('recipient', '') or ''
+            purpose = t.get('purpose', '') or ''
+            search_text = f"{recipient} {purpose}".lower()
+            matched: Optional[int] = None
+            for regex, category_id, _ in self._compiled_patterns:
+                if regex.search(search_text):
+                    matched = category_id
+                    break
+            results.append(matched)
+
+        return results
     
     def clear_cache(self):
         """
         Clear the categories cache (call after category updates)
         """
         self._categories_cache = None
+        self._compiled_patterns = []

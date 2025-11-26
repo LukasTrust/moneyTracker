@@ -256,4 +256,5 @@ export const useCategoryStore = create((set, get) => ({
   clearError: () => set({ error: null }),
 }));
 
-export default useCategoryStore;
+// Keep named export only to avoid mixed default/named import patterns
+// (consumers should import { useCategoryStore } from './store/categoryStore')

@@ -56,6 +56,10 @@ class RecurringTransactionListResponse(BaseModel):
     """Schema for list of recurring transactions"""
     total: int
     recurring_transactions: list[RecurringTransactionResponse]
+    limit: int
+    offset: int
+    pages: int
+    page: int
 
 
 class RecurringTransactionStats(BaseModel):

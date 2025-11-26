@@ -258,10 +258,13 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    
+    # Run the app object directly to avoid import path issues when executing
+    # this module as a script (ensures correct app is passed to Uvicorn).
+    logger = get_logger("app.__main__")
+    logger.info("Starting Uvicorn (host=%s port=%s reload=%s)", settings.HOST, settings.PORT, settings.RELOAD)
     uvicorn.run(
-        "main:app",
+        app,
         host=settings.HOST,
         port=settings.PORT,
-        reload=settings.RELOAD
+        reload=settings.RELOAD,
     )

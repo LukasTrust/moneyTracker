@@ -4,7 +4,7 @@
 services:
   # Backend API Service (Production)
   backend:
-    image: ghcr.io/LukasTrust/moneytracker-backend:latest
+    image: ghcr.io/lukastrust/moneytracker-backend:latest
     container_name: moneytracker-backend-prod
     ports:
       - "8000:8000"
@@ -35,7 +35,7 @@ services:
 
   # Frontend Service (Production)
   frontend:
-    image: ghcr.io/LukasTrust/moneytracker-frontend:latest
+    image: ghcr.io/lukastrust/moneytracker-frontend:latest
     container_name: moneytracker-frontend-prod
     ports:
       - "80:80"  # Nginx serves on port 80

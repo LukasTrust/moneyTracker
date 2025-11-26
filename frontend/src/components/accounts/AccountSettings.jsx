@@ -37,6 +37,7 @@ function AccountSettings({ account }) {
   const [newBalance, setNewBalance] = useState(account?.initial_balance?.toString() || '0.00');
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [confirmName, setConfirmName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingBalance, setIsSavingBalance] = useState(false);
   const [error, setError] = useState(null);
@@ -90,12 +91,9 @@ function AccountSettings({ account }) {
     setError(null);
 
     try {
-      // API-Call
-      await accountService.deleteAccount(account.id);
-      
-      // Update Store
-      deleteAccount(account.id);
-      
+      // Use the store action which performs the API call and updates local state
+      await deleteAccount(account.id);
+
       // Navigate zurück zum Dashboard
       navigate('/', { replace: true });
     } catch (err) {
@@ -104,6 +102,7 @@ function AccountSettings({ account }) {
       setShowDeleteModal(false);
     } finally {
       setIsDeleting(false);
+      setConfirmName('');
     }
   }, [account, deleteAccount, navigate]);
 
@@ -479,8 +478,18 @@ function AccountSettings({ account }) {
             <p className="text-sm text-gray-700">
               Bitte geben Sie zur Bestätigung den Account-Namen ein:
             </p>
-            <p className="text-sm font-semibold text-gray-900 mt-1 font-mono bg-white px-2 py-1 rounded">
-              {account.name}
+            <p className="text-sm font-semibold text-gray-900 mt-1">
+              Geben Sie den Namen exakt ein, um die Löschung zu bestätigen.
+            </p>
+            <input
+              type="text"
+              value={confirmName}
+              onChange={(e) => setConfirmName(e.target.value)}
+              placeholder="Account-Name eingeben"
+              className="mt-2 w-full px-3 py-2 border rounded focus:outline-none"
+            />
+            <p className="text-sm font-mono text-gray-700 mt-2 bg-white px-2 py-1 rounded">
+              Zu löschender Account: <span className="font-semibold">{account.name}</span>
             </p>
           </div>
 
@@ -488,7 +497,7 @@ function AccountSettings({ account }) {
             <Button
               variant="danger"
               onClick={handleDelete}
-              disabled={isDeleting}
+              disabled={isDeleting || confirmName !== account.name}
               className="flex-1"
             >
               {isDeleting ? (

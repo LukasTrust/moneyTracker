@@ -58,14 +58,23 @@ export const categoryService = {
   },
 
   async getCategoryData(accountId, params = {}) {
-    const { fromDate, toDate } = params;
-    
+    const { fromDate, toDate, categoryIds, minAmount, maxAmount, recipient, purpose, transactionType, limit } = params;
+
     const queryParams = new URLSearchParams();
     if (fromDate) queryParams.append('from_date', fromDate);
     if (toDate) queryParams.append('to_date', toDate);
+    if (limit) queryParams.append('limit', limit.toString());
+
+    // Support multiple category IDs (comma-separated)
+    if (categoryIds) queryParams.append('category_ids', categoryIds);
+
+    if (minAmount !== undefined && minAmount !== null) queryParams.append('min_amount', minAmount);
+    if (maxAmount !== undefined && maxAmount !== null) queryParams.append('max_amount', maxAmount);
+    if (recipient) queryParams.append('recipient', recipient);
+    if (purpose) queryParams.append('purpose', purpose);
+    if (transactionType && transactionType !== 'all') queryParams.append('transaction_type', transactionType);
 
     const response = await api.get(
-      // New RESTful path for category aggregations under transactions
       `/accounts/${accountId}/transactions/categories?${queryParams}`
     );
     return response.data;

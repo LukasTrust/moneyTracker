@@ -24,9 +24,9 @@ export default function TransferBadge({
   const isOutgoing = transfer.from_transaction_id === currentTransactionId;
   const direction = isOutgoing ? 'outgoing' : 'incoming';
   
-  // Get linked account name
-  const linkedAccountName = isOutgoing 
-    ? transfer.to_account_name 
+  // Get linked account name (may be undefined)
+  const linkedAccountName = isOutgoing
+    ? transfer.to_account_name
     : transfer.from_account_name;
 
   // Size classes
@@ -49,7 +49,7 @@ export default function TransferBadge({
           ${sizeClasses[size]}
           ${directionStyle}
         `}
-        title={`Transfer ${direction === 'outgoing' ? 'to' : 'from'} ${linkedAccountName || 'other account'}`}
+        title={`Transfer ${direction === 'outgoing' ? 'zu' : 'von'} ${linkedAccountName || 'anderem Konto'}`}
       >
         {/* Icon based on direction */}
         <span className="text-base">
@@ -62,7 +62,7 @@ export default function TransferBadge({
         {transfer.is_auto_detected && (
           <span 
             className="ml-0.5 text-gray-400"
-            title={`Auto-detected (${Math.round(transfer.confidence_score * 100)}% confidence)`}
+            title={`Automatisch erkannt (${Math.round(transfer.confidence_score * 100)}% Sicherheit)`}
           >
             🔄
           </span>
@@ -93,6 +93,8 @@ export function TransferIndicator({
 
   const isOutgoing = transfer.from_transaction_id === currentTransactionId;
 
+  const linkedAccountName = isOutgoing ? transfer.to_account_name : transfer.from_account_name;
+
   return (
     <div 
       className={`
@@ -100,7 +102,7 @@ export function TransferIndicator({
         ${isOutgoing ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}
       `}
       style={{ width: size + 8, height: size + 8, fontSize: size }}
-      title={`Transfer ${isOutgoing ? 'to' : 'from'} another account`}
+      title={linkedAccountName ? `Transfer ${isOutgoing ? 'zu' : 'von'} ${linkedAccountName}` : `Transfer ${isOutgoing ? 'zu' : 'von'} anderem Konto`}
     >
       🔄
     </div>

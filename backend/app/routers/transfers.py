@@ -344,18 +344,43 @@ def get_transfer_stats(
     )
 
 
-@router.get("/transactions/{transaction_id}/transfer", response_model=Optional[TransferResponse])
+@router.get("/transactions/{transaction_id}/transfer", response_model=Optional[TransferWithDetails])
 def get_transfer_for_transaction(
     transaction_id: int,
     db: Session = Depends(get_db)
 ):
     """
-    Check if a transaction is part of a transfer.
+    Check if a transaction is part of a transfer and return detailed info including account names.
     """
     matcher = TransferMatcher(db)
     transfer = matcher.get_transfer_for_transaction(transaction_id)
-    
+
     if not transfer:
         return None
-    
-    return transfer
+
+    # Add transaction and account details for the response
+    from_tx = db.query(DataRow).filter(DataRow.id == transfer.from_transaction_id).first()
+    to_tx = db.query(DataRow).filter(DataRow.id == transfer.to_transaction_id).first()
+
+    from_account = db.query(Account).filter(Account.id == from_tx.account_id).first() if from_tx else None
+    to_account = db.query(Account).filter(Account.id == to_tx.account_id).first() if to_tx else None
+
+    transfer_dict = TransferResponse.from_orm(transfer).dict()
+    transfer_dict['from_transaction'] = {
+        'id': from_tx.id,
+        'date': from_tx.transaction_date.isoformat(),
+        'amount': float(from_tx.amount),
+        'recipient': from_tx.recipient,
+        'purpose': from_tx.purpose
+    } if from_tx else None
+    transfer_dict['to_transaction'] = {
+        'id': to_tx.id,
+        'date': to_tx.transaction_date.isoformat(),
+        'amount': float(to_tx.amount),
+        'recipient': to_tx.recipient,
+        'purpose': to_tx.purpose
+    } if to_tx else None
+    transfer_dict['from_account_name'] = from_account.name if from_account else None
+    transfer_dict['to_account_name'] = to_account.name if to_account else None
+
+    return transfer_dict

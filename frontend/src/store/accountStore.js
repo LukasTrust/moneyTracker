@@ -133,6 +133,20 @@ export const useAccountStore = create((set, get) => ({
       invalidateKey('accounts');
       invalidateKey(`account_${id}`);
     } catch (error) {
+      // If the account was already removed on the server, treat as success
+      const status = error?.response?.status;
+      if (status === 404) {
+        // Ensure local state is consistent
+        set((state) => ({
+          accounts: state.accounts.filter((acc) => acc.id !== id),
+          currentAccount: state.currentAccount?.id === id ? null : state.currentAccount,
+          loading: false,
+        }));
+        invalidateKey('accounts');
+        invalidateKey(`account_${id}`);
+        return;
+      }
+
       set({ 
         error: error.response?.data?.message || 'Fehler beim Löschen des Kontos',
         loading: false 

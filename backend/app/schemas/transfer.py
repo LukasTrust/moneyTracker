@@ -4,12 +4,11 @@ Transfer Schemas - Pydantic models for API requests/responses
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 from datetime import date, datetime
-from decimal import Decimal
 
 
 class TransferBase(BaseModel):
     """Base schema for transfer data"""
-    amount: Decimal = Field(..., gt=0, description="Transfer amount (always positive)")
+    amount: float = Field(..., gt=0, description="Transfer amount (always positive)")
     transfer_date: date = Field(..., description="Date of the transfer")
     notes: Optional[str] = Field(None, max_length=500, description="Optional notes about this transfer")
 
@@ -38,7 +37,7 @@ class TransferResponse(TransferBase):
     from_transaction_id: int
     to_transaction_id: int
     is_auto_detected: bool = Field(..., description="Whether this transfer was automatically detected")
-    confidence_score: Optional[Decimal] = Field(None, description="Confidence score for auto-detection (0.00 to 1.00)")
+    confidence_score: Optional[float] = Field(None, description="Confidence score for auto-detection (0.00 to 1.00)")
     created_at: datetime
     updated_at: datetime
     
@@ -60,9 +59,9 @@ class TransferCandidate(BaseModel):
     to_transaction_id: int
     from_transaction: dict = Field(..., description="Details of the source transaction")
     to_transaction: dict = Field(..., description="Details of the destination transaction")
-    amount: Decimal = Field(..., description="Transfer amount")
+    amount: float = Field(..., description="Transfer amount")
     transfer_date: date = Field(..., description="Date of the transfer")
-    confidence_score: Decimal = Field(..., ge=0, le=1, description="Confidence score (0.00 to 1.00)")
+    confidence_score: float = Field(..., ge=0, le=1, description="Confidence score (0.00 to 1.00)")
     match_reason: str = Field(..., description="Explanation of why these transactions match")
 
 
@@ -71,7 +70,7 @@ class TransferDetectionRequest(BaseModel):
     account_ids: Optional[list[int]] = Field(None, description="Limit detection to specific accounts (optional)")
     date_from: Optional[date] = Field(None, description="Start date for detection range")
     date_to: Optional[date] = Field(None, description="End date for detection range")
-    min_confidence: Optional[Decimal] = Field(0.7, ge=0, le=1, description="Minimum confidence score")
+    min_confidence: Optional[float] = Field(0.7, ge=0, le=1, description="Minimum confidence score")
     auto_create: bool = Field(False, description="Automatically create transfers for high-confidence matches")
 
 
@@ -87,5 +86,5 @@ class TransferStats(BaseModel):
     total_transfers: int = Field(..., description="Total number of transfers")
     auto_detected: int = Field(..., description="Number of auto-detected transfers")
     manual: int = Field(..., description="Number of manually created transfers")
-    total_amount: Decimal = Field(..., description="Total amount transferred")
+    total_amount: float = Field(..., description="Total amount transferred")
     date_range: Optional[dict] = Field(None, description="Date range of transfers")

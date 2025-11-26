@@ -17,6 +17,8 @@ from app.schemas.account import (
 from app.utils.pagination import paginate_query
 from app.config import settings
 from app.utils import get_logger
+from app.models.recurring_transaction import RecurringTransaction
+from sqlalchemy import text
 
 logger = get_logger("app.routers.accounts")
 
@@ -48,13 +50,20 @@ def get_accounts(
     if not isinstance(offset, int):
         offset = 0
 
-    # If called directly in unit tests (positional db) or default pagination (no offset/limit),
-    # many tests expect a simple `.all()` result on the raw query. Use that to remain
-    # compatible with existing test mocks which set `mock_db.query.return_value.all.return_value`.
-    if offset == 0 and limit == settings.DEFAULT_LIMIT:
-        items = db.query(Account).all()
-        return {"accounts": items}
+    # If called directly in unit tests (positional db) shift values and keep compatibility
+    if hasattr(limit, 'query'):
+        db = limit
+        limit = settings.DEFAULT_LIMIT
+        offset = 0
 
+    # Coerce Query defaults (FastAPI's Query objects) to ints when called directly
+    if not isinstance(limit, int):
+        limit = settings.DEFAULT_LIMIT
+    if not isinstance(offset, int):
+        offset = 0
+
+    # Build base query and always use paginate_query to produce a consistent
+    # response shape that matches `AccountListResponse` (includes pagination fields).
     query = db.query(Account).order_by(Account.id)
 
     items, total, eff_limit, eff_offset, pages = paginate_query(query, limit, offset)
@@ -96,7 +105,7 @@ def create_account(account_data: AccountCreate, db: Session = Depends(get_db)):
     db.add(new_account)
     db.commit()
     db.refresh(new_account)
-    logger.info("Account created", extra={"account_id": new_account.id, "name": new_account.name})
+    logger.info("Account created", extra={"account_id": new_account.id, "account_name": new_account.name})
 
     return new_account
 
@@ -150,6 +159,27 @@ def delete_account(
         This will also delete all associated mappings and data rows
         due to CASCADE delete configuration
     """
+    # Delete dependent recurring_transaction_links and recurring_transactions
+    # using direct SQL to avoid ORM flush/update behaviour that can attempt
+    # to set NOT NULL FKs to NULL and cause IntegrityError. The database
+    # FK constraints already declare ON DELETE CASCADE for these relations,
+    # but using explicit SQL here ensures a safe, ordered cleanup across
+    # different DB backends and avoids ORM-generated UPDATE statements.
+    try:
+        # Remove links first (safe even if none exist)
+        db.execute(text("""
+            DELETE FROM recurring_transaction_links
+            WHERE recurring_transaction_id IN (
+                SELECT id FROM recurring_transactions WHERE account_id = :aid
+            )
+        """), {"aid": account.id})
+
+        # Remove recurring transactions for this account
+        db.execute(text("DELETE FROM recurring_transactions WHERE account_id = :aid"), {"aid": account.id})
+    except Exception:
+        logger.exception("Failed to delete recurring transactions/links for account %s", account.id)
+
+    # Finally delete the account itself and commit
     db.delete(account)
     db.commit()
     logger.info("Account deleted", extra={"account_id": account.id})

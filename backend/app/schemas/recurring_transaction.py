@@ -2,7 +2,7 @@
 Recurring Transaction Schemas - Request/Response models
 """
 from pydantic import BaseModel, Field
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 
 
@@ -42,8 +42,8 @@ class RecurringTransactionResponse(RecurringTransactionBase):
     is_manually_overridden: bool
     next_expected_date: Optional[date]
     confidence_score: float
-    created_at: date
-    updated_at: date
+    created_at: datetime
+    updated_at: datetime
     
     # Computed fields
     monthly_cost: Optional[float] = Field(None, description="Estimated monthly cost")

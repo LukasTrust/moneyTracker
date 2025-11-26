@@ -17,16 +17,33 @@ api.interceptors.request.use(
   (config) => {
     // Only log requests in development to avoid leaking information in production
     if (import.meta.env.DEV) {
-      // use console.debug which is easier to filter
       console.debug(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
     }
+
     // Attach Authorization header if a token is present (simple client-side JWT handling)
     try {
       const token = localStorage.getItem('token') || null;
       if (token) {
-        // Do not log the token value
         if (import.meta.env.DEV) console.debug('API Request: attaching Authorization header (masked)');
+        config.headers = config.headers || {};
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    } catch (err) {
+      // localStorage may throw in some environments; fail gracefully
+      if (import.meta.env.DEV) console.warn('Could not read token from localStorage', err);
+    }
 
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Response Interceptor für Error Handling
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
     // Normalize and surface standardized backend errors
     try {
       const data = error.response && error.response.data ? error.response.data : null;
@@ -69,23 +86,6 @@ api.interceptors.request.use(
       if (import.meta.env.DEV) console.error('Error normalizing API error', e);
     }
 
-    return Promise.reject(error);
-      }
-    } catch (err) {
-      // localStorage may throw in some environments; fail gracefully
-      if (import.meta.env.DEV) console.warn('Could not read token from localStorage', err);
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-// Response Interceptor für Error Handling
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
     // Log errors; minimize noise in production
     if (import.meta.env.DEV) {
       if (error.response) {
@@ -96,6 +96,7 @@ api.interceptors.response.use(
         console.error('Error:', error.message);
       }
     }
+
     return Promise.reject(error);
   }
 );

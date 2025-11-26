@@ -165,14 +165,29 @@ if _SENTRY_ENABLED:
 
 
 # Configure CORS
+# If a wildcard origin is present in settings, expose a permissive
+# configuration (useful for local development). When using "*" as
+# allow_origins, `allow_credentials` must be False per the CORS spec,
+# so we disable credentials in that case.
+cors_origins = settings.BACKEND_CORS_ORIGINS or []
+if isinstance(cors_origins, str):
+    cors_origins = [cors_origins]
+
+if any(o == "*" for o in cors_origins):
+    _allow_origins = ["*"]
+    _allow_credentials = False
+else:
+    _allow_origins = cors_origins
+    _allow_credentials = True
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.BACKEND_CORS_ORIGINS,
-    allow_credentials=True,
+    allow_origins=_allow_origins,
+    allow_credentials=_allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-get_logger("app.main").info("CORS configured for origins: %s", settings.BACKEND_CORS_ORIGINS)
+get_logger("app.main").info("CORS configured for origins: %s (credentials=%s)", _allow_origins, _allow_credentials)
 
 
 # Include routers

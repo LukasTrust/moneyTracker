@@ -3,6 +3,8 @@ import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import Card from '../common/Card';
 import Pagination from '../common/Pagination';
+import { useTransferForTransaction } from '../../hooks/useTransfers';
+import TransferBadge, { TransferIndicator } from '../common/TransferBadge';
 
 /**
  * Transaktions-Tabelle mit Pagination
@@ -100,42 +102,64 @@ export default function TransactionTable({
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {transactions.map((transaction) => {
-              const data = typeof transaction.data === 'string' 
-                ? JSON.parse(transaction.data) 
-                : transaction.data;
-              
-              const amount = parseFloat(data.amount || 0);
-              const isNegative = amount < 0;
-
-              return (
-                <tr key={transaction.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatDate(data.date)}
-                  </td>
-                    <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium text-right ${
-                      isNegative ? 'text-red-600' : 'text-green-600'
-                    }`}>
-                      {formatAmount(amount)} {symbol}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      <div className="max-w-xs truncate">
-                        {data.recipient || '-'}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">
-                      <div className="max-w-xs truncate">
-                        {data.purpose || data.verwendungszweck || data.description || '-'}
-                      </div>
-                    </td>
-                </tr>
-              );
-            })}
+            {transactions.map((transaction) => (
+              <TransactionRow
+                key={transaction.id}
+                transaction={transaction}
+                symbol={symbol}
+                formatAmount={formatAmount}
+                formatDate={formatDate}
+              />
+            ))}
           </tbody>
         </table>
       </div>
 
       
     </Card>
+  );
+}
+
+/**
+ * TransactionRow - renders a single transaction row and shows transfer indicator
+ */
+function TransactionRow({ transaction, symbol, formatAmount, formatDate }) {
+  const data = typeof transaction.data === 'string' ? JSON.parse(transaction.data) : transaction.data;
+  const amount = parseFloat(data.amount || 0);
+  const isNegative = amount < 0;
+
+  // Use hook to fetch transfer info for this transaction (may be null)
+  const { transfer, loading } = useTransferForTransaction(transaction.id);
+
+  return (
+    <tr key={transaction.id} className="hover:bg-gray-50">
+      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+        {formatDate(data.date)}
+      </td>
+      <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium text-right ${
+        isNegative ? 'text-red-600' : 'text-green-600'
+      }`}>
+        {formatAmount(amount)} {symbol}
+      </td>
+      <td className="px-6 py-4 text-sm text-gray-600">
+        <div className="flex items-center gap-2">
+              <div className="max-w-xs truncate">{data.recipient || '-'}</div>
+              {/* Show transfer indicator if this transaction is part of a transfer */}
+              {loading ? null : transfer ? (
+                <>
+                  <TransferIndicator transfer={transfer} currentTransactionId={transaction.id} size={14} />
+                  <span className="text-xs text-gray-500 ml-1">
+                    {transfer.from_transaction_id === transaction.id ? `Transfer zu ${transfer.to_account_name || 'anderem Konto'}` : `Transfer von ${transfer.from_account_name || 'anderem Konto'}`}
+                  </span>
+                </>
+              ) : null}
+        </div>
+      </td>
+      <td className="px-6 py-4 text-sm text-gray-900">
+        <div className="max-w-xs truncate">
+          {data.purpose || data.verwendungszweck || data.description || '-'}
+        </div>
+      </td>
+    </tr>
   );
 }

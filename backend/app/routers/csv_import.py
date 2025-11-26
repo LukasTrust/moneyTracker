@@ -356,6 +356,14 @@ async def import_csv_advanced(
                     validated = TransactionRow.model_validate(normalized_data)
                     # Use the validated Python dict (date as date, amount as float, etc.)
                     validated_data = validated.model_dump()
+
+                    # Validate amount is a finite number (reject NaN/inf)
+                    import math
+                    amt = validated_data.get('amount')
+                    if amt is None or not isinstance(amt, (int, float)) or not math.isfinite(float(amt)):
+                        error_count += 1
+                        error_messages.append(f"Row {idx}: Invalid amount value: {amt}")
+                        continue
                 except ValidationError as ve:
                     error_count += 1
                     error_messages.append(f"Row {idx}: Validation error - {ve.errors()}")
@@ -390,8 +398,29 @@ async def import_csv_advanced(
                     recipient = recipient_matcher.find_or_create_recipient(recipient_name)
 
                 # Parse structured fields from validated_data
-                # Date: already a date object from Pydantic
-                transaction_date = validated_data.get('date') if validated_data.get('date') else None
+                # Ensure transaction_date is a date object (DB expects Date)
+                date_val = validated_data.get('date')
+                transaction_date = None
+                if date_val:
+                    # If Pydantic returned a string, try multiple parse strategies
+                    if isinstance(date_val, str):
+                        parsed_dt = CsvProcessor.parse_date(date_val)
+                        if parsed_dt:
+                            transaction_date = parsed_dt.date()
+                        else:
+                            # Fallback: try ISO format parsing
+                            try:
+                                from datetime import datetime as _dt
+                                parsed_dt = _dt.fromisoformat(date_val)
+                                transaction_date = parsed_dt.date()
+                            except Exception:
+                                transaction_date = None
+                    else:
+                        # If it's already a date/datetime-like object, try to get date()
+                        try:
+                            transaction_date = date_val.date()
+                        except Exception:
+                            transaction_date = None
 
                 # Amount: already parsed as float
                 amount = validated_data.get('amount', 0.0)

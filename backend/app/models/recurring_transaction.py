@@ -53,7 +53,10 @@ class RecurringTransaction(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
     
     # Relationships
-    account = relationship("Account", backref="recurring_transactions")
+    # Use passive_deletes so SQLAlchemy uses the DB's ON DELETE CASCADE
+    # instead of emitting UPDATEs that try to set `account_id` to NULL
+    # (which fails because the column is NOT NULL).
+    account = relationship("Account", backref="recurring_transactions", passive_deletes=True)
     category = relationship("Category", backref="recurring_transactions")
     linked_transactions = relationship("RecurringTransactionLink", back_populates="recurring_transaction", cascade="all, delete-orphan")
     

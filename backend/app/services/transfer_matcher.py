@@ -123,7 +123,7 @@ class TransferMatcher:
                         'to_transaction_id': tx2.id,
                         'from_transaction': self._serialize_transaction(tx1),
                         'to_transaction': self._serialize_transaction(tx2),
-                        'amount': abs(tx1.amount),
+                        'amount': float(abs(tx1.amount)),
                         'transfer_date': tx1.transaction_date,
                         'confidence_score': confidence,
                         'match_reason': self._generate_match_reason(tx1, tx2, date_diff, confidence)

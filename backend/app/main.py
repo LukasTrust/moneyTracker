@@ -1,9 +1,13 @@
 """
 Main FastAPI Application
 """
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from fastapi.encoders import jsonable_encoder
+from fastapi.openapi.utils import get_openapi
 
 from app.config import settings
 from app.database import engine, Base, SessionLocal
@@ -11,7 +15,22 @@ from app.routers import accounts, categories, data, dashboard, mappings, csv_imp
 from app.utils import get_logger
 from app.models.category import Category
 from app.models.budget import Budget
+from app.schemas.common import ErrorResponse, StandardErrorWrapper
 import asyncio
+from sqlalchemy import text
+from fastapi.responses import Response
+
+# Optional monitoring libs (import lazily in endpoints)
+_SENTRY_ENABLED = False
+try:
+    if getattr(settings, "SENTRY_DSN", None):
+        import sentry_sdk  # type: ignore
+        from sentry_sdk.integrations.asgi import SentryAsgiMiddleware  # type: ignore
+        sentry_sdk.init(dsn=settings.SENTRY_DSN)
+        _SENTRY_ENABLED = True
+        get_logger("app.sentry").info("Sentry initialized")
+except Exception:
+    get_logger("app.sentry").exception("Failed to initialize Sentry; continuing without it")
 
 
 DEFAULT_CATEGORIES = [
@@ -134,6 +153,16 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# If Sentry was initialized, wrap the app so Sentry captures unhandled errors
+if _SENTRY_ENABLED:
+    try:
+        # SentryAsgiMiddleware is a WSGI/ASGI middleware wrapper; wrap app instance
+        from sentry_sdk.integrations.asgi import SentryAsgiMiddleware  # type: ignore
+        app = SentryAsgiMiddleware(app)
+        get_logger("app.sentry").info("Sentry ASGI middleware attached")
+    except Exception:
+        get_logger("app.sentry").exception("Failed to attach Sentry ASGI middleware")
+
 
 # Configure CORS
 app.add_middleware(
@@ -233,6 +262,55 @@ app.include_router(
 get_logger("app.main").info("Included routers; total routes: %d", len(app.routes))
 
 
+# Helper to produce standardized JSON responses for errors
+def _format_error_response(status: int, code: str, message: str, details=None):
+    body = StandardErrorWrapper(
+        success=False,
+        error=ErrorResponse(status=status, code=code, message=message, details=details),
+    )
+    return JSONResponse(status_code=status, content=jsonable_encoder(body))
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    # Keep original detail if present, but map to our error model
+    message = exc.detail if exc.detail is not None else "HTTP error"
+    code = getattr(exc, "headers", {}).get("x-error-code") if isinstance(getattr(exc, "headers", None), dict) else str(exc.status_code)
+    return _format_error_response(status=exc.status_code, code=str(code), message=str(message))
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    # Return structured validation errors in `details`
+    details = exc.errors()
+    return _format_error_response(status=422, code="validation_error", message="Validation error", details=details)
+
+
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, exc: Exception):
+    # Log and return a generic 500 response without leaking internals
+    get_logger("app.errors").exception("Unhandled exception: %s", exc)
+    return _format_error_response(status=500, code="internal_server_error", message="Internal server error")
+
+
+# Expose the new error schemas/components in the OpenAPI schema so clients can
+# discover the standardized error format.
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    openapi_schema = get_openapi(title=app.title, version=app.version, routes=app.routes, description=app.description)
+    components = openapi_schema.setdefault("components", {})
+    schemas = components.setdefault("schemas", {})
+    # Add schemas using Pydantic model schema representations
+    schemas["ErrorResponse"] = ErrorResponse.schema()
+    schemas["StandardErrorWrapper"] = StandardErrorWrapper.schema()
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+
+app.openapi = custom_openapi
+
+
 @app.get("/")
 async def root():
     """
@@ -247,13 +325,71 @@ async def root():
 
 @app.get("/health")
 async def health_check():
+    """Combined health endpoint returning liveness and readiness.
+
+    - liveness: basic process-level check
+    - readiness: DB connectivity check
     """
-    Health check endpoint
+    # Liveness
+    liveness = {"status": "alive"}
+
+    # Readiness: check DB connectivity by running a simple SELECT 1
+    async def _db_check():
+        try:
+            def _check():
+                with engine.connect() as conn:
+                    conn.execute(text("SELECT 1"))
+                return True
+            ok = await asyncio.to_thread(_check)
+            return {"database": "connected" if ok else "down", "ready": ok}
+        except Exception:
+            return {"database": "down", "ready": False}
+
+    readiness = await _db_check()
+
+    status = "healthy" if readiness.get("ready") else "unhealthy"
+    code = 200 if readiness.get("ready") else 503
+    # Keep top-level `database` key for backward compatibility with existing clients/tests
+    top = {"status": status, "database": readiness.get("database"), "liveness": liveness, "readiness": readiness}
+    return JSONResponse(status_code=code, content=top)
+
+
+@app.get("/health/liveness")
+async def liveness():
+    return {"status": "alive"}
+
+
+@app.get("/health/readiness")
+async def readiness():
+    try:
+        def _check():
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            return True
+        ok = await asyncio.to_thread(_check)
+        if ok:
+            return {"status": "ready", "database": "connected"}
+        return JSONResponse(status_code=503, content={"status": "not_ready", "database": "down"})
+    except Exception:
+        return JSONResponse(status_code=503, content={"status": "not_ready", "database": "down"})
+
+
+@app.get("/metrics")
+async def metrics():
+    """Expose Prometheus metrics. If `prometheus_client` isn't installed,
+    return 501 Not Implemented so callers know metrics aren't available.
     """
-    return {
-        "status": "healthy",
-        "database": "connected"
-    }
+    try:
+        from prometheus_client import generate_latest, CONTENT_TYPE_LATEST  # type: ignore
+    except Exception:
+        return JSONResponse(status_code=501, content={"error": "prometheus-client not installed"})
+
+    try:
+        data = await asyncio.to_thread(generate_latest)
+        return Response(content=data, media_type=CONTENT_TYPE_LATEST)
+    except Exception:
+        get_logger("app.metrics").exception("Failed to generate metrics")
+        return JSONResponse(status_code=500, content={"error": "failed to generate metrics"})
 
 
 if __name__ == "__main__":

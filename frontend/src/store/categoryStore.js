@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import categoryService from '../services/categoryService';
+import { callApi, invalidateKey, runOptimistic } from '../hooks/useApi';
 
 /**
  * Zustand Store für Category Management
@@ -32,16 +33,10 @@ export const useCategoryStore = create((set, get) => ({
    * @param {boolean} force - Cache ignorieren und neu laden
    */
   fetchCategories: async (force = false) => {
-    const state = get();
-    
-    // Cache: Nur alle 5 Minuten neu laden
-    if (!force && state.lastFetch && Date.now() - state.lastFetch < 300000) {
-      return;
-    }
-
     set({ loading: true, error: null });
     try {
-      const data = await categoryService.getCategories();
+      // Use shared callApi helper with a 5-minute TTL
+      const data = await callApi('categories', () => categoryService.getCategories(), { force, cacheTTL: 300000 });
       set({ 
         categories: data.categories || data,
         loading: false,
@@ -64,12 +59,13 @@ export const useCategoryStore = create((set, get) => ({
     try {
       const data = await categoryService.createCategory(categoryData);
       const newCategory = data.category || data;
-      
+
+      // Update local state and invalidate list cache so other consumers refetch
       set((state) => ({
         categories: [...state.categories, newCategory],
         loading: false,
       }));
-      
+      invalidateKey('categories');
       return newCategory;
     } catch (error) {
       set({ 
@@ -87,37 +83,40 @@ export const useCategoryStore = create((set, get) => ({
    * @param {boolean} optimistic - Optimistisches Update
    */
   updateCategory: async (id, categoryData, optimistic = true) => {
-    // Optimistisches Update
-    if (optimistic) {
+    // Create local updater and rollback for optimistic flow
+    const doLocalUpdate = () => {
       set((state) => ({
         categories: state.categories.map((cat) =>
           cat.id === id ? { ...cat, ...categoryData } : cat
         ),
       }));
-    } else {
-      set({ loading: true, error: null });
+    };
+
+    const rollback = async () => {
+      await get().fetchCategories(true);
+    };
+
+    if (optimistic) {
+      // runOptimistic will show toast on error
+      const res = await runOptimistic(doLocalUpdate, () => categoryService.updateCategory(id, categoryData), rollback);
+      // Invalidate categories cache to keep consistency
+      invalidateKey('categories');
+      return res.category || res;
     }
 
+    // Non-optimistic path
+    set({ loading: true, error: null });
     try {
       const data = await categoryService.updateCategory(id, categoryData);
-      
-      // Update mit Server-Response
-      if (!optimistic) {
-        set((state) => ({
-          categories: state.categories.map((cat) =>
-            cat.id === id ? { ...cat, ...(data.category || data) } : cat
-          ),
-          loading: false,
-        }));
-      }
-      
+      set((state) => ({
+        categories: state.categories.map((cat) =>
+          cat.id === id ? { ...cat, ...(data.category || data) } : cat
+        ),
+        loading: false,
+      }));
+      invalidateKey('categories');
       return data.category || data;
     } catch (error) {
-      // Rollback bei Fehler
-      if (optimistic) {
-        await get().fetchCategories(true);
-      }
-      
       set({ 
         error: error.response?.data?.message || 'Fehler beim Aktualisieren der Kategorie',
         loading: false 
@@ -132,30 +131,31 @@ export const useCategoryStore = create((set, get) => ({
    * @param {boolean} optimistic - Optimistisches Update
    */
   deleteCategory: async (id, optimistic = true) => {
-    // Optimistisches Update
-    if (optimistic) {
+    const doLocalUpdate = () => {
       set((state) => ({
         categories: state.categories.filter((cat) => cat.id !== id),
       }));
-    } else {
-      set({ loading: true, error: null });
+    };
+
+    const rollback = async () => {
+      await get().fetchCategories(true);
+    };
+
+    if (optimistic) {
+      const res = await runOptimistic(doLocalUpdate, () => categoryService.deleteCategory(id), rollback);
+      invalidateKey('categories');
+      return res;
     }
 
+    set({ loading: true, error: null });
     try {
       await categoryService.deleteCategory(id);
-      
-      if (!optimistic) {
-        set((state) => ({
-          categories: state.categories.filter((cat) => cat.id !== id),
-          loading: false,
-        }));
-      }
+      set((state) => ({
+        categories: state.categories.filter((cat) => cat.id !== id),
+        loading: false,
+      }));
+      invalidateKey('categories');
     } catch (error) {
-      // Rollback bei Fehler
-      if (optimistic) {
-        await get().fetchCategories(true);
-      }
-      
       set({ 
         error: error.response?.data?.message || 'Fehler beim Löschen der Kategorie',
         loading: false 
@@ -171,8 +171,7 @@ export const useCategoryStore = create((set, get) => ({
   fetchMappings: async (accountId) => {
     set({ loading: true, error: null });
     try {
-      const data = await categoryService.getMappings(accountId);
-      
+      const data = await callApi(`mappings_${accountId}`, () => categoryService.getMappings(accountId), { cacheTTL: 300000 });
       set((state) => ({
         mappings: {
           ...state.mappings,

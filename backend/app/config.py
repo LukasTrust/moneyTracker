@@ -2,7 +2,7 @@
 Application Configuration
 """
 from pydantic_settings import BaseSettings
-from typing import List
+from typing import List, Optional
 from pydantic import field_validator
 import json
 from app.utils import get_logger
@@ -63,6 +63,8 @@ class Settings(BaseSettings):
     # Pagination defaults
     DEFAULT_LIMIT: int = 50
     MAX_LIMIT: int = 1000
+    # Optional Sentry DSN for crash reporting (set via env var SENTRY_DSN)
+    SENTRY_DSN: Optional[str] = None
     
     class Config:
         env_file = ".env"

@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { LoadingSpinner } from './components/common';
 import ToastContainer from './components/common/Toast';
 import { useCategoryStore } from './store/categoryStore';
+import ErrorBoundary from './components/common/ErrorBoundary';
 
 // Lazy load pages for code splitting
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -42,10 +43,26 @@ function App() {
       {/* Routes with Suspense */}
       <Suspense fallback={<LoadingSpinner fullScreen text="Lädt..." />}>
         <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/accounts/:id" element={<AccountDetailPage />} />
-          <Route path="/accounts/:id/compare" element={<ComparisonPage />} />
-          <Route path="/transfers" element={<TransferManagementPage />} />
+          <Route path="/" element={
+            <ErrorBoundary>
+              <Dashboard />
+            </ErrorBoundary>
+          } />
+          <Route path="/accounts/:id" element={
+            <ErrorBoundary>
+              <AccountDetailPage />
+            </ErrorBoundary>
+          } />
+          <Route path="/accounts/:id/compare" element={
+            <ErrorBoundary>
+              <ComparisonPage />
+            </ErrorBoundary>
+          } />
+          <Route path="/transfers" element={
+            <ErrorBoundary>
+              <TransferManagementPage />
+            </ErrorBoundary>
+          } />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>

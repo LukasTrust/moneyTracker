@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import budgetService from '../services/budgetService';
+import { callApi, invalidateKey, runOptimistic } from '../hooks/useApi';
 
 /**
  * Zustand Store für Budget Management
@@ -41,7 +42,7 @@ export const useBudgetStore = create((set, get) => ({
 
     set({ loading: true, error: null });
     try {
-      const data = await budgetService.getBudgets({ activeOnly, categoryId });
+      const data = await callApi('budgets', () => budgetService.getBudgets({ activeOnly, categoryId }), { cacheTTL: 120000 });
       set({
         budgets: data,
         loading: false,
@@ -74,7 +75,8 @@ export const useBudgetStore = create((set, get) => ({
 
     set({ loading: true, error: null });
     try {
-      const data = await budgetService.getBudgetsWithProgress({ activeOnly, accountId });
+      const key = `budgets_progress_${accountId || 'all'}`;
+      const data = await callApi(key, () => budgetService.getBudgetsWithProgress({ activeOnly, accountId }), { cacheTTL: 60000 });
       set({
         budgetsWithProgress: data,
         loading: false,
@@ -99,7 +101,8 @@ export const useBudgetStore = create((set, get) => ({
   fetchBudgetSummary: async ({ activeOnly = true, accountId = null } = {}) => {
     set({ loading: true, error: null });
     try {
-      const data = await budgetService.getBudgetSummary({ activeOnly, accountId });
+      const key = `budget_summary_${accountId || 'all'}_${activeOnly}`;
+      const data = await callApi(key, () => budgetService.getBudgetSummary({ activeOnly, accountId }), { cacheTTL: 60000 });
       set({
         summary: data,
         loading: false
@@ -122,7 +125,7 @@ export const useBudgetStore = create((set, get) => ({
   fetchBudget: async (budgetId) => {
     set({ loading: true, error: null });
     try {
-      const data = await budgetService.getBudget(budgetId);
+      const data = await callApi(`budget_${budgetId}`, () => budgetService.getBudget(budgetId), { cacheTTL: 300000 });
       set({ loading: false });
       return data;
     } catch (error) {
@@ -143,16 +146,28 @@ export const useBudgetStore = create((set, get) => ({
   createBudget: async (budgetData) => {
     set({ loading: true, error: null });
     try {
-      const newBudget = await budgetService.createBudget(budgetData);
+      // generate a stable temporary id so we can replace it after the server returns
+      const tempId = 'tmp_' + Date.now();
+      const doLocal = () => set((state) => ({ budgets: [...state.budgets, { ...budgetData, id: tempId }], loading: false, lastFetch: null }));
+      const remote = async () => {
+        const created = await budgetService.createBudget(budgetData);
+        return created;
+      };
 
-      // Optimistic update: Budget zur Liste hinzufügen
+      // Use optimistic helper: add local preview, then replace with server result
+      const createdBudget = await runOptimistic(doLocal, remote, async () => {
+        // rollback: re-fetch budgets
+        await get().fetchBudgets(true);
+      });
+
+      // Replace temp entry with server result (by tempId)
       set((state) => ({
-        budgets: [...state.budgets, newBudget],
-        loading: false,
-        lastFetch: null // Cache invalidieren
+        budgets: state.budgets.map((b) => (b.id === tempId ? createdBudget : b)),
       }));
 
-      return newBudget;
+      // Invalidate budgets cache so lists refresh
+      invalidateKey('budgets');
+      return createdBudget;
     } catch (error) {
       console.error('Error creating budget:', error);
       set({
@@ -172,33 +187,22 @@ export const useBudgetStore = create((set, get) => ({
   updateBudget: async (budgetId, budgetData) => {
     set({ loading: true, error: null });
 
-    // Optimistic update: Budget in Liste aktualisieren
     const prevBudgets = get().budgets;
-    set((state) => ({
-      budgets: state.budgets.map((b) =>
-        b.id === budgetId ? { ...b, ...budgetData } : b
-      )
-    }));
+    const doLocal = () => set((state) => ({ budgets: state.budgets.map((b) => (b.id === budgetId ? { ...b, ...budgetData } : b)) }));
+    const rollback = () => set({ budgets: prevBudgets });
 
     try {
-      const updatedBudget = await budgetService.updateBudget(budgetId, budgetData);
-
-      // Finale Aktualisierung mit Server-Response
+      const updated = await runOptimistic(doLocal, () => budgetService.updateBudget(budgetId, budgetData), rollback);
       set((state) => ({
-        budgets: state.budgets.map((b) =>
-          b.id === budgetId ? updatedBudget : b
-        ),
+        budgets: state.budgets.map((b) => (b.id === budgetId ? updated : b)),
         loading: false,
-        lastFetch: null // Cache invalidieren
+        lastFetch: null,
       }));
-
-      return updatedBudget;
+      invalidateKey('budgets');
+      return updated;
     } catch (error) {
       console.error('Error updating budget:', error);
-
-      // Rollback bei Fehler
       set({
-        budgets: prevBudgets,
         error: error.response?.data?.detail || 'Failed to update budget',
         loading: false
       });
@@ -213,25 +217,17 @@ export const useBudgetStore = create((set, get) => ({
   deleteBudget: async (budgetId) => {
     set({ loading: true, error: null });
 
-    // Optimistic update: Budget aus Liste entfernen
     const prevBudgets = get().budgets;
-    set((state) => ({
-      budgets: state.budgets.filter((b) => b.id !== budgetId)
-    }));
+    const doLocal = () => set((state) => ({ budgets: state.budgets.filter((b) => b.id !== budgetId) }));
+    const rollback = () => set({ budgets: prevBudgets });
 
     try {
-      await budgetService.deleteBudget(budgetId);
-
-      set({
-        loading: false,
-        lastFetch: null // Cache invalidieren
-      });
+      await runOptimistic(doLocal, () => budgetService.deleteBudget(budgetId), rollback);
+      set({ loading: false, lastFetch: null });
+      invalidateKey('budgets');
     } catch (error) {
       console.error('Error deleting budget:', error);
-
-      // Rollback bei Fehler
       set({
-        budgets: prevBudgets,
         error: error.response?.data?.detail || 'Failed to delete budget',
         loading: false
       });

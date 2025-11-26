@@ -239,34 +239,70 @@ class CsvProcessor:
         Raises:
             ValueError: If CSV parsing fails
         """
+        # Try detected encoding first, then fallbacks
+        encodings_to_try = []
+        detected = None
         if encoding is None:
-            encoding = CsvProcessor.detect_encoding(file_content)
-        
+            detected = CsvProcessor.detect_encoding(file_content)
+        else:
+            detected = encoding
+
+        # Build list of sensible fallbacks
+        if detected:
+            encodings_to_try.append(detected)
+        for enc in ("utf-8", "iso-8859-1", "cp1252"):
+            if enc not in encodings_to_try:
+                encodings_to_try.append(enc)
+
         if delimiter is None:
-            delimiter = CsvProcessor.detect_delimiter(file_content, encoding)
-        
-        try:
-            df = pd.read_csv(
-                BytesIO(file_content),
-                encoding=encoding,
-                sep=delimiter,
-                decimal=',',
-                thousands='.',
-                dtype=str,
-                keep_default_na=False
-            )
-            
-            # Check if we have valid data
-            if len(df.columns) < 2:
-                raise ValueError("CSV must have at least 2 columns")
-            
-            if len(df) == 0:
-                raise ValueError("CSV file is empty")
-            
-            return df, delimiter
-            
-        except Exception as e:
-            raise ValueError(f"CSV parsing failed: {str(e)}")
+            # Use detected delimiter based on initial encoding guess
+            try:
+                delimiter = CsvProcessor.detect_delimiter(file_content, encodings_to_try[0])
+            except Exception:
+                delimiter = ','
+
+        # Try combinations of encodings and common delimiters
+        delimiters_to_try = [delimiter, ',', ';', '\t']
+
+        last_exc = None
+        for enc in encodings_to_try:
+            for delim in delimiters_to_try:
+                try:
+                    df = pd.read_csv(
+                        BytesIO(file_content),
+                        encoding=enc,
+                        sep=delim,
+                        decimal=',',
+                        thousands='.',
+                        dtype=str,
+                        keep_default_na=False,
+                        engine='python',
+                        skip_blank_lines=True,
+                        on_bad_lines='warn'
+                    )
+
+                    # Strip column names
+                    df.columns = [str(c).strip() for c in df.columns]
+
+                    # Trim whitespace from string values
+                    df = df.applymap(lambda x: x.strip() if isinstance(x, str) else x)
+
+                    # Check if we have valid data
+                    if len(df.columns) < 2:
+                        # Try next delimiter/encoding
+                        continue
+
+                    if len(df) == 0:
+                        raise ValueError("CSV file is empty")
+
+                    return df, delim
+
+                except Exception as e:
+                    last_exc = e
+                    continue
+
+        # If we reach here, parsing failed for all attempts
+        raise ValueError(f"CSV parsing failed: {str(last_exc)}")
     
     @staticmethod
     def get_preview_rows(df: pd.DataFrame, n: int = 20) -> List[Dict[str, Any]]:

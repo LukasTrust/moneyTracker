@@ -27,6 +27,8 @@ from app.services.bank_presets import BankPresetMatcher
 from app.services.recipient_matcher import RecipientMatcher
 from app.services.recurring_transaction_detector import RecurringTransactionDetector, run_update_recurring_transactions
 from app.utils import get_logger
+from pydantic import ValidationError
+from app.schemas.csv import TransactionRow
 
 logger = get_logger(__name__)
 from app.services.import_history_service import ImportHistoryService
@@ -348,9 +350,30 @@ async def import_csv_advanced(
             try:
                 # Normalize transaction data (simplified to 3-4 fields)
                 normalized_data = CsvProcessor.normalize_transaction_data(row_data)
-                
-                # Generate hash
-                row_hash = HashService.generate_hash(normalized_data)
+
+                # Validate normalized data with Pydantic schema before persisting
+                try:
+                    validated = TransactionRow.model_validate(normalized_data)
+                    # Use the validated Python dict (date as date, amount as float, etc.)
+                    validated_data = validated.model_dump()
+                except ValidationError as ve:
+                    error_count += 1
+                    error_messages.append(f"Row {idx}: Validation error - {ve.errors()}")
+                    continue
+
+                # Generate hash (use validated data to ensure canonicalization)
+                # Date may be a string or date object depending on schema
+                date_val = validated_data.get('date')
+                if hasattr(date_val, 'isoformat'):
+                    date_str_for_hash = date_val.isoformat()
+                else:
+                    date_str_for_hash = str(date_val) if date_val is not None else None
+
+                row_hash = HashService.generate_hash({
+                    'date': date_str_for_hash,
+                    'amount': validated_data.get('amount'),
+                    'recipient': validated_data.get('recipient')
+                })
                 
                 # Check for duplicates
                 if HashService.is_duplicate(row_hash, existing_hashes):
@@ -358,26 +381,24 @@ async def import_csv_advanced(
                     continue
                 
                 # Match category using rules (only CategoryMatcher, no CSV category)
-                category_id = category_matcher.match_category(normalized_data)
-                
+                category_id = category_matcher.match_category(validated_data)
+
                 # Find or create recipient
                 recipient = None
-                recipient_name = normalized_data.get('recipient')
+                recipient_name = validated_data.get('recipient')
                 if recipient_name:
                     recipient = recipient_matcher.find_or_create_recipient(recipient_name)
-                
-                # Parse structured fields from normalized_data
-                # Date: normalized_data['date'] is already ISO format (YYYY-MM-DD) from normalize_transaction_data
-                transaction_date_str = normalized_data.get('date')
-                from datetime import datetime
-                transaction_date = datetime.fromisoformat(transaction_date_str).date() if transaction_date_str else None
-                
-                # Amount: already parsed as float/decimal
-                amount = normalized_data.get('amount', 0.0)
-                
+
+                # Parse structured fields from validated_data
+                # Date: already a date object from Pydantic
+                transaction_date = validated_data.get('date') if validated_data.get('date') else None
+
+                # Amount: already parsed as float
+                amount = validated_data.get('amount', 0.0)
+
                 # Recipient and Purpose
-                recipient_str = normalized_data.get('recipient', '')
-                purpose = normalized_data.get('purpose', '')
+                recipient_str = validated_data.get('recipient', '')
+                purpose = validated_data.get('purpose', '')
                 
                 # Currency (from raw data or default)
                 currency = row_data.get('currency', 'EUR')
@@ -537,3 +558,24 @@ async def import_csv_advanced(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error processing CSV: {str(e)}"
         )
+
+
+
+@router.get("/import/{import_id}/status")
+async def get_import_status(import_id: int, db: Session = Depends(get_db)):
+    """Return minimal status for a given import ID (for frontend polling)."""
+    record = ImportHistoryService.get_import_by_id(db, import_id)
+    if not record:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Import {import_id} not found")
+
+    return {
+        "id": record.id,
+        "account_id": record.account_id,
+        "filename": record.filename,
+        "uploaded_at": record.uploaded_at,
+        "status": record.status,
+        "row_count": record.row_count,
+        "rows_inserted": record.rows_inserted,
+        "rows_duplicated": record.rows_duplicated,
+        "error_message": record.error_message,
+    }

@@ -256,7 +256,7 @@ function CategoryMappingEditor({ category, onSave, onCancel }) {
     <Card>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center gap-3 pb-4 border-b border-gray-200">
+        <div className="flex items-center gap-3 pb-4 border-b border-neutral-200">
           <div
             className="w-12 h-12 rounded-lg flex items-center justify-center text-2xl"
             style={{ backgroundColor: category.color + '20' }}
@@ -264,19 +264,19 @@ function CategoryMappingEditor({ category, onSave, onCancel }) {
             {category.icon}
           </div>
           <div className="flex-1">
-            <h3 className="text-xl font-bold text-gray-900">
+            <h3 className="text-xl font-bold text-neutral-900">
               {category.name}
             </h3>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-neutral-600">
               Erkennungsmuster bearbeiten
             </p>
           </div>
         </div>
 
         {/* Info Box */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4" role="region" aria-label="Info: Erkennungsmuster">
           <div className="flex gap-3">
-            <svg className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <div className="text-sm text-blue-800">
@@ -293,9 +293,9 @@ function CategoryMappingEditor({ category, onSave, onCancel }) {
         {/* Pattern Section */}
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <span className="text-2xl">🎯</span>
-            <h4 className="font-semibold text-gray-900">Erkennungsmuster</h4>
-            <span className="text-sm text-gray-500">
+            <span className="text-2xl" aria-hidden="true">🎯</span>
+            <h4 className="font-semibold text-neutral-900">Erkennungsmuster</h4>
+            <span className="text-sm text-neutral-500">
               ({patterns.length})
             </span>
           </div>
@@ -321,31 +321,33 @@ function CategoryMappingEditor({ category, onSave, onCancel }) {
               disabled={!newPattern.trim() || isSaving}
               size="sm"
               title="Hinzufügen"
+              aria-label="Muster hinzufügen"
             >
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
             </Button>
           </div>
 
           {/* Liste der Patterns */}
-          {patterns.length > 0 ? (
+            {patterns.length > 0 ? (
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {patterns.map((pattern, index) => (
                 <div
                   key={index}
-                  className="flex items-center justify-between p-2 bg-gray-50 rounded-lg group hover:bg-gray-100 transition-colors"
+                  className="flex items-center justify-between p-2 bg-neutral-50 rounded-lg group hover:bg-neutral-100 transition-colors"
                 >
-                  <span className="text-sm text-gray-700 flex-1 break-all font-mono">
+                  <span className="text-sm text-neutral-700 flex-1 break-all font-mono">
                     {pattern}
                   </span>
                   <button
                     onClick={() => handleRemovePattern(index)}
                     disabled={isSaving}
-                    className="ml-2 p-1 text-gray-400 hover:text-red-600 rounded opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="ml-2 p-1 text-neutral-400 hover:text-red-600 rounded opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                     title="Entfernen"
+                    aria-label={`Muster ${pattern} entfernen`}
                   >
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
@@ -353,7 +355,7 @@ function CategoryMappingEditor({ category, onSave, onCancel }) {
               ))}
             </div>
           ) : (
-            <div className="p-4 text-center text-sm text-gray-500 bg-gray-50 rounded-lg">
+            <div className="p-4 text-center text-sm text-neutral-500 bg-neutral-50 rounded-lg">
               Keine Muster vorhanden
             </div>
           )}
@@ -361,8 +363,8 @@ function CategoryMappingEditor({ category, onSave, onCancel }) {
 
         {/* Loading Indicator */}
         {isSaving && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center gap-2 text-blue-800">
-            <svg className="animate-spin h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center gap-2 text-blue-800" role="status" aria-live="polite">
+            <svg className="animate-spin h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" aria-hidden="true">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
@@ -371,7 +373,7 @@ function CategoryMappingEditor({ category, onSave, onCancel }) {
         )}
 
         {/* Actions */}
-        <div className="flex gap-3 pt-4 border-t border-gray-200">
+        <div className="flex gap-3 pt-4 border-t border-neutral-200">
           <Button
             variant="ghost"
             onClick={onCancel}
@@ -383,8 +385,8 @@ function CategoryMappingEditor({ category, onSave, onCancel }) {
         </div>
 
         {/* Stats */}
-        <div className="pt-4 border-t border-gray-200">
-          <p className="text-xs text-gray-500 text-center">
+        <div className="pt-4 border-t border-neutral-200">
+          <p className="text-xs text-neutral-500 text-center">
             {patterns.length} {patterns.length === 1 ? 'Muster' : 'Muster'}
           </p>
         </div>

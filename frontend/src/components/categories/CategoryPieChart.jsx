@@ -34,12 +34,12 @@ const CustomTooltip = ({ active, payload, currency }) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
-      <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200">
+      <div className="bg-white p-4 rounded-lg shadow-lg border border-neutral-200" role="status" aria-live="polite">
         <div className="flex items-center gap-2 mb-2">
           <span className="text-2xl">{data.icon}</span>
-          <p className="font-semibold text-gray-900">{data.name}</p>
+          <p className="font-semibold text-neutral-900">{data.name}</p>
         </div>
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-neutral-600">
           Betrag: <span className="font-semibold text-gray-900">
             {new Intl.NumberFormat('de-DE', {
               style: 'currency',
@@ -47,11 +47,11 @@ const CustomTooltip = ({ active, payload, currency }) => {
             }).format(Math.abs(data.value))}
           </span>
         </p>
-        <p className="text-sm text-gray-600">
-          Transaktionen: <span className="font-semibold text-gray-900">{data.count}</span>
+        <p className="text-sm text-neutral-600">
+          Transaktionen: <span className="font-semibold text-neutral-900">{data.count}</span>
         </p>
-        <p className="text-sm text-gray-600">
-          Anteil: <span className="font-semibold text-gray-900">
+        <p className="text-sm text-neutral-600">
+          Anteil: <span className="font-semibold text-neutral-900">
             {data.percentage?.toFixed(1)}%
           </span>
         </p>
@@ -91,21 +91,23 @@ const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent
  * Custom Legend mit Icons
  */
 const CustomLegend = ({ payload }) => {
-  return (
-    <div className="flex flex-wrap gap-4 justify-center mt-4">
+    return (
+    <div className="flex flex-wrap gap-4 justify-center mt-4" role="list" aria-label="Legende">
       {payload.map((entry, index) => (
         <div
           key={`legend-${index}`}
           className="flex items-center gap-2 text-sm"
+          role="listitem"
         >
           <div className="flex items-center gap-1">
             <div
               className="w-3 h-3 rounded-full"
               style={{ backgroundColor: entry.color }}
+              aria-hidden="true"
             />
-            <span className="text-lg">{entry.payload.icon}</span>
+            <span className="text-lg" aria-hidden="true">{entry.payload.icon}</span>
           </div>
-          <span className="text-gray-700">{entry.value}</span>
+          <span className="text-neutral-700">{entry.value}</span>
         </div>
       ))}
     </div>
@@ -151,19 +153,19 @@ function CategoryPieChart({
   }, [chartData]);
 
   // Skeleton Loader
-  if (loading) {
+    if (loading) {
     return (
       <Card>
         <div className="space-y-4">
-          <div className="h-6 bg-gray-200 rounded w-1/3 animate-pulse"></div>
-          <div className="h-80 bg-gray-100 rounded animate-pulse"></div>
+          <div className="h-6 bg-neutral-200 rounded w-1/3 animate-pulse" />
+          <div className="h-80 bg-neutral-100 rounded animate-pulse" />
         </div>
       </Card>
     );
   }
 
   // Empty State
-  if (chartData.length === 0) {
+    if (chartData.length === 0) {
     return (
       <Card>
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
@@ -171,7 +173,7 @@ function CategoryPieChart({
         </h3>
         <div className="text-center py-12">
           <svg
-            className="mx-auto h-12 w-12 text-gray-400"
+            className="mx-auto h-12 w-12 text-neutral-400"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -183,10 +185,10 @@ function CategoryPieChart({
               d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
             />
           </svg>
-          <h3 className="mt-2 text-sm font-medium text-gray-900">
+          <h3 className="mt-2 text-sm font-medium text-neutral-900">
             Keine {type === 'expenses' ? 'Ausgaben' : 'Einnahmen'}
           </h3>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="mt-1 text-sm text-neutral-500">
             Für diesen Zeitraum wurden keine {type === 'expenses' ? 'Ausgaben' : 'Einnahmen'} in Kategorien gefunden.
           </p>
         </div>
@@ -198,12 +200,12 @@ function CategoryPieChart({
     <Card>
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">
+        <h3 className="text-lg font-semibold text-neutral-900">
           {title || (type === 'expenses' ? 'Ausgaben nach Kategorie' : 'Einnahmen nach Kategorie')}
         </h3>
         <div className="text-right">
-          <p className="text-sm text-gray-600">Gesamt</p>
-          <p className="text-xl font-bold text-gray-900">
+          <p className="text-sm text-neutral-600">Gesamt</p>
+          <p className="text-xl font-bold text-neutral-900">
             {new Intl.NumberFormat('de-DE', {
               style: 'currency',
               currency: currency,
@@ -245,21 +247,21 @@ function CategoryPieChart({
       </ResponsiveContainer>
 
       {/* Stats Summary */}
-      <div className="mt-6 pt-6 border-t border-gray-200">
+      <div className="mt-6 pt-6 border-t border-neutral-200">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="text-center">
-            <p className="text-sm text-gray-600">Kategorien</p>
-            <p className="text-2xl font-bold text-gray-900">{chartData.length}</p>
+            <p className="text-sm text-neutral-600">Kategorien</p>
+            <p className="text-2xl font-bold text-neutral-900">{chartData.length}</p>
           </div>
           <div className="text-center">
-            <p className="text-sm text-gray-600">Transaktionen</p>
-            <p className="text-2xl font-bold text-gray-900">
+            <p className="text-sm text-neutral-600">Transaktionen</p>
+            <p className="text-2xl font-bold text-neutral-900">
               {chartData.reduce((sum, item) => sum + item.count, 0)}
             </p>
           </div>
           <div className="text-center">
-            <p className="text-sm text-gray-600">Durchschnitt</p>
-            <p className="text-2xl font-bold text-gray-900">
+            <p className="text-sm text-neutral-600">Durchschnitt</p>
+            <p className="text-2xl font-bold text-neutral-900">
               {new Intl.NumberFormat('de-DE', {
                 style: 'currency',
                 currency: currency,
@@ -269,8 +271,8 @@ function CategoryPieChart({
             </p>
           </div>
           <div className="text-center">
-            <p className="text-sm text-gray-600">Größte Kategorie</p>
-            <p className="text-2xl font-bold text-gray-900">
+            <p className="text-sm text-neutral-600">Größte Kategorie</p>
+            <p className="text-2xl font-bold text-neutral-900">
               {chartData[0]?.icon || '—'}
             </p>
           </div>
@@ -290,7 +292,7 @@ export function CategoryBarChart({ data, currency = 'EUR', loading = false }) {
   if (loading) {
     return (
       <Card>
-        <div className="h-80 bg-gray-100 rounded animate-pulse"></div>
+        <div className="h-80 bg-neutral-100 rounded animate-pulse"></div>
       </Card>
     );
   }
@@ -298,7 +300,7 @@ export function CategoryBarChart({ data, currency = 'EUR', loading = false }) {
   if (!data || data.length === 0) {
     return (
       <Card>
-        <div className="text-center py-12 text-gray-500">
+        <div className="text-center py-12 text-neutral-500">
           Keine Daten verfügbar
         </div>
       </Card>
@@ -307,7 +309,7 @@ export function CategoryBarChart({ data, currency = 'EUR', loading = false }) {
 
   return (
     <Card>
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">
+      <h3 className="text-lg font-semibold text-neutral-900 mb-4">
         Kategorien im Vergleich
       </h3>
       <ResponsiveContainer width="100%" height={400}>

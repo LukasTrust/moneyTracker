@@ -49,12 +49,14 @@ export default function AccountCard({ account }) {
       clickable
       onClick={handleClick}
       className="transition-all duration-200 hover:shadow-lg"
+      aria-label={`Öffne Konto ${account.name}`}
     >
       <div className="flex items-start gap-4">
         {/* Icon & Color Badge */}
         <div
           className="w-14 h-14 rounded-xl flex items-center justify-center text-3xl flex-shrink-0 shadow-sm"
           style={{ backgroundColor: accountColor + '20' }}
+          aria-hidden="true"
         >
           {accountIcon}
         </div>
@@ -63,14 +65,14 @@ export default function AccountCard({ account }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1">
-              <h3 className="text-lg font-semibold text-gray-900 truncate">
+              <h3 className="text-lg font-semibold text-neutral-900 truncate">
                 {account.name}
               </h3>
               {account.description && (
-                <p className="text-sm text-gray-600 mt-1 line-clamp-2">{account.description}</p>
+                <p className="text-sm text-neutral-600 mt-1 line-clamp-2">{account.description}</p>
               )}
             </div>
-            <svg className="h-5 w-5 text-gray-400 flex-shrink-0 mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="h-5 w-5 text-neutral-400 flex-shrink-0 mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </div>
@@ -81,13 +83,14 @@ export default function AccountCard({ account }) {
               <div
                 className="w-3 h-3 rounded"
                 style={{ backgroundColor: accountColor }}
+                aria-hidden="true"
               />
-              <span className="text-gray-700 font-medium">
+              <span className="text-neutral-700 font-medium">
                 {currencySymbols[account.currency] || account.currency}
               </span>
             </div>
-            <span className="text-gray-400">•</span>
-            <span className="flex items-center gap-1.5 text-gray-500">
+            <span className="text-neutral-400">•</span>
+            <span className="flex items-center gap-1.5 text-neutral-500">
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>

@@ -168,6 +168,9 @@ export default function InsightPopup({
         className={`fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md transition-all duration-300 ${
           showPopup ? 'scale-100 opacity-100' : 'scale-95 opacity-0 pointer-events-none'
         }`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="insight-title"
       >
         <div className={`bg-white rounded-xl shadow-2xl border-l-4 ${colors.border} overflow-hidden`}>
           {/* Header */}
@@ -176,8 +179,8 @@ export default function InsightPopup({
               <div className="flex items-center gap-3">
                 <span className="text-3xl">{colors.icon}</span>
                 <div>
-                  <h3 className={`font-semibold ${colors.text} text-lg`}>
-                    💡 Spending Insight
+                  <h3 id="insight-title" className={`font-semibold ${colors.text} text-lg`}>
+                    💡 Hinweis
                   </h3>
                   {currentInsight.priority >= 7 && (
                     <span className={`text-xs ${colors.badgeText} font-medium`}>
@@ -189,8 +192,9 @@ export default function InsightPopup({
               
               <button
                 onClick={handleClose}
-                className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                className="p-1 text-neutral-400 hover:text-neutral-600 transition-colors"
                 title="Schließen"
+                aria-label="Schließen"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -205,7 +209,7 @@ export default function InsightPopup({
               {currentInsight.title}
             </h4>
             
-            <p className="text-gray-700 leading-relaxed mb-4">
+            <p className="text-neutral-700 leading-relaxed mb-4">
               {currentInsight.description}
             </p>
 
@@ -233,17 +237,17 @@ export default function InsightPopup({
 
             {/* Show count */}
             {currentInsight.show_count > 0 && (
-              <p className="text-xs text-gray-500 mb-4">
+              <p className="text-xs text-neutral-500 mb-4">
                 Bereits {currentInsight.show_count}x angezeigt
               </p>
             )}
           </div>
 
           {/* Footer */}
-          <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
+          <div className="px-6 py-4 bg-neutral-50 border-t border-neutral-200 flex items-center justify-between">
             <button
               onClick={handleDismiss}
-              className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-200 rounded-lg transition-colors"
+              className="px-4 py-2 text-sm text-neutral-600 hover:text-neutral-800 hover:bg-neutral-200 rounded-lg transition-colors"
             >
               Nicht mehr zeigen
             </button>
@@ -251,6 +255,7 @@ export default function InsightPopup({
             <button
               onClick={handleClose}
               className={`px-6 py-2 ${colors.badgeBg} ${colors.badgeText} font-medium rounded-lg hover:opacity-80 transition-opacity`}
+              aria-label="Verstanden"
             >
               Verstanden
             </button>
@@ -266,13 +271,13 @@ export default function InsightPopup({
                     className={`h-1.5 rounded-full transition-all ${
                       idx === currentIndex
                         ? 'w-8 bg-primary-600'
-                        : 'w-1.5 bg-gray-300'
+                        : 'w-1.5 bg-neutral-300'
                     }`}
                   />
                 ))}
               </div>
-              <p className="text-xs text-center text-gray-500 mt-2">
-                Insight {currentIndex + 1} von {insights.length}
+              <p className="text-xs text-center text-neutral-500 mt-2">
+                Hinweis {currentIndex + 1} von {insights.length}
               </p>
             </div>
           )}

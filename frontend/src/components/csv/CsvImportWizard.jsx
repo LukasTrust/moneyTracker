@@ -252,7 +252,7 @@ export default function CsvImportWizard({ accountId, onImportSuccess }) {
   return (
     <div className="space-y-6">
       {/* Progress Stepper */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
+      <div className="bg-white rounded-lg border border-neutral-200 p-6">
         <div className="flex items-center justify-between">
           {STEPS.map((step, index) => (
             <React.Fragment key={step.id}>
@@ -262,7 +262,7 @@ export default function CsvImportWizard({ accountId, onImportSuccess }) {
                     w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold transition-all
                     ${currentStep >= step.id
                       ? 'bg-primary-600 text-white'
-                      : 'bg-gray-200 text-gray-500'
+                      : 'bg-neutral-200 text-neutral-500'
                     }
                     ${currentStep === step.id ? 'ring-4 ring-primary-200' : ''}
                   `}
@@ -272,7 +272,7 @@ export default function CsvImportWizard({ accountId, onImportSuccess }) {
                 <span
                   className={`
                     mt-2 text-xs font-medium text-center
-                    ${currentStep >= step.id ? 'text-gray-900' : 'text-gray-500'}
+                    ${currentStep >= step.id ? 'text-neutral-900' : 'text-neutral-500'}
                   `}
                 >
                   {step.title}
@@ -282,7 +282,7 @@ export default function CsvImportWizard({ accountId, onImportSuccess }) {
                 <div
                   className={`
                     flex-1 h-1 mx-2 rounded transition-all
-                    ${currentStep > step.id ? 'bg-primary-600' : 'bg-gray-200'}
+                    ${currentStep > step.id ? 'bg-primary-600' : 'bg-neutral-200'}
                   `}
                 />
               )}
@@ -292,14 +292,14 @@ export default function CsvImportWizard({ accountId, onImportSuccess }) {
       </div>
 
       {/* Step Content */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
+      <div className="bg-white rounded-lg border border-neutral-200 p-6">
         {/* STEP 1: File Upload */}
         {currentStep === 1 && (
           <div className="space-y-4">
-            <h2 className="text-xl font-bold text-gray-900">
-              📁 CSV-Datei hochladen
+            <h2 className="text-xl font-bold text-neutral-900">
+              <span aria-hidden="true">📁</span> CSV-Datei hochladen
             </h2>
-            <p className="text-gray-600">
+            <p className="text-neutral-600">
               Laden Sie Ihre Banktransaktionen als CSV-Datei hoch.
             </p>
 
@@ -309,22 +309,22 @@ export default function CsvImportWizard({ accountId, onImportSuccess }) {
                 border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition-all
                 ${isDragActive
                   ? 'border-primary-600 bg-primary-50'
-                  : 'border-gray-300 hover:border-gray-400 bg-gray-50'
+                  : 'border-neutral-300 hover:border-neutral-400 bg-neutral-50'
                 }
               `}
             >
               <input {...getInputProps()} />
-              <div className="text-6xl mb-4">📄</div>
+              <div className="text-6xl mb-4" aria-hidden="true">📄</div>
               {isDragActive ? (
                 <p className="text-lg font-medium text-primary-600">
                   Datei hier ablegen...
                 </p>
               ) : (
                 <>
-                  <p className="text-lg font-medium text-gray-900 mb-2">
+                  <p className="text-lg font-medium text-neutral-900 mb-2">
                     CSV-Datei hierher ziehen oder klicken
                   </p>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-neutral-500">
                     Unterstützte Formate: .csv
                   </p>
                 </>
@@ -333,8 +333,8 @@ export default function CsvImportWizard({ accountId, onImportSuccess }) {
 
             {isLoading && (
               <div className="flex items-center justify-center gap-3 py-4">
-                <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary-600 border-t-transparent"></div>
-                <span className="text-gray-600">Analysiere CSV...</span>
+                <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary-600 border-t-transparent" aria-hidden="true"></div>
+                <span className="text-neutral-600">Analysiere CSV...</span>
               </div>
             )}
           </div>
@@ -345,16 +345,17 @@ export default function CsvImportWizard({ accountId, onImportSuccess }) {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-bold text-gray-900">
+                <h2 className="text-xl font-bold text-neutral-900">
                   ✓ Überprüfung & Mapping
                 </h2>
-                <p className="text-gray-600 mt-1">
+                <p className="text-neutral-600 mt-1">
                   Prüfen Sie das Mapping und starten Sie den Import
                 </p>
               </div>
               <button
                 onClick={() => setCurrentStep(1)}
-                className="text-sm text-gray-500 hover:text-gray-700"
+                className="text-sm text-neutral-500 hover:text-neutral-700"
+                aria-label="Zurück zum Upload"
               >
                 ← Zurück
               </button>
@@ -370,9 +371,9 @@ export default function CsvImportWizard({ accountId, onImportSuccess }) {
             )}
 
             {/* Mapping Configuration */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="bg-white rounded-lg border border-neutral-200 p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">
+                <h3 className="text-lg font-semibold text-neutral-900">
                   Felder zuordnen
                 </h3>
                 {existingMapping && !mappingEditable && (
@@ -387,20 +388,20 @@ export default function CsvImportWizard({ accountId, onImportSuccess }) {
 
               <div className="space-y-4">
                 {REQUIRED_FIELDS.map((field) => (
-                  <div key={field} className="border border-gray-200 rounded-lg p-4">
-                    <label className="block text-sm font-medium text-gray-900 mb-2">
+                  <div key={field} className="border border-neutral-200 rounded-lg p-4">
+                    <label className="block text-sm font-medium text-neutral-900 mb-2">
                       <span className="mr-2">{getFieldIcon(field)}</span>
                       {getFieldLabel(field)}
                       <span className="text-red-500 ml-1">*</span>
                       {!mappingEditable && (
-                        <span className="ml-2 text-xs text-gray-500">🔒 Gesperrt</span>
+                        <span className="ml-2 text-xs text-neutral-500">🔒 Gesperrt</span>
                       )}
                     </label>
                     <select
                       value={mapping[field] || ''}
                       onChange={(e) => handleMappingChange(field, e.target.value)}
                       disabled={!mappingEditable}
-                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      className="mt-1 block w-full rounded-lg border-neutral-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 disabled:bg-neutral-100 disabled:cursor-not-allowed"
                     >
                       <option value="">-- Bitte wählen --</option>
                       {csvPreview?.headers.map((header) => (
@@ -409,26 +410,26 @@ export default function CsvImportWizard({ accountId, onImportSuccess }) {
                         </option>
                       ))}
                     </select>
-                    <p className="mt-1 text-xs text-gray-500">{FIELD_CONFIG[field]?.description}</p>
+                    <p className="mt-1 text-xs text-neutral-500">{FIELD_CONFIG[field]?.description}</p>
                   </div>
                 ))}
 
                 {/* Optional Fields Section */}
                 {OPTIONAL_FIELDS.map((field) => (
-                  <div key={field} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                    <label className="block text-sm font-medium text-gray-900 mb-2">
+                  <div key={field} className="border border-neutral-200 rounded-lg p-4 bg-neutral-50">
+                    <label className="block text-sm font-medium text-neutral-900 mb-2">
                       <span className="mr-2">{getFieldIcon(field)}</span>
                       {getFieldLabel(field)}
-                      <span className="text-gray-400 ml-1 text-xs">(optional)</span>
+                      <span className="text-neutral-400 ml-1 text-xs">(optional)</span>
                       {!mappingEditable && (
-                        <span className="ml-2 text-xs text-gray-500">🔒 Gesperrt</span>
+                        <span className="ml-2 text-xs text-neutral-500">🔒 Gesperrt</span>
                       )}
                     </label>
                     <select
                       value={mapping[field] || ''}
                       onChange={(e) => handleMappingChange(field, e.target.value)}
                       disabled={!mappingEditable}
-                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      className="mt-1 block w-full rounded-lg border-neutral-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 disabled:bg-neutral-100 disabled:cursor-not-allowed"
                     >
                       <option value="">-- Nicht zuordnen --</option>
                       {csvPreview?.headers.map((header) => (
@@ -437,7 +438,7 @@ export default function CsvImportWizard({ accountId, onImportSuccess }) {
                         </option>
                       ))}
                     </select>
-                    <p className="mt-1 text-xs text-gray-500">{FIELD_CONFIG[field]?.description}</p>
+                    <p className="mt-1 text-xs text-neutral-500">{FIELD_CONFIG[field]?.description}</p>
                   </div>
                 ))}
               </div>
@@ -487,30 +488,30 @@ export default function CsvImportWizard({ accountId, onImportSuccess }) {
             {/* CSV Preview */}
             {csvPreview && csvPreview.sample_rows && (
               <div>
-                <h3 className="text-sm font-semibold text-gray-900 mb-2">
+                <h3 className="text-sm font-semibold text-neutral-900 mb-2">
                   Vorschau (erste 5 Zeilen):
                 </h3>
-                <div className="overflow-x-auto border border-gray-200 rounded-lg">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+                <div className="overflow-x-auto border border-neutral-200 rounded-lg">
+                  <table className="min-w-full divide-y divide-neutral-200">
+                    <thead className="bg-neutral-50">
                       <tr>
                         {csvPreview.headers.slice(0, 6).map((header, idx) => (
                           <th
                             key={idx}
-                            className="px-3 py-2 text-left text-xs font-medium text-gray-700"
+                            className="px-3 py-2 text-left text-xs font-medium text-neutral-700"
                           >
                             {header}
                           </th>
                         ))}
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="bg-white divide-y divide-neutral-200">
                       {csvPreview.sample_rows.slice(0, 5).map((row, idx) => (
                         <tr key={idx}>
                           {csvPreview.headers.slice(0, 6).map((header, cellIdx) => (
                             <td
                               key={cellIdx}
-                              className="px-3 py-2 text-sm text-gray-900"
+                              className="px-3 py-2 text-sm text-neutral-900"
                             >
                               {row.data?.[header] || '-'}
                             </td>
@@ -530,7 +531,7 @@ export default function CsvImportWizard({ accountId, onImportSuccess }) {
                 className={`
                   flex-1 px-6 py-3 rounded-lg font-semibold transition-colors
                   ${!REQUIRED_FIELDS.every(field => mapping[field])
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    ? 'bg-neutral-300 text-neutral-500 cursor-not-allowed'
                     : 'bg-primary-600 text-white hover:bg-primary-700'
                   }
                 `}

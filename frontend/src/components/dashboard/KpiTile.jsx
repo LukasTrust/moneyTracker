@@ -11,7 +11,7 @@ import PropTypes from 'prop-types';
  * - decimals: number
  * - className: additional classes
  */
-export default function KpiTile({ label, value = 0, prefix = '', suffix = '', decimals = 0, className = '', icon = null, accent = 'gray' }) {
+export default function KpiTile({ label, value = 0, prefix = '', suffix = '', decimals = 0, className = '', icon = null, accent = 'neutral' }) {
   const [display, setDisplay] = useState(0);
   const rafRef = useRef(null);
   const startRef = useRef(null);
@@ -47,57 +47,33 @@ export default function KpiTile({ label, value = 0, prefix = '', suffix = '', de
     maximumFractionDigits: decimals
   });
 
-  // Accent color mapping (Tailwind classes)
+  // Accent color mapping (semantic, using Tailwind tokens defined in tailwind.config)
   const colorMap = {
-    green: {
-      bg: 'bg-green-50',
-      text: 'text-green-700',
-      ring: 'ring-green-100'
-    },
-    red: {
-      bg: 'bg-red-50',
-      text: 'text-red-700',
-      ring: 'ring-red-100'
-    },
-    blue: {
-      bg: 'bg-blue-50',
-      text: 'text-blue-700',
-      ring: 'ring-blue-100'
-    },
-    purple: {
-      bg: 'bg-purple-50',
-      text: 'text-purple-700',
-      ring: 'ring-purple-100'
-    },
-    yellow: {
-      bg: 'bg-yellow-50',
-      text: 'text-yellow-700',
-      ring: 'ring-yellow-100'
-    },
-    gray: {
-      bg: 'bg-gray-50',
-      text: 'text-gray-700',
-      ring: 'ring-gray-100'
-    }
+    green: { bg: 'bg-green-50', text: 'text-green-700', ring: 'ring-green-100' },
+    red: { bg: 'bg-red-50', text: 'text-red-700', ring: 'ring-red-100' },
+    primary: { bg: 'bg-primary-50', text: 'text-primary-700', ring: 'ring-primary-100' },
+    purple: { bg: 'bg-purple-50', text: 'text-purple-700', ring: 'ring-purple-100' },
+    yellow: { bg: 'bg-yellow-50', text: 'text-yellow-700', ring: 'ring-yellow-100' },
+    neutral: { bg: 'bg-neutral-50', text: 'text-neutral-700', ring: 'ring-neutral-100' }
   };
 
-  const accentClasses = colorMap[accent] || colorMap.gray;
+  const accentClasses = colorMap[accent] || colorMap.neutral;
 
   return (
-    <div className={`bg-white rounded-lg shadow p-4 flex flex-col ${className}`}>
+    <div className={`bg-white rounded-lg shadow p-4 flex flex-col ${className}`} role="status" aria-live="polite">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
           <div className={`flex items-center justify-center h-9 w-9 rounded-full ${accentClasses.bg} ${accentClasses.ring} ring-1`}> 
             <span className={`text-lg ${accentClasses.text}`}>{icon || '📊'}</span>
           </div>
-          <div className="text-xs text-gray-500">{label}</div>
+          <div className="text-xs text-neutral-500">{label}</div>
         </div>
       </div>
 
       <div className="mt-3 flex items-baseline gap-2">
-        {prefix && <div className="text-sm text-gray-400">{prefix}</div>}
-        <div className="text-2xl font-semibold text-gray-900">{formatted}</div>
-        {suffix && <div className="text-sm text-gray-500">{suffix}</div>}
+        {prefix && <div className="text-sm text-neutral-400">{prefix}</div>}
+        <div className="text-2xl font-semibold text-neutral-900">{formatted}</div>
+        {suffix && <div className="text-sm text-neutral-500">{suffix}</div>}
       </div>
     </div>
   );

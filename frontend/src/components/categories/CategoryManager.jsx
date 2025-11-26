@@ -257,12 +257,12 @@ function CategoryManager({ accountId, onCategoryChange }) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Kategorien verwalten</h2>
-          <p className="text-sm text-gray-600 mt-1">
+          <h2 className="text-2xl font-bold text-neutral-900">Kategorien verwalten</h2>
+          <p className="text-sm text-neutral-600 mt-1">
             Erstellen und bearbeiten Sie globale Kategorien für alle Konten
           </p>
         </div>
-        <Button onClick={handleCreate} disabled={loading}>
+        <Button onClick={handleCreate} disabled={loading} title="Neue Kategorie erstellen" aria-label="Neue Kategorie">
           <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
@@ -274,14 +274,15 @@ function CategoryManager({ accountId, onCategoryChange }) {
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="bg-gray-100 rounded-lg h-32 animate-pulse" />
+            <div key={i} className="bg-neutral-100 rounded-lg h-32 animate-pulse" />
           ))}
         </div>
       ) : categories.length === 0 ? (
         <Card>
           <div className="text-center py-12">
             <svg
-              className="mx-auto h-12 w-12 text-gray-400"
+              className="mx-auto h-12 w-12 text-neutral-400"
+              aria-hidden="true"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -293,8 +294,8 @@ function CategoryManager({ accountId, onCategoryChange }) {
                 d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
               />
             </svg>
-            <h3 className="mt-2 text-sm font-medium text-gray-900">Keine Kategorien</h3>
-            <p className="mt-1 text-sm text-gray-500">
+            <h3 className="mt-2 text-sm font-medium text-neutral-900">Keine Kategorien</h3>
+            <p className="mt-1 text-sm text-neutral-500">
               Erstellen Sie Ihre erste Kategorie, um Transaktionen zu organisieren.
             </p>
             <div className="mt-6">
@@ -320,7 +321,7 @@ function CategoryManager({ accountId, onCategoryChange }) {
                   
                   {/* Name */}
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-gray-900 truncate">
+                    <h3 className="font-semibold text-neutral-900 truncate">
                       {category.name}
                     </h3>
                     <div className="flex items-center gap-2 mt-1">
@@ -328,7 +329,7 @@ function CategoryManager({ accountId, onCategoryChange }) {
                         className="w-4 h-4 rounded"
                         style={{ backgroundColor: category.color }}
                       />
-                      <span className="text-xs text-gray-500 font-mono">
+                      <span className="text-xs text-neutral-500 font-mono">
                         {category.color}
                       </span>
                     </div>
@@ -348,9 +349,9 @@ function CategoryManager({ accountId, onCategoryChange }) {
                   </button>
                   <button
                     onClick={() => handleDelete(category)}
-                    disabled={isDeleting === category.id}
-                    className="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
+                    className="p-2 text-neutral-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
                     title="Löschen"
+                    aria-label={`Kategorie ${category.name} löschen`}
                   >
                     {isDeleting === category.id ? (
                       <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
@@ -368,14 +369,15 @@ function CategoryManager({ accountId, onCategoryChange }) {
 
               {/* Patterns Preview - Zeigt Erkennungsmuster */}
               {category.mappings?.patterns?.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-gray-200">
+                <div className="mt-4 pt-4 border-t border-neutral-200">
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs font-medium text-gray-500">
+                    <p className="text-xs font-medium text-neutral-500">
                       Erkennungsmuster ({category.mappings.patterns.length}):
                     </p>
                     <button
                       onClick={() => handleEditMappings(category)}
                       className="text-xs text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1"
+                      aria-label={`Erkennungsmuster für ${category.name} bearbeiten`}
                     >
                       <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -393,7 +395,7 @@ function CategoryManager({ accountId, onCategoryChange }) {
                       </span>
                     ))}
                     {category.mappings.patterns.length > 8 && (
-                      <span className="px-2 py-1 text-xs text-gray-500">
+                      <span className="px-2 py-1 text-xs text-neutral-500">
                         +{category.mappings.patterns.length - 8} mehr
                       </span>
                     )}
@@ -403,12 +405,13 @@ function CategoryManager({ accountId, onCategoryChange }) {
               
               {/* No Patterns - Add Button */}
               {!category.mappings?.patterns?.length && (
-                <div className="mt-4 pt-4 border-t border-gray-200">
+                <div className="mt-4 pt-4 border-t border-neutral-200">
                   <button
                     onClick={() => handleEditMappings(category)}
-                    className="w-full text-sm text-gray-500 hover:text-primary-600 py-2 px-3 rounded-lg hover:bg-primary-50 transition-colors flex items-center justify-center gap-2"
+                    className="w-full text-sm text-neutral-500 hover:text-primary-600 py-2 px-3 rounded-lg hover:bg-primary-50 transition-colors flex items-center justify-center gap-2"
+                    aria-label={`Erkennungsmuster für ${category.name} hinzufügen`}
                   >
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                     </svg>
                     Erkennungsmuster hinzufügen
@@ -439,7 +442,7 @@ function CategoryManager({ accountId, onCategoryChange }) {
 
           {/* Icon Selector */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-neutral-700 mb-2">
               Icon
             </label>
             <div className="grid grid-cols-8 gap-2">
@@ -453,7 +456,7 @@ function CategoryManager({ accountId, onCategoryChange }) {
                     transition-all border-2
                     ${formData.icon === icon
                       ? 'border-primary-500 bg-primary-50'
-                      : 'border-gray-200 hover:border-gray-300 bg-white'
+                      : 'border-neutral-200 hover:border-neutral-300 bg-white'
                     }
                   `}
                 >
@@ -465,7 +468,7 @@ function CategoryManager({ accountId, onCategoryChange }) {
 
           {/* Color Selector */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-neutral-700 mb-2">
               Farbe
             </label>
             <div className="grid grid-cols-6 gap-2">
@@ -477,8 +480,8 @@ function CategoryManager({ accountId, onCategoryChange }) {
                   className={`
                     w-10 h-10 rounded-lg transition-all border-2
                     ${formData.color === color
-                      ? 'border-gray-900 scale-110'
-                      : 'border-gray-200 hover:scale-105'
+                      ? 'border-neutral-900 scale-110'
+                      : 'border-neutral-200 hover:scale-105'
                     }
                   `}
                   style={{ backgroundColor: color }}
@@ -498,7 +501,7 @@ function CategoryManager({ accountId, onCategoryChange }) {
           </div>
 
           {/* Actions */}
-          <div className="flex gap-3 pt-4">
+            <div className="flex gap-3 pt-4">
             <Button
               onClick={handleSave}
               disabled={isSaving}

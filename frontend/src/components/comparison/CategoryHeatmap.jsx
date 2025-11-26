@@ -69,7 +69,7 @@ export default function CategoryHeatmap({ data }) {
   }, [period1, period2]);
 
   const getHeatColor = (percentChange) => {
-    if (!isFinite(percentChange)) return 'bg-gray-100';
+    if (!isFinite(percentChange)) return 'bg-neutral-100';
     
     const absChange = Math.abs(percentChange);
     
@@ -88,55 +88,55 @@ export default function CategoryHeatmap({ data }) {
       if (absChange > 5) return 'bg-green-300';
       return 'bg-green-200';
     }
-    return 'bg-gray-100';
+    return 'bg-neutral-100';
   };
 
   const getTextColor = (percentChange) => {
-    if (!isFinite(percentChange)) return 'text-gray-600';
+    if (!isFinite(percentChange)) return 'text-neutral-600';
     const absChange = Math.abs(percentChange);
-    return absChange > 25 ? 'text-white' : 'text-gray-900';
+    return absChange > 25 ? 'text-white' : 'text-neutral-900';
   };
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">
+      <h2 className="text-lg font-semibold text-neutral-900 mb-4">
         Kategorien Heatmap - Prozentuale Veränderung
       </h2>
-      <p className="text-sm text-gray-600 mb-4">
+      <p className="text-sm text-neutral-600 mb-4">
         Rot = Zunahme der Ausgaben | Grün = Abnahme der Ausgaben
       </p>
 
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-gray-200">
-              <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">
+            <tr className="border-b border-neutral-200">
+              <th className="text-left py-3 px-4 text-sm font-medium text-neutral-700">
                 Kategorie
               </th>
-              <th className="text-right py-3 px-4 text-sm font-medium text-gray-700">
+              <th className="text-right py-3 px-4 text-sm font-medium text-neutral-700">
                 {period1.period_label}
               </th>
-              <th className="text-right py-3 px-4 text-sm font-medium text-gray-700">
+              <th className="text-right py-3 px-4 text-sm font-medium text-neutral-700">
                 {period2.period_label}
               </th>
-              <th className="text-center py-3 px-4 text-sm font-medium text-gray-700">
+              <th className="text-center py-3 px-4 text-sm font-medium text-neutral-700">
                 Veränderung
               </th>
             </tr>
           </thead>
           <tbody>
             {heatmapData.map((cat, idx) => (
-              <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50">
+              <tr key={idx} className="border-b border-neutral-100 hover:bg-neutral-50">
                 <td className="py-3 px-4">
                   <div className="flex items-center gap-2">
                     <span className="text-xl">{cat.icon}</span>
-                    <span className="font-medium text-gray-900">{cat.name}</span>
+                    <span className="font-medium text-neutral-900">{cat.name}</span>
                   </div>
                 </td>
-                <td className="py-3 px-4 text-right text-sm text-gray-700">
+                <td className="py-3 px-4 text-right text-sm text-neutral-700">
                   {formatCurrency(cat.amount1)}
                 </td>
-                <td className="py-3 px-4 text-right text-sm text-gray-700">
+                <td className="py-3 px-4 text-right text-sm text-neutral-700">
                   {formatCurrency(cat.amount2)}
                 </td>
                 <td className="py-3 px-4">

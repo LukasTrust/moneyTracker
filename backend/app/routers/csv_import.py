@@ -27,6 +27,7 @@ from app.services.bank_presets import BankPresetMatcher
 from app.services.recipient_matcher import RecipientMatcher
 from app.services.recurring_transaction_detector import RecurringTransactionDetector, run_update_recurring_transactions
 from app.utils import get_logger
+from app.services.transfer_matcher import TransferMatcher
 from pydantic import ValidationError
 from app.schemas.csv import TransactionRow
 
@@ -504,6 +505,35 @@ async def import_csv_advanced(
             except Exception as e:
                 # Log error but don't fail the import
                 logger.exception("Could not detect recurring transactions", exc_info=True, extra={"account_id": account_id, "import_id": import_id})
+
+        # Run transfer detection for the imported rows and include candidates in response
+        transfer_candidates = None
+        try:
+            matcher = TransferMatcher(db)
+
+            # Determine date range for imported rows - limit detection to imported date span
+            from sqlalchemy import func
+            date_min, date_max = db.query(func.min(DataRow.transaction_date), func.max(DataRow.transaction_date)).filter(
+                DataRow.import_id == import_id
+            ).one()
+
+            # Call matcher to find candidates involving this account within the date range
+            candidates = matcher.find_transfer_candidates(
+                account_ids=[account_id],
+                date_from=date_min,
+                date_to=date_max,
+                min_confidence=0.7,
+                exclude_existing=True
+            ) if date_min and date_max else []
+
+            # Limit number returned to avoid huge payloads
+            MAX_CANDIDATES_RETURN = 200
+            transfer_candidates = candidates[:MAX_CANDIDATES_RETURN]
+
+            # If background tasks are provided and we prefer async detection, we could enqueue here.
+        except Exception:
+            # Non-fatal: log and continue
+            logger.exception("Transfer detection failed during import", exc_info=True, extra={"import_id": import_id, "account_id": account_id})
         
         # Save mapping configuration for future use
         if imported_count > 0:
@@ -541,7 +571,8 @@ async def import_csv_advanced(
             "total_rows": len(mapped_data),
             "errors": error_messages if error_messages else None,
             "recurring_detected": recurring_count if recurring_count > 0 else None,
-            "import_id": import_id  # Return import ID for frontend
+            "import_id": import_id,  # Return import ID for frontend
+            "transfer_candidates": transfer_candidates
         }
         
     except HTTPException:
@@ -607,4 +638,39 @@ async def get_import_status(import_id: int, db: Session = Depends(get_db)):
         "rows_inserted": record.rows_inserted,
         "rows_duplicated": record.rows_duplicated,
         "error_message": record.error_message,
+    }
+
+
+@router.get("/import/{import_id}/transfer-candidates")
+def get_transfer_candidates_for_import(import_id: int, db: Session = Depends(get_db)):
+    """Run transfer detection limited to transactions from a specific import and return candidates."""
+    import_record = ImportHistoryService.get_import_by_id(db, import_id)
+    if not import_record:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Import {import_id} not found")
+
+    # Determine date range for this import's rows
+    from sqlalchemy import func
+    date_min, date_max = db.query(func.min(DataRow.transaction_date), func.max(DataRow.transaction_date)).filter(
+        DataRow.import_id == import_id
+    ).one()
+
+    matcher = TransferMatcher(db)
+    candidates = []
+    try:
+        if date_min and date_max:
+            candidates = matcher.find_transfer_candidates(
+                account_ids=[import_record.account_id],
+                date_from=date_min,
+                date_to=date_max,
+                min_confidence=0.7,
+                exclude_existing=True
+            )
+    except Exception:
+        logger.exception("Transfer detection failed for import", exc_info=True, extra={"import_id": import_id})
+
+    return {
+        "import_id": import_id,
+        "account_id": import_record.account_id,
+        "candidates": candidates,
+        "total_found": len(candidates)
     }

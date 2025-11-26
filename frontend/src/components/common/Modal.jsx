@@ -112,11 +112,11 @@ export default function Modal({
         >
           {/* Header */}
           {(title || showCloseButton) && (
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+            <div className="flex items-center justify-between p-6 border-b border-neutral-200">
               {title && (
                 <h3 
                   id="modal-title" 
-                  className="text-lg font-semibold text-gray-900"
+                  className="text-lg font-semibold text-neutral-900"
                 >
                   {title}
                 </h3>
@@ -125,7 +125,7 @@ export default function Modal({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="ml-auto text-gray-400 hover:text-gray-600 transition-colors"
+                  className="ml-auto text-neutral-400 hover:text-neutral-600 transition-colors"
                 >
                   <span className="sr-only">Schließen</span>
                   <svg 
@@ -153,7 +153,7 @@ export default function Modal({
 
           {/* Footer */}
           {footer && (
-            <div className="flex items-center justify-end gap-3 px-6 py-4 bg-gray-50 border-t border-gray-200 rounded-b-lg">
+            <div className="flex items-center justify-end gap-3 px-6 py-4 bg-neutral-50 border-t border-neutral-200 rounded-b-lg">
               {footer}
             </div>
           )}
@@ -205,7 +205,7 @@ export function ConfirmDialog({
             type="button"
             onClick={onCancel}
             disabled={loading}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+            className="px-4 py-2 text-sm font-medium text-neutral-700 bg-white border border-neutral-300 rounded-lg hover:bg-neutral-50"
           >
             {cancelText}
           </button>
@@ -217,7 +217,7 @@ export function ConfirmDialog({
               'px-4 py-2 text-sm font-medium text-white rounded-lg',
               variant === 'danger' 
                 ? 'bg-red-600 hover:bg-red-700' 
-                : 'bg-blue-600 hover:bg-blue-700',
+                : 'bg-primary-600 hover:bg-primary-700',
               loading && 'opacity-50 cursor-not-allowed'
             )}
           >

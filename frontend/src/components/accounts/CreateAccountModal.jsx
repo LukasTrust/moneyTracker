@@ -64,10 +64,10 @@ export default function CreateAccountModal({ isOpen, onClose, onCreate }) {
       title="Neues Konto erstellen"
       footer={
         <div className="flex gap-3 justify-end">
-          <Button variant="secondary" onClick={onClose} disabled={loading}>
+          <Button variant="secondary" onClick={onClose} disabled={loading} title="Abbrechen" aria-label="Abbrechen">
             Abbrechen
           </Button>
-          <Button onClick={handleSubmit} loading={loading}>
+          <Button onClick={handleSubmit} loading={loading} title="Konto erstellen" aria-label="Konto erstellen">
             Konto erstellen
           </Button>
         </div>
@@ -93,6 +93,7 @@ export default function CreateAccountModal({ isOpen, onClose, onCreate }) {
             className="input"
             rows="3"
             placeholder="Optional: Zusätzliche Informationen"
+            aria-label="Beschreibung"
           />
         </div>
 

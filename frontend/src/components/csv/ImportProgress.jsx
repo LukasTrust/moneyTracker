@@ -18,18 +18,18 @@ export default function ImportProgress({ estimatedRows = 0, stage = 'uploading' 
   return (
     <div className="space-y-6">
       {/* Icon */}
-      <div className="text-6xl animate-bounce">{currentStage.icon}</div>
+      <div className="text-6xl animate-bounce" aria-hidden="true">{currentStage.icon}</div>
 
       {/* Title */}
-      <h2 className="text-xl font-bold text-gray-900">{currentStage.label}</h2>
+      <h2 className="text-xl font-bold text-neutral-900">{currentStage.label}</h2>
 
       {/* Progress Bar */}
       <div className="w-full max-w-md mx-auto">
-        <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
+        <div className="flex items-center justify-between text-sm text-neutral-600 mb-2">
           <span>Fortschritt</span>
           <span className="font-semibold">{currentStage.progress}%</span>
         </div>
-        <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+        <div className="w-full bg-neutral-200 rounded-full h-3 overflow-hidden">
           <div
             className="bg-primary-600 h-3 rounded-full transition-all duration-700 ease-out relative overflow-hidden"
             style={{ width: `${currentStage.progress}%` }}
@@ -42,15 +42,15 @@ export default function ImportProgress({ estimatedRows = 0, stage = 'uploading' 
 
       {/* Estimated rows info */}
       {estimatedRows > 0 && (
-        <div className="text-sm text-gray-500">
-          Verarbeite ca. <strong className="text-gray-700">{estimatedRows}</strong> Zeilen
+        <div className="text-sm text-neutral-500">
+          Verarbeite ca. <strong className="text-neutral-700">{estimatedRows}</strong> Zeilen
         </div>
       )}
 
       {/* Loading spinner */}
       <div className="flex items-center justify-center gap-3">
-        <div className="animate-spin rounded-full h-8 w-8 border-4 border-primary-600 border-t-transparent"></div>
-        <span className="text-gray-600">Bitte warten...</span>
+        <div className="animate-spin rounded-full h-8 w-8 border-4 border-primary-600 border-t-transparent" aria-hidden="true"></div>
+        <span className="text-neutral-600">Bitte warten...</span>
       </div>
 
       {/* Stage indicators */}
@@ -64,8 +64,9 @@ export default function ImportProgress({ estimatedRows = 0, stage = 'uploading' 
               key={stageKey}
               className={`
                 w-2 h-2 rounded-full transition-all
-                ${isActive ? 'bg-primary-600 w-3 h-3' : isPast ? 'bg-primary-300' : 'bg-gray-300'}
+                ${isActive ? 'bg-primary-600 w-3 h-3' : isPast ? 'bg-primary-300' : 'bg-neutral-300'}
               `}
+              aria-hidden="true"
             />
           );
         })}

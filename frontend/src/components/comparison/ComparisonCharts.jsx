@@ -85,7 +85,7 @@ export default function ComparisonCharts({ data }) {
     <div className="space-y-6">
       {/* Income vs Expenses */}
       <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
+        <h2 className="text-lg font-semibold text-neutral-900 mb-4">
           Einnahmen vs. Ausgaben
         </h2>
         <ResponsiveContainer width="100%" height={300}>
@@ -103,7 +103,7 @@ export default function ComparisonCharts({ data }) {
 
       {/* Category Comparison */}
       <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
+        <h2 className="text-lg font-semibold text-neutral-900 mb-4">
           Top 10 Kategorien im Vergleich
         </h2>
         {categoryData.length > 0 ? (
@@ -119,7 +119,7 @@ export default function ComparisonCharts({ data }) {
             </BarChart>
           </ResponsiveContainer>
         ) : (
-          <div className="text-center py-12 text-gray-500">
+          <div className="text-center py-12 text-neutral-500">
             Keine Kategorie-Daten verfügbar
           </div>
         )}

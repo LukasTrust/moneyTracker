@@ -66,20 +66,20 @@ export default function CsvImportMapping({ accountId, onImportSuccess }) {
    */
   const loadExistingMappings = async () => {
     setIsLoadingMappings(true);
-    try {
-      const mappings = await mappingService.getMappings(accountId);
-      
-      if (mappings && mappings.length > 0) {
-        // Convert array to object
-        const mappingObj = {};
-        mappings.forEach((m) => {
-          mappingObj[m.standard_field] = m.csv_header;
-        });
-        
-        setExistingMapping(mappingObj);
-        setMapping(mappingObj);
-        // Set to read-only if mapping exists
-        setMappingEditable(false);
+              return (
+                <div key={field} className="border border-neutral-200 rounded-lg p-4 bg-neutral-50">
+                  <label className="block text-sm font-medium text-neutral-900 mb-2">
+                    <span className="mr-2">{getFieldIcon(field)}</span>
+                    {getFieldLabel(field)}
+                    <span className="text-neutral-400 ml-1 text-xs">(optional)</span>
+                    <span className="ml-2 text-xs text-neutral-500">🔒 Gesperrt</span>
+                  </label>
+                  <div className="mt-1 block w-full rounded-lg border-neutral-300 shadow-sm bg-neutral-100 px-3 py-2 text-sm text-neutral-700">
+                    {value}
+                  </div>
+                  <p className="mt-1 text-xs text-neutral-500">{FIELD_CONFIG[field]?.description}</p>
+                </div>
+              );
       } else {
         // No mapping exists, allow editing
         setExistingMapping(null);
@@ -277,8 +277,8 @@ export default function CsvImportMapping({ accountId, onImportSuccess }) {
     return (
       <div className="flex items-center justify-center p-12">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Lade Mapping-Konfiguration...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto" aria-hidden="true"></div>
+          <p className="mt-4 text-neutral-600">Lade Mapping-Konfiguration...</p>
         </div>
       </div>
     );
@@ -288,8 +288,8 @@ export default function CsvImportMapping({ accountId, onImportSuccess }) {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">CSV Import & Mapping</h2>
-        <p className="mt-2 text-gray-600">
+        <h2 className="text-2xl font-bold text-neutral-900">CSV Import & Mapping</h2>
+        <p className="mt-2 text-neutral-600">
           Laden Sie eine CSV-Datei hoch und ordnen Sie die Spalten den entsprechenden Feldern zu.
         </p>
       </div>
@@ -332,12 +332,12 @@ export default function CsvImportMapping({ accountId, onImportSuccess }) {
 
       {/* No Mapping Info (if no file uploaded and no existing mapping) */}
       {!existingMapping && !file && (
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+        <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4">
           <div className="flex items-start">
-            <span className="text-2xl mr-3">📋</span>
+            <span className="text-2xl mr-3" aria-hidden="true">📋</span>
             <div>
-              <h3 className="text-sm font-medium text-gray-900">Kein Mapping vorhanden</h3>
-              <p className="mt-1 text-sm text-gray-600">
+              <h3 className="text-sm font-medium text-neutral-900">Kein Mapping vorhanden</h3>
+              <p className="mt-1 text-sm text-neutral-600">
                 Für dieses Konto wurde noch keine Mapping-Konfiguration gespeichert.
                 Laden Sie eine CSV-Datei hoch, um ein neues Mapping zu erstellen.
               </p>
@@ -348,22 +348,22 @@ export default function CsvImportMapping({ accountId, onImportSuccess }) {
 
       {/* Read-Only Mapping View (when no file but existing mapping) */}
       {existingMapping && !file && !mappingEditable && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Aktuelle Zuordnung</h3>
+        <div className="bg-white rounded-lg shadow-sm border border-neutral-200 p-6">
+          <h3 className="text-lg font-semibold text-neutral-900 mb-4">Aktuelle Zuordnung</h3>
           
           <div className="space-y-4">
             {REQUIRED_FIELDS.map((field) => (
-              <div key={field} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                <label className="block text-sm font-medium text-gray-900 mb-2">
+              <div key={field} className="border border-neutral-200 rounded-lg p-4 bg-neutral-50">
+                <label className="block text-sm font-medium text-neutral-900 mb-2">
                   <span className="mr-2">{getFieldIcon(field)}</span>
                   {getFieldLabel(field)}
                   <span className="text-red-500 ml-1">*</span>
-                  <span className="ml-2 text-xs text-gray-500">🔒 Gesperrt</span>
+                  <span className="ml-2 text-xs text-neutral-500">🔒 Gesperrt</span>
                 </label>
-                <div className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm bg-gray-100 px-3 py-2 text-sm text-gray-700">
+                <div className="mt-1 block w-full rounded-lg border-neutral-300 shadow-sm bg-neutral-100 px-3 py-2 text-sm text-neutral-700">
                   {existingMapping[field] || '-'}
                 </div>
-                <p className="mt-1 text-xs text-gray-500">{FIELD_CONFIG[field]?.description}</p>
+                <p className="mt-1 text-xs text-neutral-500">{FIELD_CONFIG[field]?.description}</p>
               </div>
             ))}
 
@@ -372,17 +372,17 @@ export default function CsvImportMapping({ accountId, onImportSuccess }) {
               const value = existingMapping[field];
               if (!value) return null; // Skip if not mapped
               return (
-                <div key={field} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                  <label className="block text-sm font-medium text-gray-900 mb-2">
+                <div key={field} className="border border-neutral-200 rounded-lg p-4 bg-neutral-50">
+                  <label className="block text-sm font-medium text-neutral-900 mb-2">
                     <span className="mr-2">{getFieldIcon(field)}</span>
                     {getFieldLabel(field)}
-                    <span className="text-gray-400 ml-1 text-xs">(optional)</span>
-                    <span className="ml-2 text-xs text-gray-500">🔒 Gesperrt</span>
+                    <span className="text-neutral-400 ml-1 text-xs">(optional)</span>
+                    <span className="ml-2 text-xs text-neutral-500">🔒 Gesperrt</span>
                   </label>
-                  <div className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm bg-gray-100 px-3 py-2 text-sm text-gray-700">
+                  <div className="mt-1 block w-full rounded-lg border-neutral-300 shadow-sm bg-neutral-100 px-3 py-2 text-sm text-neutral-700">
                     {value}
                   </div>
-                  <p className="mt-1 text-xs text-gray-500">{FIELD_CONFIG[field]?.description}</p>
+                  <p className="mt-1 text-xs text-neutral-500">{FIELD_CONFIG[field]?.description}</p>
                 </div>
               );
             })}
@@ -398,12 +398,12 @@ export default function CsvImportMapping({ accountId, onImportSuccess }) {
 
       {/* Editable Mapping View (when no file but editing mode) */}
       {existingMapping && !file && mappingEditable && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white rounded-lg shadow-sm border border-neutral-200 p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Zuordnung bearbeiten</h3>
+            <h3 className="text-lg font-semibold text-neutral-900">Zuordnung bearbeiten</h3>
             <button
               onClick={() => setMappingEditable(false)}
-              className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+              className="px-3 py-1.5 text-sm font-medium text-neutral-700 bg-neutral-100 rounded-lg hover:bg-neutral-200"
             >
               ❌ Abbrechen
             </button>
@@ -417,8 +417,8 @@ export default function CsvImportMapping({ accountId, onImportSuccess }) {
           
           <div className="space-y-4">
             {REQUIRED_FIELDS.map((field) => (
-              <div key={field} className="border border-gray-200 rounded-lg p-4">
-                <label className="block text-sm font-medium text-gray-900 mb-2">
+              <div key={field} className="border border-neutral-200 rounded-lg p-4">
+                <label className="block text-sm font-medium text-neutral-900 mb-2">
                   <span className="mr-2">{getFieldIcon(field)}</span>
                   {getFieldLabel(field)}
                   <span className="text-red-500 ml-1">*</span>
@@ -428,28 +428,28 @@ export default function CsvImportMapping({ accountId, onImportSuccess }) {
                   value={mapping[field]}
                   onChange={(e) => handleMappingChange(field, e.target.value)}
                   placeholder="CSV-Spaltenname"
-                  className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                  className="mt-1 block w-full rounded-lg border-neutral-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
                 />
-                <p className="mt-1 text-xs text-gray-500">{FIELD_CONFIG[field]?.description}</p>
+                <p className="mt-1 text-xs text-neutral-500">{FIELD_CONFIG[field]?.description}</p>
               </div>
             ))}
 
             {/* Optional Fields Section */}
             {OPTIONAL_FIELDS.map((field) => (
-              <div key={field} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                <label className="block text-sm font-medium text-gray-900 mb-2">
+              <div key={field} className="border border-neutral-200 rounded-lg p-4 bg-neutral-50">
+                <label className="block text-sm font-medium text-neutral-900 mb-2">
                   <span className="mr-2">{getFieldIcon(field)}</span>
                   {getFieldLabel(field)}
-                  <span className="text-gray-400 ml-1 text-xs">(optional)</span>
+                  <span className="text-neutral-400 ml-1 text-xs">(optional)</span>
                 </label>
                 <input
                   type="text"
                   value={mapping[field]}
                   onChange={(e) => handleMappingChange(field, e.target.value)}
                   placeholder="CSV-Spaltenname (optional)"
-                  className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                  className="mt-1 block w-full rounded-lg border-neutral-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
                 />
-                <p className="mt-1 text-xs text-gray-500">{FIELD_CONFIG[field]?.description}</p>
+                <p className="mt-1 text-xs text-neutral-500">{FIELD_CONFIG[field]?.description}</p>
               </div>
             ))}
           </div>
@@ -457,8 +457,8 @@ export default function CsvImportMapping({ accountId, onImportSuccess }) {
       )}
 
       {/* File Upload Section */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">1. CSV-Datei auswählen</h3>
+      <div className="bg-white rounded-lg shadow-sm border border-neutral-200 p-6">
+        <h3 className="text-lg font-semibold text-neutral-900 mb-4">1. CSV-Datei auswählen</h3>
         
         <div className="flex items-center gap-4">
           <input
@@ -467,7 +467,7 @@ export default function CsvImportMapping({ accountId, onImportSuccess }) {
             accept=".csv"
             onChange={handleFileChange}
             disabled={isLoading}
-            className="block w-full text-sm text-gray-500
+            className="block w-full text-sm text-neutral-500
               file:mr-4 file:py-2 file:px-4
               file:rounded-lg file:border-0
               file:text-sm file:font-semibold
@@ -476,10 +476,10 @@ export default function CsvImportMapping({ accountId, onImportSuccess }) {
               disabled:opacity-50 disabled:cursor-not-allowed"
           />
           
-          {file && (
+            {file && (
             <button
               onClick={handleReset}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+              className="px-4 py-2 text-sm font-medium text-neutral-700 bg-white border border-neutral-300 rounded-lg hover:bg-neutral-50"
             >
               Zurücksetzen
             </button>
@@ -495,7 +495,7 @@ export default function CsvImportMapping({ accountId, onImportSuccess }) {
         )}
 
         {isLoading && (
-          <div className="mt-4 text-center text-gray-600">
+          <div className="mt-4 text-center text-neutral-600">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
             <p className="mt-2 text-sm">Analysiere CSV-Datei...</p>
           </div>
@@ -504,9 +504,9 @@ export default function CsvImportMapping({ accountId, onImportSuccess }) {
 
       {/* Mapping Configuration */}
       {file && previewData && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white rounded-lg shadow-sm border border-neutral-200 p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">
+            <h3 className="text-lg font-semibold text-neutral-900">
               2. Felder zuordnen
             </h3>
             {existingMapping && !mappingEditable && (
@@ -527,22 +527,22 @@ export default function CsvImportMapping({ accountId, onImportSuccess }) {
             </div>
           )}
 
-          <div className="space-y-4">
+            <div className="space-y-4">
             {REQUIRED_FIELDS.map((field) => (
-              <div key={field} className="border border-gray-200 rounded-lg p-4">
-                <label className="block text-sm font-medium text-gray-900 mb-2">
+              <div key={field} className="border border-neutral-200 rounded-lg p-4">
+                <label className="block text-sm font-medium text-neutral-900 mb-2">
                   <span className="mr-2">{getFieldIcon(field)}</span>
                   {getFieldLabel(field)}
                   <span className="text-red-500 ml-1">*</span>
                   {!mappingEditable && (
-                    <span className="ml-2 text-xs text-gray-500">🔒 Gesperrt</span>
+                    <span className="ml-2 text-xs text-neutral-500">🔒 Gesperrt</span>
                   )}
                 </label>
                 <select
                   value={mapping[field]}
                   onChange={(e) => handleMappingChange(field, e.target.value)}
                   disabled={!mappingEditable}
-                  className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  className="mt-1 block w-full rounded-lg border-neutral-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 disabled:bg-neutral-100 disabled:cursor-not-allowed"
                 >
                   <option value="">-- Bitte wählen --</option>
                   {csvHeaders.map((header) => (
@@ -551,7 +551,7 @@ export default function CsvImportMapping({ accountId, onImportSuccess }) {
                     </option>
                   ))}
                 </select>
-                <p className="mt-1 text-xs text-gray-500">{FIELD_CONFIG[field]?.description}</p>
+                <p className="mt-1 text-xs text-neutral-500">{FIELD_CONFIG[field]?.description}</p>
                 {validationErrors.includes(field) && (
                   <p className="mt-1 text-xs text-red-600">⚠️ Dieses Feld ist erforderlich</p>
                 )}
@@ -560,20 +560,20 @@ export default function CsvImportMapping({ accountId, onImportSuccess }) {
 
             {/* Optional Fields Section */}
             {OPTIONAL_FIELDS.map((field) => (
-              <div key={field} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                <label className="block text-sm font-medium text-gray-900 mb-2">
+              <div key={field} className="border border-neutral-200 rounded-lg p-4 bg-neutral-50">
+                <label className="block text-sm font-medium text-neutral-900 mb-2">
                   <span className="mr-2">{getFieldIcon(field)}</span>
                   {getFieldLabel(field)}
-                  <span className="text-gray-400 ml-1 text-xs">(optional)</span>
+                  <span className="text-neutral-400 ml-1 text-xs">(optional)</span>
                   {!mappingEditable && (
-                    <span className="ml-2 text-xs text-gray-500">🔒 Gesperrt</span>
+                    <span className="ml-2 text-xs text-neutral-500">🔒 Gesperrt</span>
                   )}
                 </label>
                 <select
                   value={mapping[field]}
                   onChange={(e) => handleMappingChange(field, e.target.value)}
                   disabled={!mappingEditable}
-                  className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  className="mt-1 block w-full rounded-lg border-neutral-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 disabled:bg-neutral-100 disabled:cursor-not-allowed"
                 >
                   <option value="">-- Nicht zuordnen --</option>
                   {csvHeaders.map((header) => (
@@ -582,7 +582,7 @@ export default function CsvImportMapping({ accountId, onImportSuccess }) {
                     </option>
                   ))}
                 </select>
-                <p className="mt-1 text-xs text-gray-500">{FIELD_CONFIG[field]?.description}</p>
+                <p className="mt-1 text-xs text-neutral-500">{FIELD_CONFIG[field]?.description}</p>
               </div>
             ))}
           </div>
@@ -602,29 +602,29 @@ export default function CsvImportMapping({ accountId, onImportSuccess }) {
 
       {/* Preview Section */}
       {file && previewData && previewData.sample_rows && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">3. Vorschau</h3>
+        <div className="bg_white rounded-lg shadow-sm border border-neutral-200 p-6">
+          <h3 className="text-lg font-semibold text-neutral-900 mb-4">3. Vorschau</h3>
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-neutral-200">
+              <thead className="bg-neutral-50">
                 <tr>
                   {previewData.headers.map((header, idx) => (
                     <th
                       key={idx}
-                      className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider"
                     >
                       {header}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white divide-y divide-neutral-200">
                 {previewData.sample_rows.slice(0, 5).map((row, rowIdx) => (
                   <tr key={rowIdx}>
                     {previewData.headers.map((header, colIdx) => (
                       <td
                         key={colIdx}
-                        className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap"
+                        className="px-4 py-3 text-sm text-neutral-900 whitespace-nowrap"
                       >
                         {row.data?.[header] || '-'}
                       </td>
@@ -634,7 +634,7 @@ export default function CsvImportMapping({ accountId, onImportSuccess }) {
               </tbody>
             </table>
           </div>
-          <p className="mt-3 text-xs text-gray-500">
+          <p className="mt-3 text-xs text-neutral-500">
             Zeige 5 von {previewData.total_rows} Zeilen
           </p>
         </div>
@@ -645,7 +645,7 @@ export default function CsvImportMapping({ accountId, onImportSuccess }) {
         <div className="flex items-center justify-end gap-4">
           <button
             onClick={handleReset}
-            className="px-6 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+            className="px-6 py-2 text-sm font-medium text-neutral-700 bg-white border border-neutral-300 rounded-lg hover:bg-neutral-50"
           >
             Abbrechen
           </button>

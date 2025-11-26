@@ -71,31 +71,31 @@ export default function ComparisonSummary({ data }) {
       {summaryCards.map((card, idx) => (
         <div key={idx} className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium text-gray-600">{card.title}</h3>
+            <h3 className="text-sm font-medium text-neutral-600">{card.title}</h3>
             <span className="text-2xl">{card.icon}</span>
           </div>
 
           <div className="space-y-3">
             {/* Period 1 */}
             <div>
-              <p className="text-xs text-gray-500">{period1.period_label}</p>
-              <p className="text-lg font-semibold text-gray-900">
+              <p className="text-xs text-neutral-500">{period1.period_label}</p>
+              <p className="text-lg font-semibold text-neutral-900">
                 {card.isCount ? card.value1 : formatCurrency(card.value1)}
               </p>
             </div>
 
             {/* Period 2 */}
             <div>
-              <p className="text-xs text-gray-500">{period2.period_label}</p>
-              <p className="text-lg font-semibold text-gray-900">
+              <p className="text-xs text-neutral-500">{period2.period_label}</p>
+              <p className="text-lg font-semibold text-neutral-900">
                 {card.isCount ? card.value2 : formatCurrency(card.value2)}
               </p>
             </div>
 
             {/* Difference */}
-            <div className="pt-3 border-t border-gray-200">
+            <div className="pt-3 border-t border-neutral-200">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-500">Veränderung:</span>
+                <span className="text-xs text-neutral-500">Veränderung:</span>
                 <div className="text-right">
                   <p className={`text-sm font-semibold ${getChangeColor(card.diff, card.isExpense)}`}>
                     {card.diff > 0 ? '+' : ''}

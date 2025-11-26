@@ -49,16 +49,16 @@ export default function Button({
   
   const variantClasses = {
     primary: `
-      bg-blue-600 text-white
-      hover:bg-blue-700 active:bg-blue-800
-      focus:ring-blue-500
-      disabled:bg-blue-400
+      bg-primary-600 text-white
+      hover:bg-primary-700 active:bg-primary-800
+      focus:ring-primary-500
+      disabled:bg-primary-400
     `,
     secondary: `
-      bg-gray-200 text-gray-900
-      hover:bg-gray-300 active:bg-gray-400
-      focus:ring-gray-500
-      disabled:bg-gray-100
+      bg-neutral-200 text-neutral-900
+      hover:bg-neutral-300 active:bg-neutral-400
+      focus:ring-neutral-500
+      disabled:bg-neutral-100
     `,
     danger: `
       bg-red-600 text-white
@@ -73,15 +73,15 @@ export default function Button({
       disabled:bg-green-400
     `,
     ghost: `
-      bg-transparent text-gray-700
-      hover:bg-gray-100 active:bg-gray-200
-      focus:ring-gray-400
+      bg-transparent text-neutral-700
+      hover:bg-neutral-100 active:bg-neutral-200
+      focus:ring-neutral-400
     `,
     outline: `
-      bg-transparent border-2 border-gray-300 text-gray-700
-      hover:border-gray-400 hover:bg-gray-50
-      active:bg-gray-100
-      focus:ring-gray-400
+      bg-transparent border-2 border-neutral-300 text-neutral-700
+      hover:border-neutral-400 hover:bg-neutral-50
+      active:bg-neutral-100
+      focus:ring-neutral-400
     `,
   };
 

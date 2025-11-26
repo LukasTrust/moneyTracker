@@ -49,19 +49,19 @@ export default function TransferBadge({
           ${sizeClasses[size]}
           ${directionStyle}
         `}
-        title={`Transfer ${direction === 'outgoing' ? 'zu' : 'von'} ${linkedAccountName || 'anderem Konto'}`}
+        title={`Überweisung ${direction === 'outgoing' ? 'zu' : 'von'} ${linkedAccountName || 'anderem Konto'}`}
       >
         {/* Icon based on direction */}
         <span className="text-base">
           {direction === 'outgoing' ? '→' : '←'}
         </span>
         
-        <span>Transfer</span>
+        <span>Überweisung</span>
         
         {/* Auto-detected indicator */}
         {transfer.is_auto_detected && (
           <span 
-            className="ml-0.5 text-gray-400"
+            className="ml-0.5 text-neutral-400"
             title={`Automatisch erkannt (${Math.round(transfer.confidence_score * 100)}% Sicherheit)`}
           >
             🔄
@@ -71,7 +71,7 @@ export default function TransferBadge({
 
       {/* Details (linked account) */}
       {showDetails && linkedAccountName && (
-        <span className="text-xs text-gray-500">
+        <span className="text-xs text-neutral-500">
           {direction === 'outgoing' ? '→' : '←'} {linkedAccountName}
         </span>
       )}
@@ -102,7 +102,7 @@ export function TransferIndicator({
         ${isOutgoing ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}
       `}
       style={{ width: size + 8, height: size + 8, fontSize: size }}
-      title={linkedAccountName ? `Transfer ${isOutgoing ? 'zu' : 'von'} ${linkedAccountName}` : `Transfer ${isOutgoing ? 'zu' : 'von'} anderem Konto`}
+      title={linkedAccountName ? `Überweisung ${isOutgoing ? 'zu' : 'von'} ${linkedAccountName}` : `Überweisung ${isOutgoing ? 'zu' : 'von'} anderem Konto`}
     >
       🔄
     </div>

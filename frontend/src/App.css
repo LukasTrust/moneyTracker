@@ -33,7 +33,8 @@
 }
 
 .card {
-  padding: 2em;
+  /* Legacy rule removed: card styles are now provided by `src/index.css` (design tokens)
+     to avoid conflicting paddings/shadows across components. */
 }
 
 .read-the-docs {

@@ -48,7 +48,7 @@ export default function TransferManagementPage() {
       setTransfers(list);
       setTotal(list.length);
     } catch (error) {
-      showToast('Failed to load transfers', 'error');
+      showToast('Fehler beim Laden der Überweisungen', 'error');
       console.error('Error loading transfers:', error);
     } finally {
       setLoading(false);
@@ -70,11 +70,11 @@ export default function TransferManagementPage() {
       });
       
       showToast(
-        `Found ${result.total_found} potential transfer${result.total_found !== 1 ? 's' : ''}`,
+        `${result.total_found} möglicher Treffer${result.total_found !== 1 ? 'n' : ''} gefunden`,
         'success'
       );
     } catch (error) {
-      showToast('Failed to detect transfers', 'error');
+      showToast('Fehler bei der Erkennung von Überweisungen', 'error');
       console.error('Error detecting transfers:', error);
     } finally {
       setDetecting(false);
@@ -100,9 +100,9 @@ export default function TransferManagementPage() {
       // Reload transfers
       await loadTransfers();
       
-      showToast('Transfer created successfully', 'success');
+      showToast('Überweisung erfolgreich erstellt', 'success');
     } catch (error) {
-      showToast('Failed to create transfer', 'error');
+      showToast('Fehler beim Erstellen der Überweisung', 'error');
       console.error('Error creating transfer:', error);
     }
   };
@@ -118,9 +118,9 @@ export default function TransferManagementPage() {
     try {
       await deleteTransfer(confirmTarget);
       await loadTransfers();
-      showToast('Transfer deleted successfully', 'success');
+      showToast('Überweisung erfolgreich entfernt', 'success');
     } catch (error) {
-      showToast('Failed to delete transfer', 'error');
+      showToast('Fehler beim Entfernen der Überweisung', 'error');
       console.error('Error deleting transfer:', error);
     } finally {
       setConfirmTarget(null);
@@ -139,17 +139,19 @@ export default function TransferManagementPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Transfer Management</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Transfers verwalten</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Manage inter-account transfers to keep your statistics accurate
+            Überweisungen zwischen Konten ansehen und verwalten, um Ihre Auswertungen korrekt zu halten
           </p>
         </div>
         <Button
           onClick={handleDetect}
           disabled={detecting}
           leftIcon={detecting ? <span className="animate-spin">⟳</span> : <span>✨</span>}
+          title="Sucht mögliche Überweisungen zwischen Konten"
+          aria-label="Transfers automatisch erkennen"
         >
-          {detecting ? 'Detecting...' : 'Auto-Detect Transfers'}
+          {detecting ? 'Erkenne...' : 'Automatisch erkennen'}
         </Button>
       </div>
 
@@ -157,29 +159,29 @@ export default function TransferManagementPage() {
       <Card padding="md">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="text-center">
-            <div className="text-3xl font-bold text-blue-600">{transfers.length}</div>
-            <div className="text-sm text-gray-600">Active Transfers</div>
+            <div className="text-3xl font-bold text-primary-600">{transfers.length}</div>
+            <div className="text-sm text-gray-600">Verknüpfte Überweisungen</div>
           </div>
           <div className="text-center">
             <div className="text-3xl font-bold text-green-600">
               {transfers.filter(t => t.is_auto_detected).length}
             </div>
-            <div className="text-sm text-gray-600">Auto-Detected</div>
+            <div className="text-sm text-gray-600">Automatisch erkannt</div>
           </div>
           <div className="text-center">
-            <div className="text-3xl font-bold text-orange-600">
+            <div className="text-3xl font-bold text-accent-600">
               {candidates.length}
             </div>
-            <div className="text-sm text-gray-600">Potential Matches</div>
+            <div className="text-sm text-gray-600">Mögliche Treffer</div>
           </div>
         </div>
       </Card>
 
       {/* Confirm Delete Modal */}
       {confirmOpen && (
-        <Modal isOpen={confirmOpen} onClose={handleCancelConfirmDelete} title="Transfer löschen">
+        <Modal isOpen={confirmOpen} onClose={handleCancelConfirmDelete} title="Überweisung löschen">
           <div className="space-y-4">
-            <p>Transfer wirklich entkoppeln?</p>
+            <p>Möchten Sie diese Überweisung wirklich entkoppeln?</p>
             <div className="flex justify-end gap-3 pt-4">
               <button onClick={handleCancelConfirmDelete} className="px-4 py-2 rounded-lg border">Abbrechen</button>
               <button onClick={handleConfirmDelete} className="px-4 py-2 bg-red-600 text-white rounded-lg">Entkoppeln</button>
@@ -191,8 +193,8 @@ export default function TransferManagementPage() {
       {/* Candidates Section */}
       {candidates.length > 0 && (
         <Card 
-          title="Potential Transfers" 
-          subtitle={`${candidates.length} potential transfer${candidates.length !== 1 ? 's' : ''} detected`}
+          title="Mögliche Überweisungen" 
+          subtitle={`${candidates.length} möglicher Treffer${candidates.length !== 1 ? 'n' : ''} gefunden`}
         >
           <div className="space-y-3">
             {candidates.map((candidate, index) => (
@@ -209,8 +211,8 @@ export default function TransferManagementPage() {
 
       {/* Existing Transfers */}
       <Card 
-        title="Active Transfers"
-        subtitle={`${total} linked transfer${total !== 1 ? 's' : ''}`}
+        title="Verknüpfte Überweisungen"
+        subtitle={`${total} verknüpfte Überweisung${total !== 1 ? 'en' : ''}`}
       >
         {/* Pagination above the list */}
         <Pagination
@@ -239,12 +241,12 @@ export default function TransferManagementPage() {
         ) : transfers.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             <div className="text-5xl mb-3 opacity-50">🔄</div>
-            <p>No transfers found</p>
-            <p className="text-sm mt-1">Use Auto-Detect to find potential transfers</p>
+            <p>Keine Überweisungen gefunden</p>
+            <p className="text-sm mt-1">Nutzen Sie „Automatisch erkennen“, um mögliche Überweisungen zu finden</p>
           </div>
         ) : (
           <div className={`space-y-3 transition-opacity duration-200`} key={`transfers-page-${page}`}>
-            {transfers.slice((page - 1) * limit, page * limit).map((transfer) => (
+              {transfers.slice((page - 1) * limit, page * limit).map((transfer) => (
               <TransferRow
                 key={transfer.id}
                 transfer={transfer}
@@ -269,12 +271,12 @@ function CandidateRow({ candidate, onAccept, onReject }) {
     'text-orange-600';
 
   return (
-    <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-lg">
+    <div className="flex items-center justify-between p-4 bg-primary-50 border border-primary-200 rounded-lg">
       <div className="flex-1 grid grid-cols-3 gap-4 items-center">
         {/* From Transaction */}
         <div className="text-sm">
           <div className="font-medium text-gray-900">
-            {candidate.from_transaction.recipient || 'Unknown'}
+            {candidate.from_transaction.recipient || 'Unbekannt'}
           </div>
           <div className="text-gray-600">
             {new Date(candidate.from_transaction.date).toLocaleDateString()}
@@ -289,14 +291,14 @@ function CandidateRow({ candidate, onAccept, onReject }) {
           <div className="text-2xl text-blue-600 mb-1">→</div>
           <div className="text-sm font-semibold">{candidate.amount.toFixed(2)} €</div>
           <div className={`text-xs ${confidenceColor}`}>
-            {confidence}% match
+            {confidence}% Übereinstimmung
           </div>
         </div>
 
         {/* To Transaction */}
         <div className="text-sm text-right">
           <div className="font-medium text-gray-900">
-            {candidate.to_transaction.recipient || 'Unknown'}
+            {candidate.to_transaction.recipient || 'Unbekannt'}
           </div>
           <div className="text-gray-600">
             {new Date(candidate.to_transaction.date).toLocaleDateString()}
@@ -308,24 +310,26 @@ function CandidateRow({ candidate, onAccept, onReject }) {
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-2 ml-4">
+        <div className="flex items-center gap-2 ml-4">
         <Button
           size="sm"
           variant="success"
           onClick={onAccept}
-          leftIcon={<span>✓</span>}
-          title="Create transfer"
-        >
-          Link
+            leftIcon={<span>✓</span>}
+            title="Überweisung erstellen und verknüpfen"
+            aria-label="Verknüpfen"
+          >
+          Verknüpfen
         </Button>
         <Button
           size="sm"
           variant="ghost"
           onClick={onReject}
-          leftIcon={<span>✕</span>}
-          title="Ignore this match"
-        >
-          Ignore
+            leftIcon={<span>✕</span>}
+            title="Treffer ignorieren"
+            aria-label="Ignorieren"
+          >
+          Ignorieren
         </Button>
       </div>
     </div>
@@ -342,10 +346,10 @@ function TransferRow({ transfer, onDelete }) {
         {/* From Transaction */}
         <div className="text-sm">
           <div className="font-medium text-gray-900">
-            {transfer.from_account_name || 'Unknown Account'}
+            {transfer.from_account_name || 'Unbekanntes Konto'}
           </div>
           <div className="text-gray-600">
-            {transfer.from_transaction?.recipient || 'Unknown'}
+            {transfer.from_transaction?.recipient || 'Unbekannt'}
           </div>
           <div className="text-red-600 font-semibold">
             -{Math.abs(transfer.amount).toFixed(2)} €
@@ -359,9 +363,9 @@ function TransferRow({ transfer, onDelete }) {
             {new Date(transfer.transfer_date).toLocaleDateString()}
           </div>
           {transfer.is_auto_detected && (
-            <div className="text-xs text-blue-600 flex items-center justify-center gap-1">
+            <div className="text-xs text-primary-600 flex items-center justify-center gap-1">
               <span>✨</span>
-              <span>Auto</span>
+              <span>Automatisch</span>
             </div>
           )}
         </div>
@@ -369,7 +373,7 @@ function TransferRow({ transfer, onDelete }) {
         {/* To Transaction */}
         <div className="text-sm text-right">
           <div className="font-medium text-gray-900">
-            {transfer.to_account_name || 'Unknown Account'}
+            {transfer.to_account_name || 'Unbekanntes Konto'}
           </div>
           <div className="text-gray-600">
             {transfer.to_transaction?.recipient || 'Unknown'}
@@ -381,15 +385,16 @@ function TransferRow({ transfer, onDelete }) {
       </div>
 
       {/* Actions */}
-      <div className="ml-4">
+        <div className="ml-4">
         <Button
           size="sm"
           variant="danger"
           onClick={onDelete}
           leftIcon={<span>🗑️</span>}
-          title="Unlink transfer"
+          title="Überweisung entkoppeln"
+          aria-label="Entkoppeln"
         >
-          Unlink
+          Entkoppeln
         </Button>
       </div>
     </div>

@@ -10,8 +10,17 @@
 }
 
 @layer components {
+  :root {
+    --radius-md: 0.5rem;
+    --radius-lg: 1rem;
+    --shadow-soft: 0 6px 18px rgba(15, 23, 42, 0.08);
+    --shadow-card: 0 4px 12px rgba(2,6,23,0.06);
+  }
+
   .card {
-    @apply bg-white rounded-lg shadow-md p-6;
+    @apply bg-white p-6;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
   }
   
   .btn {
@@ -60,5 +69,48 @@
   select:disabled,
   .select:disabled {
     @apply bg-gray-100 text-gray-500;
+  }
+
+  /* Accessibility helpers */
+  .sr-only {
+    position: absolute !important;
+    height: 1px; width: 1px;
+    overflow: hidden;
+    clip: rect(1px, 1px, 1px, 1px);
+    white-space: nowrap;
+  }
+
+  /* Visible focus for keyboard users */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+  :focus-visible {
+    outline: 2px solid transparent;
+    box-shadow: 0 0 0 4px rgba(14,165,233,0.12);
+    border-radius: var(--radius-md);
+  }
+
+  /* Tooltip (simple) */
+  .tooltip {
+    position: relative; display: inline-block;
+  }
+  .tooltip .tooltip-inner {
+    position: absolute;
+    bottom: calc(100% + 0.5rem);
+    left: 50%; transform: translateX(-50%);
+    @apply bg-neutral-900 text-white text-xs px-2 py-1 rounded;
+    white-space: nowrap;
+    box-shadow: var(--shadow-soft);
+    opacity: 0; pointer-events: none; transition: opacity .15s ease;
+    z-index: 50;
+  }
+  .tooltip:hover .tooltip-inner,
+  .tooltip:focus-within .tooltip-inner {
+    opacity: 1; pointer-events: auto;
+  }
+
+  /* Info box for explanations */
+  .info-box {
+    @apply bg-gray-50 border border-gray-200 p-3 rounded-md text-sm text-gray-700;
   }
 }

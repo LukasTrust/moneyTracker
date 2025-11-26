@@ -130,8 +130,8 @@ export default function ImportHistory({ accountId, onRollbackSuccess, refreshTri
 
   if (imports.length === 0) {
     return (
-      <div className="text-center py-12 text-gray-500">
-        <p className="text-lg mb-2">📋 Keine Imports gefunden</p>
+      <div className="text-center py-12 text-neutral-500">
+        <p className="text-lg mb-2"><span aria-hidden="true">📋</span> Keine Imports gefunden</p>
         <p className="text-sm">
           Importiere CSV-Dateien, um hier eine Historie zu sehen
         </p>
@@ -143,7 +143,7 @@ export default function ImportHistory({ accountId, onRollbackSuccess, refreshTri
     <div className="space-y-4">
       {/* Header */}
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">
+        <h3 className="text-lg font-semibold text-neutral-900">
           Import-Historie ({imports.length})
         </h3>
         <Button onClick={loadImportHistory} variant="secondary" size="sm">
@@ -167,36 +167,36 @@ export default function ImportHistory({ accountId, onRollbackSuccess, refreshTri
         {loading
           ? // Skeleton placeholders while loading
             Array.from({ length: Math.min(limit, 6) }).map((_, i) => (
-              <div key={`skeleton-${i}`} className="bg-white border border-gray-200 rounded-lg p-4 animate-pulse">
-                <div className="h-4 bg-gray-200 rounded w-1/3 mb-3"></div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-3 pt-3 border-t border-gray-100">
-                  <div className="h-6 bg-gray-200 rounded"></div>
-                  <div className="h-6 bg-gray-200 rounded"></div>
-                  <div className="h-6 bg-gray-200 rounded"></div>
-                  <div className="h-6 bg-gray-200 rounded"></div>
+              <div key={`skeleton-${i}`} className="bg-white border border-neutral-200 rounded-lg p-4 animate-pulse">
+                <div className="h-4 bg-neutral-200 rounded w-1/3 mb-3"></div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-3 pt-3 border-t border-neutral-100">
+                  <div className="h-6 bg-neutral-200 rounded"></div>
+                  <div className="h-6 bg-neutral-200 rounded"></div>
+                  <div className="h-6 bg-neutral-200 rounded"></div>
+                  <div className="h-6 bg-neutral-200 rounded"></div>
                 </div>
               </div>
             ))
           : imports.map((importItem) => (
           <div
             key={importItem.id}
-            className={`bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow transition-opacity duration-200 ${""}`}
+            className={`bg-white border border-neutral-200 rounded-lg p-4 hover:shadow-md transition-shadow transition-opacity duration-200 ${""}`} 
           >
             {/* Header Row */}
             <div className="flex justify-between items-start mb-3">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-base font-semibold text-gray-900">
-                    📄 {importItem.filename}
+                  <span className="text-base font-semibold text-neutral-900">
+                    <span aria-hidden="true">📄</span> {importItem.filename}
                   </span>
                   {getStatusBadge(importItem.status)}
                 </div>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-neutral-600">
                   {format(new Date(importItem.uploaded_at), 'dd. MMM yyyy, HH:mm', {
                     locale: de,
                   })}
                   {importItem.account_name && (
-                    <span className="ml-2 text-gray-500">
+                    <span className="ml-2 text-neutral-500">
                       • {importItem.account_name}
                     </span>
                   )}
@@ -227,10 +227,10 @@ export default function ImportHistory({ accountId, onRollbackSuccess, refreshTri
             </div>
 
             {/* Statistics Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-3 pt-3 border-t border-gray-100">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-3 pt-3 border-t border-neutral-100">
               {/* Imported Rows */}
               <div>
-                <p className="text-xs text-gray-500 mb-1">Importiert</p>
+                <p className="text-xs text-neutral-500 mb-1">Importiert</p>
                 <p className="text-lg font-semibold text-green-600">
                   {importItem.rows_inserted}
                 </p>
@@ -238,7 +238,7 @@ export default function ImportHistory({ accountId, onRollbackSuccess, refreshTri
 
               {/* Duplicates */}
               <div>
-                <p className="text-xs text-gray-500 mb-1">Duplikate</p>
+                <p className="text-xs text-neutral-500 mb-1">Duplikate</p>
                 <p className="text-lg font-semibold text-yellow-600">
                   {importItem.rows_duplicated}
                 </p>
@@ -246,7 +246,7 @@ export default function ImportHistory({ accountId, onRollbackSuccess, refreshTri
 
               {/* Current Count */}
               <div>
-                <p className="text-xs text-gray-500 mb-1">Aktuell</p>
+                <p className="text-xs text-neutral-500 mb-1">Aktuell</p>
                 <p className="text-lg font-semibold text-blue-600">
                   {importItem.current_row_count}
                 </p>
@@ -254,7 +254,7 @@ export default function ImportHistory({ accountId, onRollbackSuccess, refreshTri
 
               {/* Total Amount */}
               <div>
-                <p className="text-xs text-gray-500 mb-1">Summe</p>
+                <p className="text-xs text-neutral-500 mb-1">Summe</p>
                 <p
                   className={`text-lg font-semibold ${
                     parseFloat(importItem.total_income) +

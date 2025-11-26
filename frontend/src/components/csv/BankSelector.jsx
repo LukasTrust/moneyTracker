@@ -89,23 +89,23 @@ export default function BankSelector({
   };
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-6">
+    <div className="bg-white rounded-lg border border-neutral-200 p-6">
       <div className="space-y-4">
         {/* Header */}
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">
-            🏦 Bank auswählen
+          <h3 className="text-lg font-semibold text-neutral-900">
+            <span aria-hidden="true">🏦</span> Bank auswählen
           </h3>
-          <p className="text-sm text-gray-600 mt-1">
+          <p className="text-sm text-neutral-600 mt-1">
             Wählen Sie Ihre Bank für vorkonfigurierte Mappings
           </p>
         </div>
 
         {/* Auto-Detection Result */}
         {isDetecting && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4" role="status" aria-live="polite">
             <div className="flex items-center gap-3">
-              <div className="animate-spin h-5 w-5 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+              <div className="animate-spin h-5 w-5 border-2 border-blue-600 border-t-transparent rounded-full" aria-hidden="true"></div>
               <span className="text-sm text-blue-700">
                 Erkenne Bank automatisch...
               </span>
@@ -116,12 +116,12 @@ export default function BankSelector({
         {detectedBank && (
           <div className="bg-green-50 border border-green-200 rounded-lg p-4">
             <div className="flex items-center gap-3">
-              <svg className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
               <div className="flex-1">
                 <p className="text-sm font-medium text-green-900">
-                  ✅ {detectedBank.bank_name} erkannt
+                  <span aria-hidden="true">✅</span> {detectedBank.bank_name} erkannt
                 </p>
                 <p className="text-xs text-green-700 mt-1">
                   {detectedBank.bank_description}
@@ -134,7 +134,7 @@ export default function BankSelector({
         {!isDetecting && !detectedBank && csvFile && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
             <div className="flex items-center gap-3">
-              <svg className="h-5 w-5 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="h-5 w-5 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
               <div className="flex-1">
@@ -151,14 +151,14 @@ export default function BankSelector({
 
         {/* Bank Dropdown */}
         <div>
-          <label htmlFor="bank-select" className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="bank-select" className="block text-sm font-medium text-neutral-700 mb-2">
             Bank wählen
           </label>
           <select
             id="bank-select"
             value={selectedBank}
             onChange={(e) => handleBankSelect(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             disabled={loading}
           >
             <option value="">-- Bitte wählen --</option>
@@ -171,7 +171,7 @@ export default function BankSelector({
           </select>
           
           {selectedBank && selectedBank !== 'manual' && (
-            <p className="text-xs text-gray-500 mt-2">
+            <p className="text-xs text-neutral-500 mt-2">
               {banks.find(b => b.id === selectedBank)?.description}
             </p>
           )}
@@ -179,8 +179,8 @@ export default function BankSelector({
 
         {/* Manual Mapping Note */}
         {selectedBank === 'manual' && (
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-            <p className="text-sm text-gray-700">
+          <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4">
+            <p className="text-sm text-neutral-700">
               <strong>Manuelles Mapping:</strong> Sie können die CSV-Spalten manuell zuordnen.
             </p>
           </div>

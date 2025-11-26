@@ -92,13 +92,13 @@ export default function ComparisonView({ accountId }) {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {/* Comparison Type */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-neutral-700 mb-2">
                 Vergleichstyp
               </label>
               <select
                 value={comparisonType}
                 onChange={(e) => setComparisonType(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="month">Monat</option>
                 <option value="year">Jahr</option>
@@ -107,13 +107,13 @@ export default function ComparisonView({ accountId }) {
 
             {/* Period 1 */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-neutral-700 mb-2">
                 Zeitraum 1
               </label>
               <select
                 value={period1}
                 onChange={(e) => setPeriod1(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Bitte wählen...</option>
                 {periodOptions.map((opt) => (
@@ -126,13 +126,13 @@ export default function ComparisonView({ accountId }) {
 
             {/* Period 2 */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-neutral-700 mb-2">
                 Zeitraum 2
               </label>
               <select
                 value={period2}
                 onChange={(e) => setPeriod2(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Bitte wählen...</option>
                 {periodOptions.map((opt) => (
@@ -183,7 +183,7 @@ export default function ComparisonView({ accountId }) {
         </div>
       ) : (
         <div className="bg-white rounded-lg shadow p-12 text-center">
-          <p className="text-gray-500">
+          <p className="text-neutral-500">
             Wähle zwei Zeiträume aus, um sie zu vergleichen
           </p>
         </div>

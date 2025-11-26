@@ -30,15 +30,15 @@ export default function AccountList() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Meine Konten</h1>
-          <p className="text-sm text-gray-600 mt-1">
+          <h1 className="text-3xl font-bold text-neutral-900">Meine Konten</h1>
+          <p className="text-sm text-neutral-600 mt-1">
             {accounts.length === 0 
               ? 'Erstellen Sie Ihr erstes Konto, um zu beginnen'
               : `${accounts.length} ${accounts.length === 1 ? 'Konto' : 'Konten'} verwaltet`
             }
           </p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)}>
+        <Button onClick={() => setIsModalOpen(true)} title="Neues Konto hinzufügen" aria-label="Neues Konto hinzufügen">
           <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
@@ -56,11 +56,11 @@ export default function AccountList() {
 
       {/* Accounts Grid or Empty State */}
       {accounts.length === 0 ? (
-        <div className="bg-white rounded-xl border-2 border-dashed border-gray-300 p-12">
+        <div className="bg-white rounded-xl border-2 border-dashed border-neutral-300 p-12">
           <div className="text-center">
             <div className="mx-auto w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
               <svg
-                className="h-10 w-10 text-gray-400"
+                className="h-10 w-10 text-neutral-400"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -73,9 +73,9 @@ export default function AccountList() {
                 />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Keine Konten vorhanden</h3>
-            <p className="text-sm text-gray-600 mb-6 max-w-md mx-auto">
-              Erstellen Sie Ihr erstes Konto, um Ihre Finanzen zu verwalten und Transaktionen zu tracken.
+            <h3 className="text-lg font-semibold text-neutral-900 mb-2">Keine Konten vorhanden</h3>
+            <p className="text-sm text-neutral-600 mb-6 max-w-md mx-auto">
+              Erstellen Sie Ihr erstes Konto, um Ihre Finanzen zu verwalten und Transaktionen zu erfassen.
             </p>
             <Button onClick={() => setIsModalOpen(true)} size="lg">
               <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">

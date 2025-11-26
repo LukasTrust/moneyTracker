@@ -203,33 +203,34 @@ function AccountSettings({ account }) {
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-gray-900">Account-Informationen</h3>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <h3 className="text-lg font-semibold text-neutral-900">Account-Informationen</h3>
             {/* ID */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
                 Account-ID
               </label>
-              <p className="text-sm text-gray-900 font-mono bg-gray-50 px-3 py-2 rounded">
+                <p className="text-sm text-neutral-900 font-mono bg-neutral-50 px-3 py-2 rounded">
                 #{account.id}
               </p>
             </div>
 
             {/* Währung */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
                 Währung
               </label>
-              <p className="text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded">
+                <p className="text-sm text-neutral-900 bg-neutral-50 px-3 py-2 rounded">
                 {account.currency}
               </p>
             </div>
 
             {/* Startguthaben */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
                 Startguthaben
               </label>
-              <p className="text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded">
+                <p className="text-sm text-neutral-900 bg-neutral-50 px-3 py-2 rounded">
                 {parseFloat(account.initial_balance || 0).toLocaleString('de-DE', {
                   style: 'currency',
                   currency: account.currency || 'EUR'
@@ -240,10 +241,10 @@ function AccountSettings({ account }) {
             {/* Erstellt am */}
             {account.created_at && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">
                   Erstellt am
                 </label>
-                <p className="text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded">
+                  <p className="text-sm text-neutral-900 bg-neutral-50 px-3 py-2 rounded">
                   {new Date(account.created_at).toLocaleDateString('de-DE', {
                     year: 'numeric',
                     month: 'long',
@@ -256,10 +257,10 @@ function AccountSettings({ account }) {
             {/* Letzte Änderung */}
             {account.updated_at && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">
                   Zuletzt geändert
                 </label>
-                <p className="text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded">
+                  <p className="text-sm text-neutral-900 bg-neutral-50 px-3 py-2 rounded">
                   {new Date(account.updated_at).toLocaleDateString('de-DE', {
                     year: 'numeric',
                     month: 'long',
@@ -288,9 +289,9 @@ function AccountSettings({ account }) {
       <Card>
         <div className="space-y-4">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Account umbenennen</h3>
-            <p className="text-sm text-gray-600 mt-1">
-              Ändern Sie den Namen dieses Accounts
+            <h3 className="text-lg font-semibold text-neutral-900">Account umbenennen</h3>
+            <p className="text-sm text-neutral-600 mt-1">
+              Ändern Sie den Namen dieses Kontos
             </p>
           </div>
 
@@ -312,6 +313,8 @@ function AccountSettings({ account }) {
                 <Button
                   onClick={handleRename}
                   disabled={isSaving || !newName.trim()}
+                  title="Namen speichern"
+                  aria-label="Namen speichern"
                 >
                   {isSaving ? 'Speichert...' : 'Speichern'}
                 </Button>
@@ -319,6 +322,8 @@ function AccountSettings({ account }) {
                   variant="ghost"
                   onClick={handleCancel}
                   disabled={isSaving}
+                  title="Umbenennung abbrechen"
+                  aria-label="Umbenennung abbrechen"
                 >
                   Abbrechen
                 </Button>
@@ -345,8 +350,8 @@ function AccountSettings({ account }) {
       <Card>
         <div className="space-y-4">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Startguthaben bearbeiten</h3>
-            <p className="text-sm text-gray-600 mt-1">
+            <h3 className="text-lg font-semibold text-neutral-900">Startguthaben bearbeiten</h3>
+            <p className="text-sm text-neutral-600 mt-1">
               Ändern Sie das Startguthaben für dieses Konto. Dies beeinflusst alle Berechnungen.
             </p>
           </div>
@@ -372,6 +377,8 @@ function AccountSettings({ account }) {
                 <Button
                   onClick={handleBalanceUpdate}
                   disabled={isSavingBalance}
+                  title="Startguthaben speichern"
+                  aria-label="Startguthaben speichern"
                 >
                   {isSavingBalance ? 'Speichert...' : 'Speichern'}
                 </Button>
@@ -379,6 +386,8 @@ function AccountSettings({ account }) {
                   variant="ghost"
                   onClick={handleBalanceCancel}
                   disabled={isSavingBalance}
+                  title="Änderung abbrechen"
+                  aria-label="Änderung abbrechen"
                 >
                   Abbrechen
                 </Button>
@@ -408,10 +417,10 @@ function AccountSettings({ account }) {
 
       {/* Delete Account */}
       <Card>
-        <div className="space-y-4">
+          <div className="space-y-4">
           <div>
-            <h3 className="text-lg font-semibold text-red-900">Danger Zone</h3>
-            <p className="text-sm text-gray-600 mt-1">
+            <h3 className="text-lg font-semibold text-red-900">Gefahrenbereich</h3>
+            <p className="text-sm text-neutral-600 mt-1">
               Irreversible Aktionen - Vorsicht geboten!
             </p>
           </div>
@@ -474,7 +483,7 @@ function AccountSettings({ account }) {
             </div>
           </div>
 
-          <div className="bg-gray-50 rounded-lg p-4">
+          <div className="bg-neutral-50 rounded-lg p-4">
             <p className="text-sm text-gray-700">
               Bitte geben Sie zur Bestätigung den Account-Namen ein:
             </p>
@@ -486,7 +495,8 @@ function AccountSettings({ account }) {
               value={confirmName}
               onChange={(e) => setConfirmName(e.target.value)}
               placeholder="Account-Name eingeben"
-              className="mt-2 w-full px-3 py-2 border rounded focus:outline-none"
+              className="mt-2 w-full px-3 py-2 border rounded focus:outline-none input"
+              aria-label="Bestätigungsname"
             />
             <p className="text-sm font-mono text-gray-700 mt-2 bg-white px-2 py-1 rounded">
               Zu löschender Account: <span className="font-semibold">{account.name}</span>

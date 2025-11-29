@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Card from '../common/Card';
+import dataService from '../../services/dataService';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 
@@ -9,6 +10,7 @@ import { de } from 'date-fns/locale';
  */
 export default function AccountCard({ account }) {
   const navigate = useNavigate();
+  const [balance, setBalance] = useState(null);
 
   const handleClick = () => {
     navigate(`/accounts/${account.id}`);
@@ -43,6 +45,33 @@ export default function AccountCard({ account }) {
   const accountIcon = getAccountIcon();
   const accountColor = getAccountColor();
 
+  const formatCurrency = (value) => {
+    try {
+      return new Intl.NumberFormat('de-DE', { style: 'currency', currency: account.currency || 'EUR' }).format(Number(value));
+    } catch (e) {
+      return `${currencySymbols[account.currency] || account.currency || ''} ${Number(value || 0).toFixed(2)}`;
+    }
+  };
+
+  useEffect(() => {
+    let mounted = true;
+    const loadSummary = async () => {
+      try {
+        const summary = await dataService.getSummary(account.id);
+        if (mounted) {
+          // backend returns { current_balance, ... }
+          setBalance(summary?.current_balance ?? null);
+        }
+      } catch (err) {
+        // Silently ignore errors here; list shows accounts even if summary fails
+        if (mounted) setBalance(null);
+      }
+    };
+
+    loadSummary();
+    return () => { mounted = false; };
+  }, [account.id]);
+
   return (
     <Card 
       hoverable
@@ -72,6 +101,16 @@ export default function AccountCard({ account }) {
                 <p className="text-sm text-neutral-600 mt-1 line-clamp-2">{account.description}</p>
               )}
             </div>
+
+            <div className="flex flex-col items-end justify-center mr-2">
+              <span className={`text-sm ${balance !== null && balance < 0 ? 'text-orange-600' : 'text-neutral-500'}`}>
+                {balance === null ? '' : 'Kontostand'}
+              </span>
+              <span className={`text-lg font-semibold ${balance !== null && balance >= 0 ? 'text-blue-900' : balance !== null ? 'text-orange-900' : 'text-neutral-700'}`}>
+                {balance === null ? '—' : formatCurrency(balance)}
+              </span>
+            </div>
+
             <svg className="h-5 w-5 text-neutral-400 flex-shrink-0 mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>

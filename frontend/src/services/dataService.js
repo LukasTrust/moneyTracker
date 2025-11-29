@@ -46,7 +46,7 @@ export const dataService = {
   },
 
   /**
-   * Zusammenfassung für ein Konto (Einnahmen, Ausgaben, Saldo)
+  * Zusammenfassung für ein Konto (Einnahmen, Ausgaben, Aktueller Kontostand)
    */
   async getSummary(accountId, params = {}) {
     const { fromDate, toDate, categoryIds, minAmount, maxAmount, recipient, purpose, transactionType } = params;

@@ -299,7 +299,7 @@ function CategoriesTab({ accountId, currency = 'EUR' }) {
 
               <Card>
                 <div className="text-center">
-                  <p className="text-sm text-gray-600 mb-1">Saldo</p>
+                  <p className="text-sm text-gray-600 mb-1">Aktueller Kontostand</p>
                   <p className={`text-2xl font-bold ${stats.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                     {new Intl.NumberFormat('de-DE', {
                       style: 'currency',

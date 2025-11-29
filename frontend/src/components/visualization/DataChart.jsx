@@ -101,14 +101,14 @@ export default function DataChart({ data, type = 'line', title, currency = 'EUR'
             />
           )}
           
-          {/* Saldo */}
+          {/* Aktueller Kontostand */}
           {data[0]?.balance !== undefined && (
             <DataComponent
               type="monotone"
               dataKey="balance"
               stroke="#3b82f6"
               fill="#3b82f6"
-              name="Saldo"
+              name="Aktueller Kontostand"
               strokeWidth={2}
             />
           )}

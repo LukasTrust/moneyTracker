@@ -56,7 +56,7 @@ export default function KpiTiles({ className = '', params = {} }) {
 
   const income = summary ? Number(summary.total_income || 0) : 0;
   const expenses = summary ? Number(summary.total_expenses || 0) : 0;
-  const balance = summary ? Number(summary.net_balance || 0) : 0;
+  const balance = summary ? Number(summary.current_balance || 0) : 0;
   const accounts = summary ? Number(summary.account_count || 0) : 0;
 
   // Decide accent color for balance (green when positive, red when negative)
@@ -66,13 +66,12 @@ export default function KpiTiles({ className = '', params = {} }) {
     <div className={`bg-white rounded-lg shadow p-4 ${className}`}>
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-900">Schnelle KPIs</h3>
-        <button onClick={fetch} className="text-sm text-primary-600">Aktualisieren</button>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <KpiTile label="Einnahmen" value={income} prefix="€" decimals={2} icon={'💶'} accent={'green'} />
         <KpiTile label="Ausgaben" value={Math.abs(expenses)} prefix="€" decimals={2} icon={'🛒'} accent={'red'} />
-        <KpiTile label="Saldo" value={balance} prefix="€" decimals={2} icon={'💳'} accent={balanceAccent} />
+        <KpiTile label="Aktueller Kontostand" value={balance} prefix="€" decimals={2} icon={'💳'} accent={balanceAccent} />
         <KpiTile label="Konten" value={accounts} decimals={0} icon={'🏦'} accent={'purple'} />
       </div>
     </div>

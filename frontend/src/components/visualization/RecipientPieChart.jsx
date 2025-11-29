@@ -339,13 +339,6 @@ function RecipientPieChart({ data, title, currency = 'EUR', loading = false, onS
           </div>
         </div>
       </div>
-
-      {/* DEVELOPER NOTE: Drill-down Feature */}
-      {onSegmentClick && (
-        <div className="mt-4 text-xs text-gray-500 text-center">
-          💡 Tipp: Klicke auf ein Segment für Details
-        </div>
-      )}
     </Card>
   );
 }

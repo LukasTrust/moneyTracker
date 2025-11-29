@@ -26,8 +26,8 @@ import {
  * DashboardGraphOverview - Gesamt-Übersicht über alle Accounts
  * 
  * FEATURES:
- * - Aggregierte KPIs (Einnahmen, Ausgaben, Saldo, Transaktionsanzahl)
- * - Line Chart: Saldoentwicklung über Zeit
+ * - Aggregierte KPIs (Einnahmen, Ausgaben, Aktueller Kontostand, Transaktionsanzahl)
+ * - Line Chart: Entwicklung des Aktuellen Kontostands über Zeit
  * - Pie Chart: Top-Kategorien nach Ausgaben
  * - DateRangeFilter mit Quick-Buttons (globaler Store)
  * - Responsive Layout
@@ -136,7 +136,7 @@ function DashboardGraphOverview() {
       month: label,
       Einnahmen: balanceHistory.income[index] || 0,
       Ausgaben: Math.abs(balanceHistory.expenses[index] || 0), // Positiv darstellen
-      Saldo: balanceHistory.balance[index] || 0
+      'Aktueller Kontostand': balanceHistory.balance[index] || 0
     }));
     
     console.log('Line chart data prepared:', result);
@@ -304,30 +304,30 @@ function DashboardGraphOverview() {
           </div>
         </Card>
 
-        {/* Netto-Saldo */}
+        {/* Aktueller Kontostand */}
         <Card className={`bg-gradient-to-br ${
-          (summary?.net_balance || 0) >= 0 
+            (summary?.current_balance || 0) >= 0 
             ? 'from-blue-50 to-indigo-50 border-blue-200' 
             : 'from-orange-50 to-amber-50 border-orange-200'
         }`}>
           <div className="flex items-center justify-between">
             <div>
               <p className={`text-sm font-medium ${
-                (summary?.net_balance || 0) >= 0 ? 'text-blue-600' : 'text-orange-600'
+                  (summary?.current_balance || 0) >= 0 ? 'text-blue-600' : 'text-orange-600'
               }`}>
-                Netto-Saldo
+                Aktueller Kontostand
               </p>
               <p className={`text-2xl font-bold mt-1 ${
-                (summary?.net_balance || 0) >= 0 ? 'text-blue-900' : 'text-orange-900'
+                  (summary?.current_balance || 0) >= 0 ? 'text-blue-900' : 'text-orange-900'
               }`}>
-                {formatCurrency(summary?.net_balance || 0)}
+                  {formatCurrency(summary?.current_balance || 0)}
               </p>
             </div>
             <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-              (summary?.net_balance || 0) >= 0 ? 'bg-blue-100' : 'bg-orange-100'
+                (summary?.current_balance || 0) >= 0 ? 'bg-blue-100' : 'bg-orange-100'
             }`}>
               <svg className={`w-6 h-6 ${
-                (summary?.net_balance || 0) >= 0 ? 'text-blue-600' : 'text-orange-600'
+                  (summary?.current_balance || 0) >= 0 ? 'text-blue-600' : 'text-orange-600'
               }`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
@@ -356,10 +356,10 @@ function DashboardGraphOverview() {
         </Card>
       </div>
 
-      {/* Line Chart: Saldoentwicklung */}
+      {/* Line Chart: Entwicklung des Aktuellen Kontostands */}
       <Card>
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          📈 Saldoentwicklung über Zeit
+          📈 Entwicklung des Aktuellen Kontostands über Zeit
         </h3>
         
         {lineChartData.length > 0 ? (
@@ -394,7 +394,7 @@ function DashboardGraphOverview() {
               />
               <Line 
                 type="monotone" 
-                dataKey="Saldo" 
+                dataKey={"Aktueller Kontostand"} 
                 stroke="#3b82f6" 
                 strokeWidth={3}
                 dot={{ fill: '#3b82f6', r: 5 }}

@@ -2,7 +2,7 @@ import React from 'react';
 import Card from '../common/Card';
 
 /**
- * Summary Cards für Einnahmen, Ausgaben, Saldo
+ * Summary Cards für Einnahmen, Ausgaben, Aktueller Kontostand
  */
 export default function SummaryCards({ summary, currency = 'EUR' }) {
   const currencySymbols = {
@@ -49,17 +49,17 @@ export default function SummaryCards({ summary, currency = 'EUR' }) {
       borderColor: 'border-red-200',
     },
     {
-      title: 'Saldo',
-      value: summary?.net_balance || 0,
+      title: 'Aktueller Kontostand',
+      value: summary?.current_balance || 0,
       icon: (
         <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       ),
-      color: summary?.net_balance >= 0 ? 'blue' : 'orange',
-      bgColor: summary?.net_balance >= 0 ? 'bg-blue-50' : 'bg-orange-50',
-      textColor: summary?.net_balance >= 0 ? 'text-blue-600' : 'text-orange-600',
-      borderColor: summary?.net_balance >= 0 ? 'border-blue-200' : 'border-orange-200',
+      color: summary?.current_balance >= 0 ? 'blue' : 'orange',
+      bgColor: summary?.current_balance >= 0 ? 'bg-blue-50' : 'bg-orange-50',
+      textColor: summary?.current_balance >= 0 ? 'text-blue-600' : 'text-orange-600',
+      borderColor: summary?.current_balance >= 0 ? 'border-blue-200' : 'border-orange-200',
     },
   ];
 

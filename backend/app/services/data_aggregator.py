@@ -11,6 +11,7 @@ import calendar
 from app.models.data_row import DataRow
 from app.models.category import Category
 from app.models.transfer import Transfer
+from app.models.account import Account
 
 
 class DataAggregator:
@@ -190,11 +191,129 @@ class DataAggregator:
         
         # Execute query
         result = query.first()
-        
+        # Determine effective to_date for current balance calculation:
+        # - if `to_date` provided, use it
+        # - else if there are any transactions matching filters, use the latest transaction date
+        # - otherwise use today
+        effective_to_date = to_date
+        if not effective_to_date:
+            # find latest transaction date matching non-date filters
+            latest_q = self.db.query(func.max(DataRow.transaction_date).label('latest'))
+            # Exclude transfers
+            if transfer_ids:
+                latest_q = latest_q.filter(~DataRow.id.in_(transfer_ids))
+            if account_id:
+                latest_q = latest_q.filter(DataRow.account_id == account_id)
+            if category_ids:
+                try:
+                    cat_id_list = [int(cid.strip()) for cid in category_ids.split(',') if cid.strip()]
+                    if cat_id_list:
+                        if -1 in cat_id_list:
+                            other_cats = [cid for cid in cat_id_list if cid != -1]
+                            if other_cats:
+                                latest_q = latest_q.filter(
+                                    or_(
+                                        DataRow.category_id.is_(None),
+                                        DataRow.category_id.in_(other_cats)
+                                    )
+                                )
+                            else:
+                                latest_q = latest_q.filter(DataRow.category_id.is_(None))
+                        else:
+                            latest_q = latest_q.filter(DataRow.category_id.in_(cat_id_list))
+                except Exception:
+                    pass
+            elif category_id is not None:
+                if category_id == -1:
+                    latest_q = latest_q.filter(DataRow.category_id.is_(None))
+                else:
+                    latest_q = latest_q.filter(DataRow.category_id == category_id)
+            if min_amount is not None:
+                latest_q = latest_q.filter(DataRow.amount >= min_amount)
+            if max_amount is not None:
+                latest_q = latest_q.filter(DataRow.amount <= max_amount)
+            if recipient:
+                latest_q = latest_q.filter(DataRow.recipient.ilike(f"%{recipient}%"))
+            if purpose:
+                latest_q = latest_q.filter(DataRow.purpose.ilike(f"%{purpose}%"))
+            if transaction_type and transaction_type != 'all':
+                if transaction_type == 'income':
+                    latest_q = latest_q.filter(DataRow.amount > 0)
+                elif transaction_type == 'expense':
+                    latest_q = latest_q.filter(DataRow.amount < 0)
+
+            latest_res = latest_q.first()
+            latest_date = latest_res.latest if latest_res is not None else None
+            effective_to_date = latest_date or date.today()
+
+        # Sum of transactions up to effective_to_date (inclusive)
+        tx_q = self.db.query(func.sum(DataRow.amount).label('sum_up_to'))
+        if transfer_ids:
+            tx_q = tx_q.filter(~DataRow.id.in_(transfer_ids))
+        if account_id:
+            tx_q = tx_q.filter(DataRow.account_id == account_id)
+        # apply same category/account/recipient/purpose/amount filters
+        if category_ids:
+            try:
+                cat_id_list = [int(cid.strip()) for cid in category_ids.split(',') if cid.strip()]
+                if cat_id_list:
+                    if -1 in cat_id_list:
+                        other_cats = [cid for cid in cat_id_list if cid != -1]
+                        if other_cats:
+                            tx_q = tx_q.filter(
+                                or_(
+                                    DataRow.category_id.is_(None),
+                                    DataRow.category_id.in_(other_cats)
+                                )
+                            )
+                        else:
+                            tx_q = tx_q.filter(DataRow.category_id.is_(None))
+                    else:
+                        tx_q = tx_q.filter(DataRow.category_id.in_(cat_id_list))
+            except Exception:
+                pass
+        elif category_id is not None:
+            if category_id == -1:
+                tx_q = tx_q.filter(DataRow.category_id.is_(None))
+            else:
+                tx_q = tx_q.filter(DataRow.category_id == category_id)
+        if min_amount is not None:
+            tx_q = tx_q.filter(DataRow.amount >= min_amount)
+        if max_amount is not None:
+            tx_q = tx_q.filter(DataRow.amount <= max_amount)
+        if recipient:
+            tx_q = tx_q.filter(DataRow.recipient.ilike(f"%{recipient}%"))
+        if purpose:
+            tx_q = tx_q.filter(DataRow.purpose.ilike(f"%{purpose}%"))
+        if transaction_type and transaction_type != 'all':
+            if transaction_type == 'income':
+                tx_q = tx_q.filter(DataRow.amount > 0)
+            elif transaction_type == 'expense':
+                tx_q = tx_q.filter(DataRow.amount < 0)
+
+        # Date upper bound
+        tx_q = tx_q.filter(DataRow.transaction_date <= effective_to_date)
+        tx_res = tx_q.first()
+        sum_up_to = float(tx_res.sum_up_to or 0)
+
+        # Sum initial balances for accounts in scope
+        init_sum = 0.0
+        try:
+            init_q = self.db.query(func.sum(Account.initial_balance).label('init_sum'))
+            if account_id:
+                init_q = init_q.filter(Account.id == account_id)
+            init_res = init_q.first()
+            init_sum = float(init_res.init_sum or 0)
+        except Exception:
+            init_sum = 0.0
+
+        # current_balance = initial balances + sum of transactions up to effective_to_date
+        current_balance = round(init_sum + sum_up_to, 2)
+
         return {
             'total_income': round(float(result.total_income or 0), 2),
             'total_expenses': round(float(result.total_expenses or 0), 2),
-            'net_balance': round(float(result.net_balance or 0), 2),
+            'current_balance': current_balance,
             'transaction_count': result.transaction_count or 0
         }
     
@@ -647,7 +766,87 @@ class DataAggregator:
         income = []
         expenses = []
         balance = []
-        cumulative = 0.0
+
+        # Compute opening balance (sum of all transactions before from_date)
+        opening_balance = 0.0
+        if from_date:
+            open_query = self.db.query(
+                func.sum(DataRow.amount).label('opening_net')
+            )
+
+            # Exclude transfer transactions
+            if transfer_ids:
+                open_query = open_query.filter(~DataRow.id.in_(transfer_ids))
+
+            # Apply same non-date filters as above
+            if account_id:
+                open_query = open_query.filter(DataRow.account_id == account_id)
+
+            open_query = open_query.filter(DataRow.transaction_date < from_date)
+
+            if category_ids:
+                try:
+                    cat_id_list = [int(cid.strip()) for cid in category_ids.split(',') if cid.strip()]
+                    if cat_id_list:
+                        if -1 in cat_id_list:
+                            other_cats = [cid for cid in cat_id_list if cid != -1]
+                            if other_cats:
+                                open_query = open_query.filter(
+                                    or_(
+                                        DataRow.category_id.is_(None),
+                                        DataRow.category_id.in_(other_cats)
+                                    )
+                                )
+                            else:
+                                open_query = open_query.filter(DataRow.category_id.is_(None))
+                        else:
+                            open_query = open_query.filter(DataRow.category_id.in_(cat_id_list))
+                except (ValueError, AttributeError):
+                    pass
+            elif category_id is not None:
+                if category_id == -1:
+                    open_query = open_query.filter(DataRow.category_id.is_(None))
+                else:
+                    open_query = open_query.filter(DataRow.category_id == category_id)
+
+            # Amount filters
+            if min_amount is not None:
+                open_query = open_query.filter(DataRow.amount >= min_amount)
+
+            if max_amount is not None:
+                open_query = open_query.filter(DataRow.amount <= max_amount)
+
+            # Recipient / purpose filters
+            if recipient:
+                open_query = open_query.filter(DataRow.recipient.ilike(f"%{recipient}%"))
+
+            if purpose:
+                open_query = open_query.filter(DataRow.purpose.ilike(f"%{purpose}%"))
+
+            # Transaction type
+            if transaction_type and transaction_type != 'all':
+                if transaction_type == 'income':
+                    open_query = open_query.filter(DataRow.amount > 0)
+                elif transaction_type == 'expense':
+                    open_query = open_query.filter(DataRow.amount < 0)
+
+            opening_result = open_query.first()
+            opening_balance = float(opening_result.opening_net or 0)
+
+        # Include account initial balances into opening_balance so the graph starts
+        # from the real account starting value (if account filter applied, limit to that account)
+        try:
+            init_q = self.db.query(func.sum(Account.initial_balance).label('init_sum'))
+            if account_id:
+                init_q = init_q.filter(Account.id == account_id)
+            init_res = init_q.first()
+            init_sum = float(init_res.init_sum or 0)
+            opening_balance += init_sum
+        except Exception:
+            # If account table not available or any error occurs, keep opening_balance as-is
+            pass
+
+        cumulative = opening_balance
         
         for row in results:
             period = row.period
@@ -766,10 +965,14 @@ class DataAggregator:
                 abs(period1_summary['total_expenses']),
                 abs(period2_summary['total_expenses'])
             ),
-            'balance_diff': round(period2_summary['net_balance'] - period1_summary['net_balance'], 2),
+            # Use current_balance (opening + net in period) when available
+            'balance_diff': round(
+                (period2_summary.get('current_balance', period2_summary.get('net_balance', 0)) -
+                 period1_summary.get('current_balance', period1_summary.get('net_balance', 0)))
+            , 2),
             'balance_diff_percent': calculate_percent_change(
-                period1_summary['net_balance'],
-                period2_summary['net_balance']
+                period1_summary.get('current_balance', period1_summary.get('net_balance', 0)),
+                period2_summary.get('current_balance', period2_summary.get('net_balance', 0))
             ),
             'transaction_count_diff': period2_summary['transaction_count'] - period1_summary['transaction_count']
         }
@@ -783,7 +986,7 @@ class DataAggregator:
                 'period_label': period1_label,
                 'total_income': period1_summary['total_income'],
                 'total_expenses': period1_summary['total_expenses'],
-                'net_balance': period1_summary['net_balance'],
+                'current_balance': period1_summary.get('current_balance', period1_summary.get('net_balance', 0)),
                 'transaction_count': period1_summary['transaction_count'],
                 'categories': period1_categories,
                 'top_recipients': period1_recipients
@@ -792,7 +995,7 @@ class DataAggregator:
                 'period_label': period2_label,
                 'total_income': period2_summary['total_income'],
                 'total_expenses': period2_summary['total_expenses'],
-                'net_balance': period2_summary['net_balance'],
+                'current_balance': period2_summary.get('current_balance', period2_summary.get('net_balance', 0)),
                 'transaction_count': period2_summary['transaction_count'],
                 'categories': period2_categories,
                 'top_recipients': period2_recipients

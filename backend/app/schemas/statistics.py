@@ -9,7 +9,7 @@ class SummaryResponse(BaseModel):
     """Schema for account summary"""
     total_income: float = Field(..., description="Total income")
     total_expenses: float = Field(..., description="Total expenses (negative)")
-    net_balance: float = Field(..., description="Net balance (income + expenses)")
+    current_balance: float = Field(..., description="Current balance (initial balances + transactions up to effective date)")
     transaction_count: int = Field(..., description="Number of transactions")
 
 
@@ -55,7 +55,7 @@ class PeriodComparisonData(BaseModel):
     period_label: str = Field(..., description="Period label (e.g., 'December 2024')")
     total_income: float = Field(..., description="Total income for period")
     total_expenses: float = Field(..., description="Total expenses for period")
-    net_balance: float = Field(..., description="Net balance for period")
+    current_balance: float = Field(..., description="Current balance for period (initial balances + transactions up to effective date)")
     transaction_count: int = Field(..., description="Number of transactions")
     categories: List[CategoryDataResponse] = Field(..., description="Category breakdown")
     top_recipients: List[RecipientDataResponse] = Field(..., description="Top recipients/senders")

@@ -49,7 +49,7 @@ export function useTransactionData(accountId, params = {}) {
 }
 
 /**
- * Custom Hook für Summary-Daten (Einnahmen/Ausgaben/Saldo)
+ * Custom Hook für Summary-Daten (Einnahmen/Ausgaben/Aktueller Kontostand)
  * 
  * @param {number} accountId - Konto-ID
  * @param {object} params - { fromDate, toDate, categoryIds }
@@ -411,7 +411,7 @@ export function useCategoryStatistics(accountId, params = {}) {
  * 
  * @param {object} params - Query-Parameter (fromDate, toDate)
  * @returns {object} { 
- *   summary: { total_income, total_expenses, net_balance, transaction_count, account_count },
+ *   summary: { total_income, total_expenses, current_balance, transaction_count, account_count },
  *   categories: [ { category_id, category_name, total_amount, ... } ],
  *   balanceHistory: { labels, income, expenses, balance },
  *   recipients: [ { recipient, total_amount, transaction_count, ... } ],

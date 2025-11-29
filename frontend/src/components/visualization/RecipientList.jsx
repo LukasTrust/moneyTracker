@@ -268,13 +268,6 @@ function RecipientList({ data, title, type = 'recipient', currency = 'EUR', load
           </tfoot>
         </table>
       </div>
-
-      {/* DEVELOPER NOTE: Click-Handler */}
-      {onRowClick && (
-        <div className="mt-4 text-xs text-gray-500 text-center">
-          💡 Tipp: Klicke auf eine Zeile für Details
-        </div>
-      )}
     </Card>
   );
 }

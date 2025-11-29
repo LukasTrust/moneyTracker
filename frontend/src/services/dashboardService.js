@@ -6,7 +6,7 @@ import api from './api';
  * API-ROUTEN (Backend muss implementiert werden):
  * - GET /dashboard/summary              → KPIs (income, expenses, balance, count)
  * - GET /dashboard/categories           → Aggregierte Kategoriedaten
- * - GET /dashboard/balance-history      → Historische Saldoentwicklung
+ * - GET /dashboard/balance-history      → Historische Entwicklung des Aktuellen Kontostands
  * 
  * VERWENDUNG:
  * - Alle Daten sind über ALLE Accounts aggregiert
@@ -24,14 +24,14 @@ export const dashboardService = {
    * BACKEND-ROUTE:
    * GET /api/v1/dashboard/summary?from_date=2024-01-01&to_date=2024-12-31&category_ids=1,2&min_amount=&max_amount=&recipient=&purpose=&transaction_type=
    * 
-   * Response Format:
-   * {
-   *   "total_income": 15000.00,
-   *   "total_expenses": -8500.00,
-   *   "net_balance": 6500.00,
-   *   "transaction_count": 342,
-   *   "account_count": 3
-   * }
+  * Response Format:
+  * {
+  *   "total_income": 15000.00,
+  *   "total_expenses": -8500.00,
+  *   "current_balance": 7700.00,
+  *   "transaction_count": 342,
+  *   "account_count": 3
+  * }
    */
   async getSummary(params = {}) {
     const { 
@@ -125,7 +125,7 @@ export const dashboardService = {
   },
 
   /**
-   * Historische Saldoentwicklung über alle Accounts
+  * Historische Entwicklung des Aktuellen Kontostands über alle Accounts
    * 
    * @param {object} params - Query-Parameter { fromDate, toDate, groupBy, categoryIds, minAmount, maxAmount, recipient, purpose, transactionType }
    * @returns {Promise<object>} { labels, income, expenses, balance }

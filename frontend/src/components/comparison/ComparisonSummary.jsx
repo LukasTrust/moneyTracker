@@ -46,9 +46,9 @@ export default function ComparisonSummary({ data }) {
       isExpense: true,
     },
     {
-      title: 'Netto-Bilanz',
-      value1: period1.net_balance,
-      value2: period2.net_balance,
+      title: 'Aktueller Kontostand',
+      value1: period1.current_balance ?? period1.net_balance,
+      value2: period2.current_balance ?? period2.net_balance,
       diff: comparison.balance_diff,
       diffPercent: comparison.balance_diff_percent,
       icon: '📊',

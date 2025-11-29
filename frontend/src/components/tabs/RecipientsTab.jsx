@@ -262,11 +262,11 @@ function RecipientsTab({ accountId, currency = 'EUR' }) {
           </div>
         </div>
 
-        {/* Saldo */}
+        {/* Aktueller Kontostand */}
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Saldo</p>
+              <p className="text-sm text-gray-600">Aktueller Kontostand</p>
               <p className={`text-2xl font-bold mt-1 ${
                 stats.balance >= 0 ? 'text-green-600' : 'text-red-600'
               }`}>

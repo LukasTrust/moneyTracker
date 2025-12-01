@@ -5,7 +5,6 @@ from pydantic_settings import BaseSettings
 from typing import List, Optional
 from pydantic import field_validator
 import json
-from app.utils import get_logger
 
 
 def _mask_db_url(url: str) -> str:
@@ -26,14 +25,23 @@ def _mask_db_url(url: str) -> str:
 class Settings(BaseSettings):
     """
     Application settings loaded from environment variables
+    Audit reference: 02_backend_app.md - ENV and AUTO_CREATE_TABLES settings
     """
     # Project Info
     PROJECT_NAME: str = "Money Tracker API"
     VERSION: str = "1.0.0"
     API_V1_PREFIX: str = "/api/v1"
     
+    # Environment and deployment settings
+    ENV: str = "development"  # development, staging, production
+    AUTO_CREATE_TABLES: bool = True  # Should be False in production (use migrations)
+    
     # Database
     DATABASE_URL: str = "sqlite:///./moneytracker.db"
+    
+    # CSV Import limits (Audit: 01_backend_action_plan.md - P0)
+    MAX_IMPORT_ROWS: int = 50000  # Maximum rows per CSV import
+    MAX_IMPORT_BYTES: int = 10 * 1024 * 1024  # 10MB maximum file size
     
     # CORS
     BACKEND_CORS_ORIGINS: List[str] = [
@@ -75,11 +83,17 @@ class Settings(BaseSettings):
 settings = Settings()
 
 # Log a short, non-sensitive summary of loaded settings
-logger = get_logger("app.config")
-logger.info(
-    "Settings loaded: host=%s port=%s db=%s cors=%s",
-    settings.HOST,
-    settings.PORT,
-    _mask_db_url(settings.DATABASE_URL),
-    settings.BACKEND_CORS_ORIGINS,
-)
+# Avoid importing logger here to prevent circular import during module load
+# Logger initialization happens in main.py
+def log_settings():
+    """Log settings summary after logger is initialized."""
+    from app.utils import get_logger
+    logger = get_logger("app.config")
+    logger.info(
+        "Settings loaded: host=%s port=%s db=%s cors=%s env=%s",
+        settings.HOST,
+        settings.PORT,
+        _mask_db_url(settings.DATABASE_URL),
+        settings.BACKEND_CORS_ORIGINS,
+        settings.ENV,
+    )

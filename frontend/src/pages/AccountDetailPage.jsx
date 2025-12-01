@@ -41,6 +41,7 @@ export default function AccountDetailPage() {
   
   const [activeTab, setActiveTab] = useState('data');
   const [importHistoryRefresh, setImportHistoryRefresh] = useState(0);
+  const [dataRefreshKey, setDataRefreshKey] = useState(0);
 
   // Pagination State (page is 1-based)
   const [pagination, setPagination] = useState({
@@ -86,25 +87,30 @@ export default function AccountDetailPage() {
   }, [filterParams]);
 
   // Custom Hooks für Daten mit automatischem Reload
+  // dataRefreshKey is used to force refresh after import
   const { 
     data: transactions, 
     total: totalTransactions,
-    loading: transactionsLoading 
+    loading: transactionsLoading,
+    refetch: refetchTransactions
   } = useTransactionData(id, {
     limit: pagination.limit,
     offset: (Math.max(1, pagination.page) - 1) * pagination.limit,
     ...filterParams,
+    _refreshKey: dataRefreshKey,
   });
 
   const { 
     summary, 
-    loading: summaryLoading 
-  } = useSummaryData(id, filterParams);
+    loading: summaryLoading,
+    refetch: refetchSummary
+  } = useSummaryData(id, { ...filterParams, _refreshKey: dataRefreshKey });
 
   const { 
     chartData, 
-    loading: chartLoading 
-  } = useChartData(id, 'month', filterParams);
+    loading: chartLoading,
+    refetch: refetchChart
+  } = useChartData(id, 'month', { ...filterParams, _refreshKey: dataRefreshKey });
 
   useEffect(() => {
     if (id) {
@@ -117,13 +123,21 @@ export default function AccountDetailPage() {
    * Daten werden automatisch durch die Hooks neu geladen
    */
   const handleUploadComplete = useCallback(() => {
-    // User bleibt auf dem Import-Tab und sieht die Success-Meldung
-    // Die Daten-Hooks laden automatisch neu beim nächsten Tab-Wechsel
-    console.log('Import completed successfully');
+    console.log('Import completed successfully - refreshing all data');
     
     // Trigger Import History refresh
     setImportHistoryRefresh(prev => prev + 1);
-  }, []);
+    
+    // Trigger data refresh for all hooks (transactions, summary, charts)
+    setDataRefreshKey(prev => prev + 1);
+    
+    // Also explicitly refetch to ensure immediate update
+    setTimeout(() => {
+      refetchTransactions();
+      refetchSummary();
+      refetchChart();
+    }, 500); // Small delay to ensure backend has processed
+  }, [refetchTransactions, refetchSummary, refetchChart]);
 
   const dataLoading = transactionsLoading || summaryLoading || chartLoading;
 
@@ -276,7 +290,8 @@ export default function AccountDetailPage() {
           <div>
             <CategoriesTab 
               accountId={id} 
-              currency={currentAccount.currency} 
+              currency={currentAccount.currency}
+              refreshTrigger={dataRefreshKey}
             />
           </div>
         )}
@@ -292,7 +307,10 @@ export default function AccountDetailPage() {
                 Automatisch erkannte wiederkehrende Transaktionen für dieses Konto.
               </p>
             </div>
-            <RecurringTransactionsWidget accountId={parseInt(id)} />
+            <RecurringTransactionsWidget 
+              accountId={parseInt(id)}
+              refreshTrigger={dataRefreshKey}
+            />
           </div>
         )}
 
@@ -301,7 +319,8 @@ export default function AccountDetailPage() {
           <div>
             <BudgetsTab 
               accountId={id} 
-              currency={currentAccount.currency} 
+              currency={currentAccount.currency}
+              refreshTrigger={dataRefreshKey}
             />
           </div>
         )}
@@ -311,7 +330,8 @@ export default function AccountDetailPage() {
           <div>
             <RecipientsTab 
               accountId={id} 
-              currency={currentAccount.currency} 
+              currency={currentAccount.currency}
+              refreshTrigger={dataRefreshKey}
             />
           </div>
         )}

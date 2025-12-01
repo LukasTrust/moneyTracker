@@ -3,6 +3,7 @@
  * API calls for managing recurring transactions
  */
 import api from './api';
+import { waitForJob, startPolling } from './jobPoller';
 
 /**
  * Get all recurring transactions for a specific account
@@ -53,18 +54,62 @@ export const getAllRecurringStats = async () => {
  * @param {number} accountId - Account ID
  * @returns {Promise} - Promise resolving to detection statistics
  */
-export const detectRecurringForAccount = async (accountId) => {
+export const detectRecurringForAccount = async (accountId, options = {}) => {
+  const { waitForCompletion = false, onProgress } = options;
   const response = await api.post(`/accounts/${accountId}/recurring-transactions/detect`);
-  return response.data;
+  const result = response.data;
+
+  if (result && result.job_id) {
+    if (waitForCompletion) {
+      if (onProgress) {
+        return new Promise((resolve, reject) => {
+          startPolling(result.job_id, {
+            onUpdate: (job) => onProgress({ status: job.status, progress: job.progress || 0, message: job.message }),
+            onComplete: (job) => resolve({ ...job.result, job_id: result.job_id, async: true }),
+            onError: (err) => reject(err),
+          });
+        });
+      }
+
+      const job = await waitForJob(result.job_id);
+      return { ...job.result, job_id: result.job_id, async: true };
+    }
+
+    return { job_id: result.job_id, async: true, status: 'pending' };
+  }
+
+  return result;
 };
 
 /**
  * Trigger recurring transaction detection for all accounts
  * @returns {Promise} - Promise resolving to detection statistics
  */
-export const detectAllRecurring = async () => {
+export const detectAllRecurring = async (options = {}) => {
+  const { waitForCompletion = false, onProgress } = options;
   const response = await api.post('/accounts/recurring-transactions/detect-all');
-  return response.data;
+  const result = response.data;
+
+  if (result && result.job_id) {
+    if (waitForCompletion) {
+      if (onProgress) {
+        return new Promise((resolve, reject) => {
+          startPolling(result.job_id, {
+            onUpdate: (job) => onProgress({ status: job.status, progress: job.progress || 0, message: job.message }),
+            onComplete: (job) => resolve({ ...job.result, job_id: result.job_id, async: true }),
+            onError: (err) => reject(err),
+          });
+        });
+      }
+
+      const job = await waitForJob(result.job_id);
+      return { ...job.result, job_id: result.job_id, async: true };
+    }
+
+    return { job_id: result.job_id, async: true, status: 'pending' };
+  }
+
+  return result;
 };
 
 /**

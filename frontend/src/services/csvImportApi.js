@@ -2,9 +2,13 @@
  * CSV Import API Service
  * 
  * Handles all API calls for the new combined CSV Import & Mapping feature
+ * Supports both synchronous and asynchronous (job-based) imports
+ * 
+ * Audit reference: 09_frontend_action_plan.md - P0 CSV import async
  */
 
 import axios from 'axios';
+import { waitForJob, startPolling } from './jobPoller';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
@@ -55,13 +59,19 @@ export const suggestMapping = async (file) => {
 
 /**
  * Import CSV file with custom mapping
+ * Supports both sync and async (job-based) imports
  * 
  * @param {number} accountId - Target account ID
  * @param {Object} mapping - Mapping configuration
  * @param {File} file - CSV file to import
- * @returns {Promise} Import results with statistics
+ * @param {Object} options - Import options
+ * @param {boolean} options.waitForCompletion - If true, waits for async jobs to complete
+ * @param {Function} options.onProgress - Progress callback for async jobs
+ * @returns {Promise} Import results or job info
  */
-export const importCsv = async (accountId, mapping, file) => {
+export const importCsv = async (accountId, mapping, file, options = {}) => {
+  const { waitForCompletion = false, onProgress } = options;
+  
   const formData = new FormData();
   formData.append('account_id', accountId.toString());
   formData.append('mapping_json', JSON.stringify(mapping));
@@ -73,14 +83,77 @@ export const importCsv = async (accountId, mapping, file) => {
     },
   });
 
+  const result = response.data;
+  
+  // Check if backend returned a job_id (async import)
+  if (result.job_id) {
+    // If caller wants to wait, poll the job
+    if (waitForCompletion) {
+      // Use job poller with progress callback
+      if (onProgress) {
+        return new Promise((resolve, reject) => {
+          startPolling(result.job_id, {
+            onUpdate: (job) => {
+              if (onProgress) {
+                onProgress({
+                  status: job.status,
+                  progress: job.progress || 0,
+                  message: job.message
+                });
+              }
+            },
+            onComplete: (job) => {
+              resolve({
+                ...job.result,
+                job_id: result.job_id,
+                async: true
+              });
+            },
+            onError: (error) => reject(error)
+          });
+        });
+      } else {
+        // Simple wait without progress
+        const job = await waitForJob(result.job_id);
+        return {
+          ...job.result,
+          job_id: result.job_id,
+          async: true
+        };
+      }
+    }
+    
+    // Return job info immediately (caller will poll separately)
+    return {
+      job_id: result.job_id,
+      async: true,
+      status: 'pending'
+    };
+  }
+  
+  // Synchronous import - return results directly
+  return {
+    ...result,
+    async: false
+  };
+};
+
+/**
+ * Get import job status
+ * 
+ * @param {string|number} jobId - Job ID to check
+ * @returns {Promise} Job status and results
+ */
+export const getImportJobStatus = async (jobId) => {
+  const response = await api.get(`/jobs/${jobId}`);
   return response.data;
 };
 
 /**
  * Validate mapping configuration
  * 
- * @param {Object} mapping - Mapping configuration to validate
- * @returns {Object} Validation result with errors
+ * @param {Object} mapping - Mapping configuration
+ * @returns {Object} { isValid: boolean, errors: string[] }
  */
 export const validateMapping = (mapping) => {
   const errors = [];

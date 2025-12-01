@@ -1,7 +1,7 @@
+"""Budget Schemas - Pydantic models for budget validation and serialization
+Audit reference: 05_backend_schemas.md - Pydantic v2 config
 """
-Budget Schemas - Pydantic models for budget validation and serialization
-"""
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import Optional
 from datetime import date, datetime
 from decimal import Decimal
@@ -64,8 +64,7 @@ class BudgetResponse(BudgetBase):
     created_at: datetime
     updated_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class BudgetProgressInfo(BaseModel):

@@ -1,15 +1,16 @@
+"""Recurring Transaction Schemas - Request/Response models
+Audit reference: 05_backend_schemas.md - Use Decimal for money
 """
-Recurring Transaction Schemas - Request/Response models
-"""
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from datetime import date, datetime
 from typing import Optional
+from decimal import Decimal
 
 
 class RecurringTransactionBase(BaseModel):
     """Base schema for recurring transaction"""
     recipient: str
-    average_amount: float
+    average_amount: Decimal
     average_interval_days: int
     category_id: Optional[int] = None
     notes: Optional[str] = None
@@ -46,10 +47,9 @@ class RecurringTransactionResponse(RecurringTransactionBase):
     updated_at: datetime
     
     # Computed fields
-    monthly_cost: Optional[float] = Field(None, description="Estimated monthly cost")
+    monthly_cost: Optional[Decimal] = Field(None, description="Estimated monthly cost")
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class RecurringTransactionListResponse(BaseModel):
@@ -67,8 +67,8 @@ class RecurringTransactionStats(BaseModel):
     total_count: int
     active_count: int
     inactive_count: int
-    total_monthly_cost: float
-    by_category: dict[str, float] = Field(default_factory=dict, description="Monthly cost by category")
+    total_monthly_cost: Decimal
+    by_category: dict[str, Decimal] = Field(default_factory=dict, description="Monthly cost by category")
 
 
 class RecurringTransactionDetectionStats(BaseModel):

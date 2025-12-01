@@ -1,12 +1,18 @@
 """Small, plug-and-play logger utility for the backend.
+Audit reference: 08_backend_utils.md - Make logging initialization explicit
 
 Usage:
-    from app.utils import get_logger
+    from app.utils.logger import init_logging, get_logger
+    
+    # In main.py or app startup:
+    init_logging()  # Call explicitly during startup
+    
+    # In other modules:
     logger = get_logger(__name__)
     logger.info("hello world")
 
 Design goals:
-- No external setup required: importing this module auto-configures logging if no handlers are present.
+- Explicit initialization via init_logging() - no auto-configure on import
 - Default output is JSON (works great with Docker logs which capture stdout/stderr).
 - Optional pretty, colored console output when `LOG_PRETTY=1` and stdout is a TTY.
 - Configurable via environment variables: LOG_LEVEL, LOG_PRETTY.
@@ -20,7 +26,11 @@ import sys
 import datetime
 from typing import Any
 
-__all__ = ["get_logger"]
+__all__ = ["get_logger", "init_logging"]
+
+
+# Pre-compute skip keys once to avoid creating dummy LogRecord repeatedly
+_SKIP_KEYS = set(logging.LogRecord('', 0, '', 0, '', (), None).__dict__.keys())
 
 
 class JsonFormatter(logging.Formatter):
@@ -44,8 +54,7 @@ class JsonFormatter(logging.Formatter):
             payload["exc_info"] = self.formatException(record.exc_info)
 
         # Include any extra keys (handy when logging extra={...})
-        skip = set(logging.LogRecord('', 0, '', 0, '', (), None).__dict__.keys())
-        extras = {k: v for k, v in record.__dict__.items() if k not in skip}
+        extras = {k: v for k, v in record.__dict__.items() if k not in _SKIP_KEYS}
         if extras:
             # remove keys that are not JSON serializable if needed
             safe_extras = {}
@@ -85,33 +94,59 @@ class PrettyFormatter(logging.Formatter):
 _CONFIGURED = False
 
 
-def _configure_root() -> None:
+def init_logging(level: str | None = None, pretty: bool | None = None, force: bool = False) -> None:
+    """
+    Initialize logging configuration explicitly.
+    
+    Args:
+        level: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL). 
+               If None, reads from LOG_LEVEL env var (default: INFO)
+        pretty: Use pretty colored output. If None, reads from LOG_PRETTY env var
+        force: Force reconfiguration even if already configured
+    
+    Example:
+        # In main.py startup:
+        init_logging(level='DEBUG', pretty=True)
+    """
     global _CONFIGURED
-    if _CONFIGURED:
+    if _CONFIGURED and not force:
         return
 
-    # If the application already configured logging (handlers present), do nothing
-    if logging.root.handlers:
+    # If the application already configured logging (handlers present), do nothing unless forced
+    if logging.root.handlers and not force:
         _CONFIGURED = True
         return
 
-    level_name = os.getenv("LOG_LEVEL", "INFO").upper()
+    # Determine log level
+    if level is not None:
+        level_name = level.upper()
+    else:
+        level_name = os.getenv("LOG_LEVEL", "INFO").upper()
+        
     try:
-        level = getattr(logging, level_name)
+        log_level = getattr(logging, level_name)
     except Exception:
-        level = logging.INFO
+        log_level = logging.INFO
 
-    pretty_env = os.getenv("LOG_PRETTY", "0")
-    pretty = pretty_env.lower() in ("1", "true", "yes")
+    # Determine formatter
+    if pretty is not None:
+        use_pretty = pretty
+    else:
+        pretty_env = os.getenv("LOG_PRETTY", "0")
+        use_pretty = pretty_env.lower() in ("1", "true", "yes")
 
     handler = logging.StreamHandler(sys.stdout)
     # Use pretty if requested and stdout is a terminal
-    if pretty and sys.stdout.isatty():
+    if use_pretty and sys.stdout.isatty():
         handler.setFormatter(PrettyFormatter())
     else:
         handler.setFormatter(JsonFormatter())
 
-    logging.basicConfig(level=level, handlers=[handler])
+    # Clear existing handlers if forcing reconfiguration
+    if force:
+        logging.root.handlers = []
+        
+    logging.basicConfig(level=log_level, handlers=[handler], force=force)
     # capture warnings from the warnings module
     logging.captureWarnings(True)
     _CONFIGURED = True
@@ -119,20 +154,21 @@ def _configure_root() -> None:
 
 def get_logger(name: str | None = None) -> logging.Logger:
     """Return a logger configured by this utility.
+    
+    Note: Call init_logging() during application startup before using loggers.
 
     Example:
-        from app.utils import get_logger
+        from app.utils.logger import get_logger
         log = get_logger(__name__)
         log.info("hey")
     """
-    _configure_root()
+    # Ensure logging is configured (defensive - app should call init_logging explicitly)
+    if not _CONFIGURED:
+        init_logging()
+        
     logger = logging.getLogger(name)
     # Avoid duplicate handlers when libraries configure loggers directly
     # Set propagate to True so the logger integrates with other configured
     # logging handlers in the application environment.
     logger.propagate = True
     return logger
-
-
-# Auto-configure on import for convenience
-_configure_root()

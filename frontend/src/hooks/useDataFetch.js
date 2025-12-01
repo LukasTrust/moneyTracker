@@ -43,7 +43,7 @@ export function useTransactionData(accountId, params = {}) {
 
   useEffect(() => {
     fetchData();
-  }, [accountId, params.limit, params.offset, params.fromDate, params.toDate, params.categoryIds, params.minAmount, params.maxAmount, params.recipient, params.purpose, params.transactionType]);
+  }, [accountId, params.limit, params.offset, params.fromDate, params.toDate, params.categoryIds, params.minAmount, params.maxAmount, params.recipient, params.purpose, params.transactionType, params._refreshKey]);
 
   return { data, total, loading, error, refetch: fetchData };
 }
@@ -79,7 +79,7 @@ export function useSummaryData(accountId, params = {}) {
 
   useEffect(() => {
     fetchSummary();
-  }, [accountId, params.fromDate, params.toDate, params.categoryIds, params.minAmount, params.maxAmount, params.recipient, params.purpose, params.transactionType]);
+  }, [accountId, params.fromDate, params.toDate, params.categoryIds, params.minAmount, params.maxAmount, params.recipient, params.purpose, params.transactionType, params._refreshKey]);
 
   return { summary, loading, error, refetch: fetchSummary };
 }
@@ -125,7 +125,7 @@ export function useChartData(accountId, groupBy = 'month', params = {}) {
 
   useEffect(() => {
     fetchChartData();
-  }, [accountId, groupBy, params.fromDate, params.toDate, params.categoryIds, params.minAmount, params.maxAmount, params.recipient, params.purpose, params.transactionType]);
+  }, [accountId, groupBy, params.fromDate, params.toDate, params.categoryIds, params.minAmount, params.maxAmount, params.recipient, params.purpose, params.transactionType, params._refreshKey]);
 
   return { chartData, loading, error, refetch: fetchChartData };
 }
@@ -194,7 +194,9 @@ export function useRecipientData(accountId, params = {}) {
     try {
       const response = await dataService.getRecipients(accountId, apiParams);
       console.log('useRecipientData: Received data:', response);
-      setRecipients(response || []);
+      // Handle both array and object {items: [], total: 0} formats
+      const recipientsData = Array.isArray(response) ? response : (response?.items || []);
+      setRecipients(recipientsData);
       setError(null); // Clear error on success
     } catch (err) {
       console.error('useRecipientData: Error fetching recipients:', err);
@@ -273,7 +275,9 @@ export function useSenderData(accountId, params = {}) {
     try {
       const response = await dataService.getRecipients(accountId, apiParams);
       console.log('useSenderData: Received data:', response);
-      setSenders(response || []);
+      // Handle both array and object {items: [], total: 0} formats
+      const sendersData = Array.isArray(response) ? response : (response?.items || []);
+      setSenders(sendersData);
       setError(null); // Clear error on success
     } catch (err) {
       console.error('useSenderData: Error fetching senders:', err);
@@ -327,10 +331,19 @@ export function useCategoryData() {
       // Import inline to avoid circular dependencies
       const { categoryService } = await import('../services/categoryService');
       const response = await categoryService.getCategories();
-      setCategories(response || []);
+      console.log('[useCategoryData] Raw response:', response);
+      console.log('[useCategoryData] Response type:', Array.isArray(response) ? 'array' : typeof response);
+      console.log('[useCategoryData] Response length:', response?.length);
+      
+      // Handle both array and wrapped object responses
+      const categoriesArray = Array.isArray(response) ? response : (response?.data || response?.categories || []);
+      console.log('[useCategoryData] Final categories:', categoriesArray);
+      
+      setCategories(categoriesArray);
     } catch (err) {
-      console.error('Error fetching categories:', err);
+      console.error('[useCategoryData] Error fetching categories:', err);
       setError(err.response?.data?.message || 'Fehler beim Laden der Kategorien');
+      setCategories([]); // Ensure categories is empty array on error
     } finally {
       setLoading(false);
     }
@@ -377,8 +390,28 @@ export function useCategoryStatistics(accountId, params = {}) {
 
     try {
       const { categoryService } = await import('../services/categoryService');
-      const response = await categoryService.getCategoryData(accountId, params);
-      setCategoryData(response || []);
+      
+      // Lade sowohl Transaktionsdaten als auch alle Kategorien
+      const [transactionCategoryData, allCategories] = await Promise.all([
+        categoryService.getCategoryData(accountId, params),
+        categoryService.getCategories()
+      ]);
+      
+      // Wenn keine Transaktionsdaten vorhanden, zeige alle Kategorien mit 0-Werten
+      let finalCategoryData = transactionCategoryData || [];
+      if ((!transactionCategoryData || transactionCategoryData.length === 0) && allCategories && allCategories.length > 0) {
+        finalCategoryData = allCategories.map(cat => ({
+          category_id: cat.id,
+          category_name: cat.name,
+          color: cat.color,
+          icon: cat.icon,
+          total_amount: 0,
+          transaction_count: 0,
+          percentage: 0
+        }));
+      }
+      
+      setCategoryData(finalCategoryData);
       setError(null); // Clear error on success
     } catch (err) {
       console.error('Error fetching category statistics:', err);
@@ -387,8 +420,27 @@ export function useCategoryStatistics(accountId, params = {}) {
       const message = err.response?.data?.message || err.message || '';
       
       if (status === 404 || message.toLowerCase().includes('keine') || message.toLowerCase().includes('not found')) {
-        console.log('useCategoryStatistics: No data found, treating as empty array');
-        setCategoryData([]);
+        console.log('useCategoryStatistics: No data found, loading all categories with 0 values');
+        // Lade alle Kategorien mit 0-Werten
+        try {
+          const { categoryService } = await import('../services/categoryService');
+          const allCategories = await categoryService.getCategories();
+          if (allCategories && allCategories.length > 0) {
+            setCategoryData(allCategories.map(cat => ({
+              category_id: cat.id,
+              category_name: cat.name,
+              color: cat.color,
+              icon: cat.icon,
+              total_amount: 0,
+              transaction_count: 0,
+              percentage: 0
+            })));
+          } else {
+            setCategoryData([]);
+          }
+        } catch {
+          setCategoryData([]);
+        }
         setError(null);
       } else {
         setError(message || 'Fehler beim Laden der Kategorie-Statistiken');
@@ -401,7 +453,7 @@ export function useCategoryStatistics(accountId, params = {}) {
 
   useEffect(() => {
     fetchCategoryData();
-  }, [accountId, params.fromDate, params.toDate, params.categoryIds, params.minAmount, params.maxAmount, params.recipient, params.purpose, params.transactionType]);
+  }, [accountId, params.fromDate, params.toDate, params.categoryIds, params.minAmount, params.maxAmount, params.recipient, params.purpose, params.transactionType, params._refreshKey]);
 
   return { categoryData, loading, error, refetch: fetchCategoryData };
 }
@@ -443,18 +495,33 @@ export function useDashboardData(params = {}) {
     try {
       // Dynamischer Import um zirkuläre Dependencies zu vermeiden
       const { default: dashboardService } = await import('../services/dashboardService');
+      const { categoryService } = await import('../services/categoryService');
       
-      // Parallel alle Daten laden
-      const [summaryData, categoriesData, historyData, recipientsData, sendersData] = await Promise.all([
+      // Parallel alle Daten laden, inklusive globale Kategorien
+      const [summaryData, categoriesData, historyData, recipientsData, sendersData, allCategories] = await Promise.all([
         dashboardService.getSummary(params),
         dashboardService.getCategoriesData({ ...params, limit: 10 }),
         dashboardService.getBalanceHistory({ ...params, groupBy: 'month' }),
         dashboardService.getRecipientsData({ ...params, transactionType: 'expense', limit: 10 }),
-        dashboardService.getRecipientsData({ ...params, transactionType: 'income', limit: 10 })
+        dashboardService.getRecipientsData({ ...params, transactionType: 'income', limit: 10 }),
+        categoryService.getCategories()
       ]);
 
+      // Wenn keine Transaktionsdaten vorhanden, zeige alle Kategorien mit 0-Werten
+      let finalCategories = categoriesData || [];
+      if ((!categoriesData || categoriesData.length === 0) && allCategories && allCategories.length > 0) {
+        finalCategories = allCategories.map(cat => ({
+          category_id: cat.id,
+          category_name: cat.name,
+          color: cat.color,
+          icon: cat.icon,
+          total_amount: 0,
+          transaction_count: 0
+        }));
+      }
+
       setSummary(summaryData);
-      setCategories(categoriesData || []);
+      setCategories(finalCategories);
       setBalanceHistory(historyData);
       setRecipients(recipientsData || []);
       setSenders(sendersData || []);

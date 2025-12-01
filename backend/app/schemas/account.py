@@ -1,7 +1,7 @@
+"""Account Schemas
+Audit reference: 05_backend_schemas.md - Pydantic v2 config
 """
-Account Schemas
-"""
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List
 from datetime import datetime
 from decimal import Decimal
@@ -38,8 +38,7 @@ class AccountResponse(AccountBase):
     created_at: datetime
     updated_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AccountListResponse(BaseModel):

@@ -6,6 +6,7 @@ import React from 'react';
 export default function Input({
   label,
   error,
+  helperText,
   type = 'text',
   className = '',
   required = false,
@@ -26,6 +27,9 @@ export default function Input({
       />
       {error && (
         <p className="mt-1 text-sm text-red-600">{error}</p>
+      )}
+      {helperText && !error && (
+        <p className="mt-1 text-sm text-gray-500">{helperText}</p>
       )}
     </div>
   );

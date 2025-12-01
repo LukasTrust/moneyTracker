@@ -1,23 +1,29 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Entrypoint script for Money Tracker Backend
 # Handles database initialization, migrations, and server startup
 
-set -e  # Exit on error
+set -euo pipefail  # Exit on error, undefined vars, and pipe failures
 
 echo "🚀 Money Tracker Backend - Starting..."
 echo "======================================="
 echo ""
 
-# Environment variables
+# Validate required environment variables
+: "${DATABASE_URL:?DATABASE_URL must be set}"
+
+# Environment variables with defaults
 DB_PATH="${DATABASE_URL#sqlite:///}"  # Extract path from sqlite:///path
 DB_DIR=$(dirname "$DB_PATH")
 MIGRATIONS_DIR="/app/migrations"
 MIGRATION_RUNNER="$MIGRATIONS_DIR/run_migrations.py"
+AUTO_MIGRATE="${AUTO_MIGRATE:-false}"
+ENV="${ENV:-production}"
 
 echo "📋 Configuration:"
 echo "   Database: $DB_PATH"
 echo "   Migrations: $MIGRATIONS_DIR"
-echo "   Environment: ${ENV:-production}"
+echo "   Environment: $ENV"
+echo "   Auto-migrate: $AUTO_MIGRATE"
 echo ""
 
 # ============================================
@@ -45,38 +51,59 @@ fi
 echo ""
 
 # ============================================
-# Step 3: Run migrations automatically
+# Step 3: Run migrations (if enabled)
 # ============================================
-echo "🔄 Step 3: Running database migrations..."
-if [ -f "$MIGRATION_RUNNER" ]; then
-    python "$MIGRATION_RUNNER"
-    if [ $? -eq 0 ]; then
-        echo "   ✅ Migrations completed successfully"
+if [ "$AUTO_MIGRATE" = "true" ]; then
+    echo "🔄 Step 3: Running database migrations..."
+    if [ -f "$MIGRATION_RUNNER" ]; then
+        # Try to acquire lock if flock is available
+        if command -v flock >/dev/null 2>&1; then
+            LOCK_FILE="/tmp/moneytracker-migrate.lock"
+            exec 9>"$LOCK_FILE"
+            if flock -n 9; then
+                echo "   🔒 Lock acquired, running migrations..."
+                python "$MIGRATION_RUNNER"
+                if [ $? -eq 0 ]; then
+                    echo "   ✅ Migrations completed successfully"
+                else
+                    echo "   ❌ Migration failed!"
+                    exit 1
+                fi
+            else
+                echo "   ⏳ Another migration is running, skipping..."
+            fi
+        else
+            # No flock available, run without lock
+            echo "   ⚠️  flock not available, running migrations without lock..."
+            python "$MIGRATION_RUNNER"
+            if [ $? -eq 0 ]; then
+                echo "   ✅ Migrations completed successfully"
+            else
+                echo "   ❌ Migration failed!"
+                exit 1
+            fi
+        fi
     else
-        echo "   ❌ Migration failed!"
-        exit 1
+        echo "   ⚠️  Migration runner not found: $MIGRATION_RUNNER"
+        echo "   Skipping migrations..."
     fi
+    echo ""
 else
-    echo "   ⚠️  Migration runner not found: $MIGRATION_RUNNER"
-    echo "   Skipping migrations..."
+    echo "🔄 Step 3: Auto-migrate disabled (set AUTO_MIGRATE=true to enable)"
+    echo ""
 fi
-echo ""
 
 # ============================================
-# Step 4: Verify database integrity
+# Step 4: Basic database check (skip integrity check)
 # ============================================
-echo "🔍 Step 4: Verifying database..."
+echo "🔍 Step 4: Checking database accessibility..."
 if [ -f "$DB_PATH" ]; then
-    # Check if database is accessible
-    sqlite3 "$DB_PATH" "PRAGMA integrity_check;" > /dev/null 2>&1
-    if [ $? -eq 0 ]; then
-        echo "   ✅ Database integrity OK"
-        
-        # Show table count
-        TABLE_COUNT=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM sqlite_master WHERE type='table';")
+    # Quick check - just count tables without full integrity check
+    if TABLE_COUNT=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM sqlite_master WHERE type='table';" 2>&1); then
+        echo "   ✅ Database accessible"
         echo "   📊 Tables: $TABLE_COUNT"
     else
-        echo "   ❌ Database integrity check failed!"
+        echo "   ❌ Database not accessible!"
         exit 1
     fi
 else

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import UnifiedFilter from '../common/UnifiedFilter';
 import RecipientPieChart from '../visualization/RecipientPieChart';
 import RecipientList from '../visualization/RecipientList';
@@ -86,27 +86,13 @@ function RecipientsTab({ accountId, currency = 'EUR' }) {
     filterParams
   );
 
-  // Debug logging
-  useEffect(() => {
-    console.log('RecipientsTab: FilterStore Date Range:', { fromDate, toDate });
-    console.log('RecipientsTab: FilterStore Category IDs:', selectedCategoryIds);
-    console.log('RecipientsTab: Advanced Filters:', { minAmount, maxAmount, recipientQuery, purposeQuery, transactionType });
-    console.log('RecipientsTab: API Filter Params:', filterParams);
-    console.log('RecipientsTab: Recipients data:', recipients);
-    console.log('RecipientsTab: Recipients error:', recipientsError);
-    console.log('RecipientsTab: Senders data:', senders);
-    console.log('RecipientsTab: Senders error:', sendersError);
-  }, [fromDate, toDate, dateParams, selectedCategoryIds, recipients, senders, recipientsError, sendersError, minAmount, maxAmount, recipientQuery, purposeQuery, transactionType, filterParams]);
-
   // Handler für Segment-Klick (optional - für Drill-down)
   const handleRecipientClick = useCallback((recipient) => {
-    console.log('Empfänger ausgewählt:', recipient);
     // DEVELOPER NOTE: Hier kann Drill-down implementiert werden
     // z.B. navigate(`/transactions?recipient=${recipient.name}&from=${dateParams.fromDate}&to=${dateParams.toDate}`);
   }, [dateParams]);
 
   const handleSenderClick = useCallback((sender) => {
-    console.log('Absender ausgewählt:', sender);
     // DEVELOPER NOTE: Hier kann Drill-down implementiert werden
   }, [dateParams]);
 

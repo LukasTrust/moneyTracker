@@ -26,7 +26,8 @@ class JobService:
 
     @staticmethod
     def update_status(db, job_id: int, status: str, started: bool = False, finished: bool = False):
-        job = db.query(BackgroundJob).get(job_id)
+        # Audit reference: 08_backend_utils.md - Replace deprecated .get()
+        job = db.get(BackgroundJob, job_id)
         if not job:
             return None
         job.status = status
@@ -41,4 +42,5 @@ class JobService:
 
     @staticmethod
     def get_job(db, job_id: int):
-        return db.query(BackgroundJob).get(job_id)
+        # Audit reference: 08_backend_utils.md - Replace deprecated .get()
+        return db.get(BackgroundJob, job_id)

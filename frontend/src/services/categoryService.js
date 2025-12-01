@@ -1,7 +1,10 @@
 import api from './api';
+import { toApiAmount } from '../utils/amount';
+import { waitForJob, startPolling } from './jobPoller';
 
 /**
  * Category Service - Verwaltet Kategorien und deren Mappings
+ * Uses amount utilities for consistent money handling
  * 
  * API-ROUTEN (Backend):
  * - GET    /categories                     → Alle globalen Kategorien
@@ -36,12 +39,34 @@ export const categoryService = {
     await api.delete(`/categories/${categoryId}`);
   },
 
-  async recategorizeTransactions(accountId = null) {
+  async recategorizeTransactions(accountId = null, options = {}) {
+    const { waitForCompletion = false, onProgress } = options;
     const queryParams = new URLSearchParams();
     if (accountId) queryParams.append('account_id', accountId);
-    
+
     const response = await api.post(`/categories/recategorize?${queryParams}`);
-    return response.data;
+    const result = response.data;
+
+    if (result && result.job_id) {
+      if (waitForCompletion) {
+        if (onProgress) {
+          return new Promise((resolve, reject) => {
+            startPolling(result.job_id, {
+              onUpdate: (job) => onProgress({ status: job.status, progress: job.progress || 0, message: job.message }),
+              onComplete: (job) => resolve({ ...job.result, job_id: result.job_id, async: true }),
+              onError: (err) => reject(err),
+            });
+          });
+        }
+
+        const job = await waitForJob(result.job_id);
+        return { ...job.result, job_id: result.job_id, async: true };
+      }
+
+      return { job_id: result.job_id, async: true, status: 'pending' };
+    }
+
+    return result;
   },
 
   async checkPatternConflict(pattern, currentCategoryId = null) {
@@ -68,8 +93,8 @@ export const categoryService = {
     // Support multiple category IDs (comma-separated)
     if (categoryIds) queryParams.append('category_ids', categoryIds);
 
-    if (minAmount !== undefined && minAmount !== null) queryParams.append('min_amount', minAmount);
-    if (maxAmount !== undefined && maxAmount !== null) queryParams.append('max_amount', maxAmount);
+    if (minAmount !== undefined && minAmount !== null) queryParams.append('min_amount', toApiAmount(minAmount));
+    if (maxAmount !== undefined && maxAmount !== null) queryParams.append('max_amount', toApiAmount(maxAmount));
     if (recipient) queryParams.append('recipient', recipient);
     if (purpose) queryParams.append('purpose', purpose);
     if (transactionType && transactionType !== 'all') queryParams.append('transaction_type', transactionType);

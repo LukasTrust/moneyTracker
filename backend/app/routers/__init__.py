@@ -10,6 +10,7 @@ from . import csv_import
 from . import recipients
 from . import budgets
 from . import recurring
+from . import comparison
 from . import import_history
 from . import transfers
 from . import insights
@@ -24,6 +25,7 @@ __all__ = [
     "recipients",
     "budgets",
     "recurring",
+    "comparison",
     "import_history",
     "transfers",
     "insights",

@@ -1,7 +1,8 @@
 """
 Category Model - Kategorien für Transaktionen
+Audit reference: 04_backend_models.md - Fix mutable JSON defaults
 """
-from sqlalchemy import Column, Integer, String, DateTime, JSON
+from sqlalchemy import Column, Integer, String, DateTime, JSON, text
 from sqlalchemy.sql import func
 from app.database import Base
 
@@ -24,14 +25,17 @@ class Category(Base):
     
     # Mappings - JSON field containing patterns for matching
     # Structure: {"patterns": ["REWE", "EDEKA", "Amazon", "Gehalt"]}
+    # Note: Using lambda for default to avoid mutable default issue
+    # Server-side default is set via text() for database-level consistency
     mappings = Column(
         JSON,
         nullable=False,
-        default={"patterns": []},
+        default=lambda: {"patterns": []},  # Client-side default (creates new dict each time)
+        server_default=text("'{\"patterns\":[]}'"),  # Server-side default for direct DB inserts
         comment="Pattern list for automatic categorization"
     )
     
-    # Timestamps
+    # Timestamps (timezone-aware for consistency)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
     

@@ -93,7 +93,10 @@ function BudgetProgressCard({
     }).format(amount);
   };
 
-  if (loading && budgetsWithProgress.length === 0) {
+  // Ensure budgetsWithProgress is always an array
+  const budgets = Array.isArray(budgetsWithProgress) ? budgetsWithProgress : [];
+
+  if (loading && budgets.length === 0) {
     return (
       <Card>
         <div className="text-center py-8 text-gray-500">Lade Budget-Daten...</div>
@@ -112,7 +115,7 @@ function BudgetProgressCard({
     );
   }
 
-  if (budgetsWithProgress.length === 0) {
+  if (budgets.length === 0) {
     return (
       <Card>
         <h3 className="text-lg font-semibold text-gray-800 mb-4">Budget-Übersicht</h3>
@@ -186,7 +189,7 @@ function BudgetProgressCard({
 
       {/* Individual Budget Progress Bars */}
       <div className="space-y-4">
-        {budgetsWithProgress.map((budget) => {
+        {budgets.map((budget) => {
           const { progress } = budget;
           const percentage = Math.min(progress.percentage, 100); // Cap at 100 for visual
 

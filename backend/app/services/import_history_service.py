@@ -1,8 +1,10 @@
 """
 Import History Service - Business logic for import tracking and rollback
+Audit reference: 01_backend_action_plan.md - P0 Import dedupe at DB level
 """
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_
+from sqlalchemy.exc import IntegrityError
 from typing import List, Optional, Tuple
 from datetime import datetime
 import hashlib
@@ -15,6 +17,7 @@ from app.schemas.import_history import (
     ImportRollbackResponse
 )
 from app.utils import get_logger
+from app.services.errors import DuplicateError
 
 
 # Module logger
@@ -32,7 +35,7 @@ class ImportHistoryService:
         file_content: Optional[bytes] = None
     ) -> ImportHistory:
         """
-        Create a new import history record
+        Create a new import history record with duplicate detection.
         
         Args:
             db: Database session
@@ -41,7 +44,10 @@ class ImportHistoryService:
             file_content: Optional file content for hash generation
             
         Returns:
-            Created ImportHistory instance
+            Created or existing ImportHistory instance
+            
+        Raises:
+            DuplicateError: If file has already been imported (hash collision)
         """
         file_hash = None
         if file_content:
@@ -57,12 +63,28 @@ class ImportHistoryService:
             status='success'
         )
         
-        db.add(import_record)
-        db.commit()
-        db.refresh(import_record)
-        logger.info("Created import record", extra={"import_id": import_record.id, "account_id": account_id, "file": filename})
-
-        return import_record
+        try:
+            db.add(import_record)
+            db.commit()
+            db.refresh(import_record)
+            logger.info("Created import record", extra={"import_id": import_record.id, "account_id": account_id, "file": filename})
+            return import_record
+        except IntegrityError as e:
+            db.rollback()
+            # Check if it's a duplicate file_hash constraint violation
+            if file_hash:
+                existing = ImportHistoryService.check_duplicate_file(db, account_id, file_hash)
+                if existing:
+                    logger.warning(
+                        "Duplicate file import attempted",
+                        extra={"account_id": account_id, "file_hash": file_hash, "existing_import_id": existing.id}
+                    )
+                    raise DuplicateError(
+                        f"File '{filename}' has already been imported on {existing.uploaded_at}",
+                        details={"import_id": existing.id, "filename": existing.filename}
+                    ) from e
+            # Re-raise if not a file_hash duplicate
+            raise
     
     @staticmethod
     def update_import_stats(

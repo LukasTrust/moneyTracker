@@ -1,14 +1,15 @@
+"""Transfer Schemas - Pydantic models for API requests/responses
+Audit reference: 05_backend_schemas.md - Use Decimal for money
 """
-Transfer Schemas - Pydantic models for API requests/responses
-"""
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import Optional
 from datetime import date, datetime
+from decimal import Decimal
 
 
 class TransferBase(BaseModel):
     """Base schema for transfer data"""
-    amount: float = Field(..., gt=0, description="Transfer amount (always positive)")
+    amount: Decimal = Field(..., gt=0, description="Transfer amount (always positive)")
     transfer_date: date = Field(..., description="Date of the transfer")
     notes: Optional[str] = Field(None, max_length=500, description="Optional notes about this transfer")
 
@@ -41,8 +42,7 @@ class TransferResponse(TransferBase):
     created_at: datetime
     updated_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TransferWithDetails(TransferResponse):
@@ -59,7 +59,7 @@ class TransferCandidate(BaseModel):
     to_transaction_id: int
     from_transaction: dict = Field(..., description="Details of the source transaction")
     to_transaction: dict = Field(..., description="Details of the destination transaction")
-    amount: float = Field(..., description="Transfer amount")
+    amount: Decimal = Field(..., description="Transfer amount")
     transfer_date: date = Field(..., description="Date of the transfer")
     confidence_score: float = Field(..., ge=0, le=1, description="Confidence score (0.00 to 1.00)")
     match_reason: str = Field(..., description="Explanation of why these transactions match")
@@ -86,5 +86,5 @@ class TransferStats(BaseModel):
     total_transfers: int = Field(..., description="Total number of transfers")
     auto_detected: int = Field(..., description="Number of auto-detected transfers")
     manual: int = Field(..., description="Number of manually created transfers")
-    total_amount: float = Field(..., description="Total amount transferred")
+    total_amount: Decimal = Field(..., description="Total amount transferred")
     date_range: Optional[dict] = Field(None, description="Date range of transfers")

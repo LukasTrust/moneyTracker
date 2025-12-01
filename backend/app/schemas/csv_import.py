@@ -1,7 +1,7 @@
 """
 CSV Import Schemas - Advanced CSV import with flexible mapping
 """
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import Dict, Optional, List, Any
 from datetime import datetime
 
@@ -42,8 +42,8 @@ class CsvImportRequest(BaseModel):
     account_id: int = Field(..., description="Target account ID")
     mapping: CsvImportMapping = Field(..., description="Field mapping configuration")
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "account_id": 1,
                 "mapping": {
@@ -54,6 +54,7 @@ class CsvImportRequest(BaseModel):
                 }
             }
         }
+    )
 
 
 class CsvPreviewRow(BaseModel):

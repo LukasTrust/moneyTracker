@@ -16,6 +16,8 @@ services:
       - PORT=8000
       - RELOAD=false
       - ENV=production
+      - WEB_CONCURRENCY=2
+      - AUTO_MIGRATE=false
       - BACKEND_CORS_ORIGINS=["http://localhost","http://localhost:80","http://localhost:5173"]
     volumes:
       # Only mount data volume, no source code
@@ -23,7 +25,16 @@ services:
     restart: unless-stopped
     networks:
       - moneytracker-network
-    # Resource limits for production
+    # Logging configuration
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    # Resource limits for production (docker-compose v2)
+    mem_limit: 512m
+    cpus: 1.0
+    # Resource limits for swarm/kubernetes
     deploy:
       resources:
         limits:
@@ -45,6 +56,16 @@ services:
     restart: always
     networks:
       - moneytracker-network
+    # Logging configuration
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # Resource limits for production (docker-compose v2)
+    mem_limit: 256m
+    cpus: 0.5
+    # Resource limits for swarm/kubernetes
     deploy:
       resources:
         limits:

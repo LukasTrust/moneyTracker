@@ -31,6 +31,8 @@ function CategoryMappingEditor({ category, onSave, onCancel }) {
   const [patterns, setPatterns] = useState([]);
   const [newPattern, setNewPattern] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isRecategorizing, setIsRecategorizing] = useState(false);
+  const [recategorizeProgress, setRecategorizeProgress] = useState({ status: '', progress: 0, message: '' });
   
   // Conflict Modal State
   const [showConflictModal, setShowConflictModal] = useState(false);
@@ -40,18 +42,9 @@ function CategoryMappingEditor({ category, onSave, onCancel }) {
   // Lade bestehende Patterns beim Mount oder wenn sich category.id ändert
   // WICHTIG: Nur bei ID-Wechsel neu laden, nicht bei jedem refetch!
   useEffect(() => {
-    console.log('🔄 CategoryMappingEditor useEffect triggered', {
-      categoryId: category?.id,
-      categoryName: category?.name,
-      patternsFromProp: category?.mappings?.patterns,
-      currentLocalPatterns: patterns
-    });
-    
     if (category?.mappings?.patterns) {
-      console.log('✅ Setting patterns from category prop:', category.mappings.patterns);
       setPatterns([...category.mappings.patterns]);
     } else {
-      console.log('⚠️ No patterns in category prop, setting empty array');
       setPatterns([]);
     }
   }, [category?.id]); // ✅ FIX: Nur bei ID-Wechsel, nicht bei refetch
@@ -62,8 +55,6 @@ function CategoryMappingEditor({ category, onSave, onCancel }) {
   const handleAddPattern = useCallback(async () => {
     const pattern = newPattern.trim();
     if (!pattern) return;
-
-    console.log('➕ Adding pattern:', pattern, 'Current patterns:', patterns);
 
     // Check for duplicates (case-insensitive)
     if (patterns.some(p => p.toLowerCase() === pattern.toLowerCase())) {
@@ -103,7 +94,6 @@ function CategoryMappingEditor({ category, onSave, onCancel }) {
    */
   const addPatternToCategory = useCallback(async (pattern) => {
     const newPatterns = [...patterns, pattern];
-    console.log('✅ New patterns array:', newPatterns);
     
     // Sofort lokal aktualisieren für schnelles Feedback
     setPatterns(newPatterns);
@@ -116,9 +106,7 @@ function CategoryMappingEditor({ category, onSave, onCancel }) {
         mappings: { patterns: newPatterns }
       };
       
-      console.log('📤 Auto-saving after add:', updateData);
       const updatedCategory = await categoryService.updateCategory(category.id, updateData);
-      console.log('📥 Auto-save response:', updatedCategory);
       
       // Update from server response
       if (updatedCategory?.mappings?.patterns) {
@@ -127,17 +115,25 @@ function CategoryMappingEditor({ category, onSave, onCancel }) {
       
       showToast('Muster hinzugefügt - kategorisiere Transaktionen neu...', 'info');
       
-      // Neu-Kategorisierung durchführen
+      // Neu-Kategorisierung durchführen mit job support
       try {
-        const recategorizeResult = await categoryService.recategorizeTransactions();
-        console.log('✅ Recategorization complete:', recategorizeResult);
+        setIsRecategorizing(true);
+        const recategorizeResult = await categoryService.recategorizeTransactions(null, {
+          waitForCompletion: true,
+          onProgress: (progress) => {
+            setRecategorizeProgress(progress);
+          }
+        });
         showToast(
-          `${recategorizeResult.updated_count} Transaktionen neu kategorisiert`, 
+          `${recategorizeResult.updated_count || 0} Transaktionen neu kategorisiert`, 
           'success'
         );
       } catch (recatErr) {
         console.error('⚠️ Recategorization failed:', recatErr);
         showToast('Muster gespeichert, aber Neu-Kategorisierung fehlgeschlagen', 'warning');
+      } finally {
+        setIsRecategorizing(false);
+        setRecategorizeProgress({ status: '', progress: 0, message: '' });
       }
       
       // Informiere Parent-Component über Änderung (damit Liste sofort aktualisiert wird)
@@ -162,7 +158,6 @@ function CategoryMappingEditor({ category, onSave, onCancel }) {
     setShowConflictModal(false);
     
     // Remove from other category
-    console.log(`🔄 Removing pattern from category ${conflictData.category_id}`);
     try {
       await categoryService.removePatternFromCategory(conflictData.category_id, pendingPattern);
       showToast(`Muster wurde aus "${conflictData.category_name}" entfernt`, 'info');
@@ -205,9 +200,7 @@ function CategoryMappingEditor({ category, onSave, onCancel }) {
         mappings: { patterns: newPatterns }
       };
       
-      console.log('📤 Auto-saving after remove:', updateData);
       const updatedCategory = await categoryService.updateCategory(category.id, updateData);
-      console.log('📥 Auto-save response:', updatedCategory);
       
       // Update from server response
       if (updatedCategory?.mappings?.patterns) {
@@ -216,17 +209,25 @@ function CategoryMappingEditor({ category, onSave, onCancel }) {
       
       showToast(`Muster "${removedPattern}" entfernt - kategorisiere neu...`, 'info');
       
-      // Neu-Kategorisierung durchführen
+      // Neu-Kategorisierung durchführen mit job support
       try {
-        const recategorizeResult = await categoryService.recategorizeTransactions();
-        console.log('✅ Recategorization complete:', recategorizeResult);
+        setIsRecategorizing(true);
+        const recategorizeResult = await categoryService.recategorizeTransactions(null, {
+          waitForCompletion: true,
+          onProgress: (progress) => {
+            setRecategorizeProgress(progress);
+          }
+        });
         showToast(
-          `${recategorizeResult.updated_count} Transaktionen neu kategorisiert`, 
+          `${recategorizeResult.updated_count || 0} Transaktionen neu kategorisiert`, 
           'success'
         );
       } catch (recatErr) {
         console.error('⚠️ Recategorization failed:', recatErr);
         showToast('Muster entfernt, aber Neu-Kategorisierung fehlgeschlagen', 'warning');
+      } finally {
+        setIsRecategorizing(false);
+        setRecategorizeProgress({ status: '', progress: 0, message: '' });
       }
       
       // Informiere Parent-Component über Änderung
@@ -362,13 +363,20 @@ function CategoryMappingEditor({ category, onSave, onCancel }) {
         </div>
 
         {/* Loading Indicator */}
-        {isSaving && (
+        {(isSaving || isRecategorizing) && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center gap-2 text-blue-800" role="status" aria-live="polite">
             <svg className="animate-spin h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" aria-hidden="true">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <span className="text-sm font-medium">Speichert...</span>
+            <span className="text-sm font-medium">
+              {isRecategorizing 
+                ? recategorizeProgress.progress > 0 
+                  ? `${Math.round(recategorizeProgress.progress)}% ${recategorizeProgress.message || 'Kategorisiere...'}`
+                  : 'Kategorisiere Transaktionen...'
+                : 'Speichere Änderungen...'
+              }
+            </span>
           </div>
         )}
 

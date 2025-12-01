@@ -1,7 +1,9 @@
 import api from './api';
+import { toApiAmount } from '../utils/amount';
 
 /**
  * Account Service - Verwaltet alle API-Calls für Konten
+ * Uses amount utilities for consistent money handling
  */
 
 export const accountService = {

@@ -1,7 +1,9 @@
 import api from './api';
+import { toApiAmount, parseAmount } from '../utils/amount';
 
 /**
  * Budget Service - Verwaltet Budgets und deren Fortschritt
+ * Uses amount utilities for consistent money handling
  * 
  * API-ROUTEN (Backend):
  * - GET    /budgets                    → Alle Budgets
@@ -92,14 +94,19 @@ const budgetService = {
    * @param {Object} budgetData - Budget-Daten
    * @param {number} budgetData.category_id - Kategorie-ID
    * @param {string} budgetData.period - Periode (monthly, yearly, quarterly, custom)
-   * @param {number} budgetData.amount - Budget-Betrag
+   * @param {number|string} budgetData.amount - Budget-Betrag
    * @param {string} budgetData.start_date - Start-Datum (YYYY-MM-DD)
    * @param {string} budgetData.end_date - End-Datum (YYYY-MM-DD)
    * @param {string} budgetData.description - Optional: Beschreibung
    * @returns {Promise<Object>}
    */
   async createBudget(budgetData) {
-    const response = await api.post('/budgets', budgetData);
+    // Convert amount to API format (string with 2 decimals)
+    const payload = {
+      ...budgetData,
+      amount: toApiAmount(budgetData.amount)
+    };
+    const response = await api.post('/budgets', payload);
     return response.data;
   },
 
@@ -110,7 +117,12 @@ const budgetService = {
    * @returns {Promise<Object>}
    */
   async updateBudget(budgetId, budgetData) {
-    const response = await api.put(`/budgets/${budgetId}`, budgetData);
+    // Convert amount to API format if present
+    const payload = { ...budgetData };
+    if (payload.amount !== undefined) {
+      payload.amount = toApiAmount(payload.amount);
+    }
+    const response = await api.put(`/budgets/${budgetId}`, payload);
     return response.data;
   },
 

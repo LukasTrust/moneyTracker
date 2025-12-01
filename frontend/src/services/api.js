@@ -12,6 +12,72 @@ const api = axios.create({
   timeout: 30000, // 30 Sekunden
 });
 
+/**
+ * Normalize list responses to consistent shape: { items, total }
+ * Audit reference: 09_frontend_action_plan.md - P1 API normalizer
+ * 
+ * Handles various backend response shapes:
+ * - Direct arrays: [item1, item2] -> { items: [...], total: N }
+ * - Already normalized: { items: [...], total: N } -> unchanged
+ * - Paginated: { items, total, limit, offset } -> { items, total }
+ */
+function normalizeListResponse(data) {
+  // Already in correct shape
+  if (data && typeof data === 'object' && Array.isArray(data.items)) {
+    return {
+      items: data.items,
+      total: data.total ?? data.items.length
+    };
+  }
+  
+  // Direct array
+  if (Array.isArray(data)) {
+    return {
+      items: data,
+      total: data.length
+    };
+  }
+  
+  // Other shapes - return as-is
+  return data;
+}
+
+/**
+ * Normalize error responses to consistent shape
+ * { error: { status, code, message, details } }
+ */
+function normalizeErrorResponse(error) {
+  const data = error.response?.data;
+  let message = error.message || 'Serverfehler';
+  let code = null;
+  let details = null;
+
+  if (data) {
+    // New standardized shape: { success: false, error: { status, code, message, details } }
+    if (data.success === false && data.error) {
+      message = data.error.message || message;
+      code = data.error.code;
+      details = data.error.details;
+    } else if (data.message) {
+      // Legacy or simple shape
+      message = data.message;
+    } else if (data.detail) {
+      // FastAPI default error shape
+      message = data.detail;
+    }
+  }
+
+  return {
+    success: false,
+    status: error.response?.status || null,
+    error: {
+      code: code || error.response?.status || 'unknown_error',
+      message,
+      details,
+    },
+  };
+}
+
 // Request Interceptor für Logging (optional)
 api.interceptors.request.use(
   (config) => {
@@ -40,51 +106,39 @@ api.interceptors.request.use(
   }
 );
 
-// Response Interceptor für Error Handling
+// Response Interceptor for normalization and error handling
+// Audit reference: 09_frontend_action_plan.md - P1 API normalizer
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Normalize list responses if they look like lists
+    // Only apply to GET requests to avoid breaking POST/PUT/DELETE responses
+    if (response.config.method === 'get' && response.data) {
+      const normalized = normalizeListResponse(response.data);
+      
+      // Only replace if we actually normalized something
+      if (normalized !== response.data) {
+        response.data = normalized;
+      }
+    }
+    
+    return response;
+  },
   (error) => {
     // Normalize and surface standardized backend errors
+    const normalized = normalizeErrorResponse(error);
+    
+    // Try to show a toast using the UI store (safe when used outside React)
     try {
-      const data = error.response && error.response.data ? error.response.data : null;
-      let message = error.message || 'Serverfehler';
-      let code = null;
-      let details = null;
-
-      if (data) {
-        // New standardized shape: { success: false, error: { status, code, message, details } }
-        if (data.success === false && data.error) {
-          message = data.error.message || message;
-          code = data.error.code;
-          details = data.error.details;
-        } else if (data.message) {
-          // Legacy or simple shape
-          message = data.message;
-        }
+      const ui = useUIStore && useUIStore.getState ? useUIStore.getState() : null;
+      if (ui && ui.showError) {
+        ui.showError(normalized.error.message);
       }
-
-      // Try to show a toast using the UI store (safe when used outside React)
-      try {
-        const ui = useUIStore && useUIStore.getState ? useUIStore.getState() : null;
-        if (ui && ui.showError) ui.showError(message);
-      } catch (e) {
-        if (import.meta.env.DEV) console.warn('Failed to show toast from api interceptor', e);
-      }
-
-      // Attach normalized error info for callers that want structured data
-      error.normalized = {
-        success: false,
-        status: error.response ? error.response.status : null,
-        error: {
-          code: code || (error.response && error.response.status) || 'unknown_error',
-          message,
-          details,
-        },
-      };
     } catch (e) {
-      // swallow normalization errors
-      if (import.meta.env.DEV) console.error('Error normalizing API error', e);
+      if (import.meta.env.DEV) console.warn('Failed to show toast from api interceptor', e);
     }
+
+    // Attach normalized error info for callers that want structured data
+    error.normalized = normalized;
 
     // Log errors; minimize noise in production
     if (import.meta.env.DEV) {

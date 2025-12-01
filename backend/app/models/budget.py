@@ -1,7 +1,8 @@
 """
 Budget Model - Budgets für Kategorien
+Audit reference: 04_backend_models.md - Add DB constraints
 """
-from sqlalchemy import Column, Integer, String, Numeric, Date, DateTime, ForeignKey, Enum as SQLEnum
+from sqlalchemy import Column, Integer, String, Numeric, Date, DateTime, ForeignKey, Enum as SQLEnum, CheckConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -25,6 +26,12 @@ class Budget(Base):
     Ermöglicht Überwachung von Ausgaben vs. geplante Budgets.
     """
     __tablename__ = "budgets"
+    
+    # Table-level constraints (Audit: 04_backend_models.md)
+    __table_args__ = (
+        CheckConstraint('amount > 0', name='check_budget_amount_positive'),
+        CheckConstraint('start_date <= end_date', name='check_budget_date_range'),
+    )
     
     # Primary Key
     id = Column(Integer, primary_key=True, index=True)
@@ -74,7 +81,7 @@ class Budget(Base):
         comment="Optional description or notes for this budget"
     )
     
-    # Timestamps
+    # Timestamps (timezone-aware for consistency)
     created_at = Column(
         DateTime(timezone=True),
         server_default=func.now(),

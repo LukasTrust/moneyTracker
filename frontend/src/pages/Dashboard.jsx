@@ -92,8 +92,8 @@ export default function Dashboard() {
           maxInsights={2}
           delayMs={3000}
           autoShow={activeTab === 'overview'}
-          onInsightShown={(insight) => console.log('Insight shown:', insight)}
-          onInsightDismissed={(insight) => console.log('Insight dismissed:', insight)}
+          onInsightShown={(insight) => {}}
+          onInsightDismissed={(insight) => {}}
         />
         
         {activeTab === 'overview' && (

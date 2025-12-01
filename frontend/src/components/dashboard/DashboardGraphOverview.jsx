@@ -149,12 +149,15 @@ function DashboardGraphOverview() {
   const expensesPieData = useMemo(() => {
     console.log('Preparing expensesPieData from:', categories);
     
-    if (!categories || categories.length === 0) {
+    // Handle both array and object formats
+    const categoriesArray = Array.isArray(categories) ? categories : (categories?.items || []);
+    
+    if (!categoriesArray || categoriesArray.length === 0) {
       console.log('No categories data available');
       return [];
     }
 
-    const result = categories
+    const result = categoriesArray
       .filter(cat => cat.total_amount < 0) // Nur Ausgaben
       .slice(0, 10) // Top 10
       .map(cat => ({
@@ -175,12 +178,15 @@ function DashboardGraphOverview() {
   const incomePieData = useMemo(() => {
     console.log('Preparing incomePieData from:', categories);
     
-    if (!categories || categories.length === 0) {
+    // Handle both array and object formats
+    const categoriesArray = Array.isArray(categories) ? categories : (categories?.items || []);
+    
+    if (!categoriesArray || categoriesArray.length === 0) {
       console.log('No categories data available for income');
       return [];
     }
 
-    const result = categories
+    const result = categoriesArray
       .filter(cat => cat.total_amount > 0) // Nur Einnahmen
       .map(cat => ({
         name: cat.category_name,

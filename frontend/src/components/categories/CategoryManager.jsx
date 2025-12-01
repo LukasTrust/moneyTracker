@@ -240,6 +240,9 @@ function CategoryManager({ accountId, onCategoryChange }) {
     if (onCategoryChange) onCategoryChange();
   }, [refetch, onCategoryChange]);
 
+  // Ensure categories is always an array
+  const categoriesArray = Array.isArray(categories) ? categories : [];
+
   // Error State
   if (error) {
     return (
@@ -277,7 +280,7 @@ function CategoryManager({ accountId, onCategoryChange }) {
             <div key={i} className="bg-neutral-100 rounded-lg h-32 animate-pulse" />
           ))}
         </div>
-      ) : categories.length === 0 ? (
+      ) : categoriesArray.length === 0 ? (
         <Card>
           <div className="text-center py-12">
             <svg
@@ -307,7 +310,7 @@ function CategoryManager({ accountId, onCategoryChange }) {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {categories.map((category) => (
+          {categoriesArray.map((category) => (
             <Card key={category.id}>
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3 flex-1">

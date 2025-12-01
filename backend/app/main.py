@@ -1,24 +1,32 @@
 """
 Main FastAPI Application
+Audit reference: 02_backend_app.md, 08_backend_utils.md
 """
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.encoders import jsonable_encoder
 from fastapi.openapi.utils import get_openapi
+from decimal import Decimal
+import asyncio
+from sqlalchemy import text
 
 from app.config import settings
 from app.database import engine, Base, SessionLocal
 from app.routers import accounts, categories, data, dashboard, mappings, csv_import, recipients, budgets, recurring, comparison, import_history, transfers, insights
-from app.utils import get_logger
+from app.utils.logger import init_logging, get_logger
 from app.models.category import Category
 from app.models.budget import Budget
 from app.schemas.common import ErrorResponse, StandardErrorWrapper
-import asyncio
-from sqlalchemy import text
-from fastapi.responses import Response
+
+# Initialize logging explicitly (Audit: 08_backend_utils.md)
+init_logging()
+
+# Log settings after logger is initialized
+from app.config import log_settings
+log_settings()
 
 # Optional monitoring libs (import lazily in endpoints)
 _SENTRY_ENABLED = False
@@ -122,15 +130,25 @@ def init_default_categories():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
-    Application lifespan - create tables on startup
+    Application lifespan - create tables on startup.
+    Audit reference: 02_backend_app.md - Guard create_all for production
     """
     # Create database tables in a thread to avoid blocking the event loop
     logger = get_logger("app.lifespan")
-    try:
-        await asyncio.to_thread(Base.metadata.create_all, bind=engine)
-        logger.info("Database tables ensured/created")
-    except Exception:
-        logger.exception("Creating database tables failed")
+    
+    # Only auto-create tables in development mode
+    # Production should use Alembic migrations
+    env = getattr(settings, 'ENV', 'development').lower()
+    auto_create = getattr(settings, 'AUTO_CREATE_TABLES', True)
+    
+    if env == 'development' and auto_create:
+        try:
+            await asyncio.to_thread(Base.metadata.create_all, bind=engine)
+            logger.info("Database tables ensured/created (development mode)")
+        except Exception:
+            logger.exception("Creating database tables failed")
+    else:
+        logger.info("Skipping create_all; assuming migrations applied (env=%s, auto_create=%s)", env, auto_create)
 
     # Initialize default categories (only if database is empty) in a thread
     try:
@@ -145,12 +163,27 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down application")
 
 
+class CustomJSONResponse(JSONResponse):
+    """Custom JSON response that properly serializes Decimal values"""
+    def render(self, content: any) -> bytes:
+        # Use jsonable_encoder which respects Pydantic model serialization
+        return super().render(
+            jsonable_encoder(
+                content,
+                custom_encoder={
+                    Decimal: lambda v: str(v) if v is not None else None
+                }
+            )
+        )
+
+
 # Create FastAPI application
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
     description="Money Tracker Backend API - Verwaltung von Konten, Transaktionen und Kategorien",
     lifespan=lifespan,
+    default_response_class=CustomJSONResponse,
 )
 
 # If Sentry was initialized, wrap the app so Sentry captures unhandled errors

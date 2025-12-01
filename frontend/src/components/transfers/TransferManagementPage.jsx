@@ -25,6 +25,7 @@ export default function TransferManagementPage() {
   const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [detecting, setDetecting] = useState(false);
+  const [detectProgress, setDetectProgress] = useState({ status: '', progress: 0, message: '' });
   const [stats, setStats] = useState(null);
   const { showToast } = useToast();
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -58,19 +59,27 @@ export default function TransferManagementPage() {
   const handleDetect = async () => {
     try {
       setDetecting(true);
+      setDetectProgress({ status: 'pending', progress: 0, message: 'Starte Erkennung...' });
+      
       const result = await detectTransfers({
         min_confidence: 0.7,
         auto_create: false
+      }, {
+        waitForCompletion: true,
+        onProgress: (progress) => {
+          setDetectProgress(progress);
+        }
       });
       
-      setCandidates(result.candidates);
+      setCandidates(result.candidates || []);
       setStats({
-        total_found: result.total_found,
-        auto_created: result.auto_created
+        total_found: result.total_found || (result.candidates?.length || 0),
+        auto_created: result.auto_created || 0
       });
       
+      const totalFound = result.total_found || (result.candidates?.length || 0);
       showToast(
-        `${result.total_found} möglicher Treffer${result.total_found !== 1 ? 'n' : ''} gefunden`,
+        `${totalFound} möglicher Treffer${totalFound !== 1 ? 'n' : ''} gefunden`,
         'success'
       );
     } catch (error) {
@@ -78,6 +87,7 @@ export default function TransferManagementPage() {
       console.error('Error detecting transfers:', error);
     } finally {
       setDetecting(false);
+      setDetectProgress({ status: '', progress: 0, message: '' });
     }
   };
 
@@ -151,7 +161,11 @@ export default function TransferManagementPage() {
           title="Sucht mögliche Überweisungen zwischen Konten"
           aria-label="Transfers automatisch erkennen"
         >
-          {detecting ? 'Erkenne...' : 'Automatisch erkennen'}
+          {detecting ? (
+            detectProgress.progress > 0 
+              ? `${Math.round(detectProgress.progress)}% Erkenne...`
+              : 'Erkenne...'
+          ) : 'Automatisch erkennen'}
         </Button>
       </div>
 

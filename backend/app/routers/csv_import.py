@@ -1,5 +1,6 @@
 """
 CSV Import Router - Advanced CSV import with flexible mapping
+Audit reference: 06_backend_routers.md - CSV import scaling & file size limits
 """
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, BackgroundTasks
 from sqlalchemy.orm import Session
@@ -7,6 +8,7 @@ from typing import Optional
 import json
 
 from app.database import get_db
+from app.config import settings
 from app.models.account import Account
 from app.models.data_row import DataRow
 from app.models.mapping import Mapping
@@ -28,6 +30,7 @@ from app.services.recipient_matcher import RecipientMatcher
 from app.services.recurring_transaction_detector import RecurringTransactionDetector, run_update_recurring_transactions
 from app.utils import get_logger
 from app.services.transfer_matcher import TransferMatcher
+from app.services.errors import ValidationError as ServiceValidationError, DuplicateError
 from pydantic import ValidationError
 from app.schemas.csv import TransactionRow
 
@@ -35,6 +38,50 @@ logger = get_logger(__name__)
 from app.services.import_history_service import ImportHistoryService
 
 router = APIRouter()
+
+
+def validate_file_size(content: bytes, filename: str) -> None:
+    """
+    Validate file size against configured limits.
+    Audit reference: 01_backend_action_plan.md - P0 CSV file size limits
+    
+    Args:
+        content: File content bytes
+        filename: Original filename
+        
+    Raises:
+        HTTPException: 413 if file too large
+    """
+    file_size = len(content)
+    max_bytes = settings.MAX_IMPORT_BYTES
+    
+    if file_size > max_bytes:
+        max_mb = max_bytes / (1024 * 1024)
+        actual_mb = file_size / (1024 * 1024)
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File '{filename}' is too large ({actual_mb:.1f} MB). Maximum allowed: {max_mb:.1f} MB"
+        )
+
+
+def validate_row_count(row_count: int, filename: str) -> None:
+    """
+    Validate row count against configured limits.
+    
+    Args:
+        row_count: Number of rows in CSV
+        filename: Original filename
+        
+    Raises:
+        HTTPException: 413 if too many rows
+    """
+    max_rows = settings.MAX_IMPORT_ROWS
+    
+    if row_count > max_rows:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File '{filename}' has too many rows ({row_count:,}). Maximum allowed: {max_rows:,} rows"
+        )
 
 
 @router.get("/banks")
@@ -74,9 +121,16 @@ async def detect_bank_from_csv(
     """
     content = await file.read()
     
+    # Validate file size (Audit: 01_backend_action_plan.md - P0)
+    validate_file_size(content, file.filename)
+    
     try:
         # Parse CSV
         df, _ = CsvProcessor.parse_csv_advanced(content)
+        
+        # Validate row count
+        validate_row_count(len(df), file.filename)
+        
         headers = CsvProcessor.get_headers(df)
         
         # Detect bank
@@ -158,13 +212,20 @@ async def preview_csv_file(
         
     Raises:
         400: Invalid CSV file
+        413: File too large
     """
     # Read file content
     content = await file.read()
     
+    # Validate file size (Audit: 01_backend_action_plan.md - P0)
+    validate_file_size(content, file.filename)
+    
     try:
         # Parse CSV with auto-detection
         df, delimiter = CsvProcessor.parse_csv_advanced(content)
+        
+        # Validate row count
+        validate_row_count(len(df), file.filename)
         
         # Get headers
         headers = CsvProcessor.get_headers(df)
@@ -199,24 +260,28 @@ async def suggest_mapping(
     """
     Analyze CSV headers and suggest field mappings
     
-    Uses intelligent pattern matching to suggest which CSV columns
-    should map to which standard fields (date, amount, sender, recipient).
-    
     Args:
         file: CSV file to analyze
         
     Returns:
-        Mapping suggestions with confidence scores
+        Suggested mappings for standard fields (date, amount, recipient, purpose)
         
     Raises:
         400: Invalid CSV file
+        413: File too large
     """
-    # Read file content
     content = await file.read()
+    
+    # Validate file size
+    validate_file_size(content, file.filename)
     
     try:
         # Parse CSV
         df, _ = CsvProcessor.parse_csv_advanced(content)
+        
+        # Validate row count
+        validate_row_count(len(df), file.filename)
+        
         headers = CsvProcessor.get_headers(df)
         
         # Get suggestions
@@ -355,15 +420,28 @@ async def import_csv_advanced(
                 # Validate normalized data with Pydantic schema before persisting
                 try:
                     validated = TransactionRow.model_validate(normalized_data)
-                    # Use the validated Python dict (date as date, amount as float, etc.)
+                    # Use the validated Python dict (date as date, amount as Decimal, etc.)
                     validated_data = validated.model_dump()
 
                     # Validate amount is a finite number (reject NaN/inf)
+                    # Accept Decimal, int, or float
                     import math
+                    from decimal import Decimal, InvalidOperation
                     amt = validated_data.get('amount')
-                    if amt is None or not isinstance(amt, (int, float)) or not math.isfinite(float(amt)):
+                    if amt is None:
                         error_count += 1
-                        error_messages.append(f"Row {idx}: Invalid amount value: {amt}")
+                        error_messages.append(f"Row {idx}: Amount is required")
+                        continue
+                    # Check if it's a valid number (Decimal, int, or float) and finite
+                    try:
+                        amt_float = float(amt)
+                        if not math.isfinite(amt_float):
+                            error_count += 1
+                            error_messages.append(f"Row {idx}: Invalid amount value: {amt} (not finite)")
+                            continue
+                    except (ValueError, InvalidOperation, TypeError):
+                        error_count += 1
+                        error_messages.append(f"Row {idx}: Invalid amount value: {amt} (cannot convert to number)")
                         continue
                 except ValidationError as ve:
                     error_count += 1
@@ -423,8 +501,8 @@ async def import_csv_advanced(
                         except Exception:
                             transaction_date = None
 
-                # Amount: already parsed as float
-                amount = validated_data.get('amount', 0.0)
+                # Amount: convert Decimal to float for DB storage
+                amount = float(validated_data.get('amount', 0.0))
 
                 # Recipient and Purpose
                 recipient_str = validated_data.get('recipient', '')

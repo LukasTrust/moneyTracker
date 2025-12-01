@@ -1,8 +1,11 @@
 /**
  * Transfer Service
  * API calls for managing inter-account transfers
+ * Uses amount utilities for consistent money handling
  */
 import api from './api';
+import { toApiAmount } from '../utils/amount';
+import { waitForJob, startPolling } from './jobPoller';
 
 /**
  * Get all transfers, optionally filtered by account and date range
@@ -33,13 +36,17 @@ export const getTransfer = async (transferId) => {
  * @param {Object} transferData - Transfer data
  * @param {number} transferData.from_transaction_id - Source transaction ID (negative amount)
  * @param {number} transferData.to_transaction_id - Destination transaction ID (positive amount)
- * @param {number} transferData.amount - Transfer amount (positive)
+ * @param {number|string} transferData.amount - Transfer amount (positive)
  * @param {string} transferData.transfer_date - Transfer date (ISO format)
  * @param {string} transferData.notes - Optional notes
  * @returns {Promise} - Promise resolving to created transfer
  */
 export const createTransfer = async (transferData) => {
-  const response = await api.post('/transfers', transferData);
+  const payload = {
+    ...transferData,
+    amount: toApiAmount(transferData.amount)
+  };
+  const response = await api.post('/transfers', payload);
   return response.data;
 };
 
@@ -75,9 +82,34 @@ export const deleteTransfer = async (transferId) => {
  * @param {boolean} params.auto_create - Automatically create high-confidence matches
  * @returns {Promise} - Promise resolving to detection results
  */
-export const detectTransfers = async (params = {}) => {
+export const detectTransfers = async (params = {}, options = {}) => {
+  const { waitForCompletion = false, onProgress } = options;
   const response = await api.post('/transfers/detect', params);
-  return response.data;
+  const result = response.data;
+
+  // Support job-based backend responses
+  if (result && result.job_id) {
+    if (waitForCompletion) {
+      if (onProgress) {
+        return new Promise((resolve, reject) => {
+          startPolling(result.job_id, {
+            onUpdate: (job) => {
+              onProgress({ status: job.status, progress: job.progress || 0, message: job.message });
+            },
+            onComplete: (job) => resolve({ ...job.result, job_id: result.job_id, async: true }),
+            onError: (err) => reject(err),
+          });
+        });
+      }
+
+      const job = await waitForJob(result.job_id);
+      return { ...job.result, job_id: result.job_id, async: true };
+    }
+
+    return { job_id: result.job_id, async: true, status: 'pending' };
+  }
+
+  return result;
 };
 
 /**
@@ -107,9 +139,31 @@ export const getTransferForTransaction = async (transactionId) => {
  * @param {number} params.min_confidence - Minimum confidence (default 0.85)
  * @returns {Promise} - Promise resolving to detection results
  */
-export const bulkDetectAndCreate = async (params = { auto_create: true, min_confidence: 0.85 }) => {
+export const bulkDetectAndCreate = async (params = { auto_create: true, min_confidence: 0.85 }, options = {}) => {
+  const { waitForCompletion = false, onProgress } = options;
   const response = await api.post('/transfers/detect', params);
-  return response.data;
+  const result = response.data;
+
+  if (result && result.job_id) {
+    if (waitForCompletion) {
+      if (onProgress) {
+        return new Promise((resolve, reject) => {
+          startPolling(result.job_id, {
+            onUpdate: (job) => onProgress({ status: job.status, progress: job.progress || 0, message: job.message }),
+            onComplete: (job) => resolve({ ...job.result, job_id: result.job_id, async: true }),
+            onError: (err) => reject(err),
+          });
+        });
+      }
+
+      const job = await waitForJob(result.job_id);
+      return { ...job.result, job_id: result.job_id, async: true };
+    }
+
+    return { job_id: result.job_id, async: true, status: 'pending' };
+  }
+
+  return result;
 };
 
 export default {

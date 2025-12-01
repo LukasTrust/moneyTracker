@@ -1,7 +1,9 @@
 import api from './api';
+import { toApiAmount } from '../utils/amount';
 
 /**
  * Dashboard Service - Aggregierte Daten über alle Accounts
+ * Uses amount utilities for consistent money handling
  * 
  * API-ROUTEN (Backend muss implementiert werden):
  * - GET /dashboard/summary              → KPIs (income, expenses, balance, count)
@@ -56,8 +58,8 @@ export const dashboardService = {
     }
     
     // Advanced filters
-    if (minAmount !== undefined && minAmount !== null) queryParams.append('min_amount', minAmount);
-    if (maxAmount !== undefined && maxAmount !== null) queryParams.append('max_amount', maxAmount);
+    if (minAmount !== undefined && minAmount !== null) queryParams.append('min_amount', toApiAmount(minAmount));
+    if (maxAmount !== undefined && maxAmount !== null) queryParams.append('max_amount', toApiAmount(maxAmount));
     if (recipient) queryParams.append('recipient', recipient);
     if (purpose) queryParams.append('purpose', purpose);
     if (transactionType && transactionType !== 'all') queryParams.append('transaction_type', transactionType);
@@ -114,8 +116,8 @@ export const dashboardService = {
     }
     
     // Advanced filters
-    if (minAmount !== undefined && minAmount !== null) queryParams.append('min_amount', minAmount);
-    if (maxAmount !== undefined && maxAmount !== null) queryParams.append('max_amount', maxAmount);
+    if (minAmount !== undefined && minAmount !== null) queryParams.append('min_amount', toApiAmount(minAmount));
+    if (maxAmount !== undefined && maxAmount !== null) queryParams.append('max_amount', toApiAmount(maxAmount));
     if (recipient) queryParams.append('recipient', recipient);
     if (purpose) queryParams.append('purpose', purpose);
     if (transactionType && transactionType !== 'all') queryParams.append('transaction_type', transactionType);
@@ -167,8 +169,8 @@ export const dashboardService = {
     }
     
     // Advanced filters
-    if (minAmount !== undefined && minAmount !== null) queryParams.append('min_amount', minAmount);
-    if (maxAmount !== undefined && maxAmount !== null) queryParams.append('max_amount', maxAmount);
+    if (minAmount !== undefined && minAmount !== null) queryParams.append('min_amount', toApiAmount(minAmount));
+    if (maxAmount !== undefined && maxAmount !== null) queryParams.append('max_amount', toApiAmount(maxAmount));
     if (recipient) queryParams.append('recipient', recipient);
     if (purpose) queryParams.append('purpose', purpose);
     if (transactionType && transactionType !== 'all') queryParams.append('transaction_type', transactionType);
@@ -234,8 +236,8 @@ export const dashboardService = {
     }
     
     // Advanced filters
-    if (minAmount !== undefined && minAmount !== null) queryParams.append('min_amount', minAmount);
-    if (maxAmount !== undefined && maxAmount !== null) queryParams.append('max_amount', maxAmount);
+    if (minAmount !== undefined && minAmount !== null) queryParams.append('min_amount', toApiAmount(minAmount));
+    if (maxAmount !== undefined && maxAmount !== null) queryParams.append('max_amount', toApiAmount(maxAmount));
     if (recipient) queryParams.append('recipient', recipient);
     if (purpose) queryParams.append('purpose', purpose);
     if (transactionType && transactionType !== 'all') queryParams.append('transaction_type', transactionType);
@@ -292,8 +294,8 @@ export const dashboardService = {
     }
     
     // Advanced filters
-    if (minAmount !== undefined && minAmount !== null) queryParams.append('min_amount', minAmount);
-    if (maxAmount !== undefined && maxAmount !== null) queryParams.append('max_amount', maxAmount);
+    if (minAmount !== undefined && minAmount !== null) queryParams.append('min_amount', toApiAmount(minAmount));
+    if (maxAmount !== undefined && maxAmount !== null) queryParams.append('max_amount', toApiAmount(maxAmount));
     if (recipient) queryParams.append('recipient', recipient);
     if (purpose) queryParams.append('purpose', purpose);
 

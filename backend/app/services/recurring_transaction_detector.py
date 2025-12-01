@@ -453,7 +453,8 @@ class RecurringTransactionDetector:
         Returns:
             Updated RecurringTransaction
         """
-        recurring = self.db.query(RecurringTransaction).get(recurring_id)
+        # Audit reference: 08_backend_utils.md - Replace deprecated .get()
+        recurring = self.db.get(RecurringTransaction, recurring_id)
         if not recurring:
             raise ValueError(f"RecurringTransaction {recurring_id} not found")
         

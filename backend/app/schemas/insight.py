@@ -1,7 +1,7 @@
 """
 Insight Schemas - Pydantic models for Insight API
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 
@@ -33,8 +33,7 @@ class InsightResponse(InsightBase):
     show_count: int
     created_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class InsightListResponse(BaseModel):
@@ -78,8 +77,7 @@ class InsightGenerationLogResponse(BaseModel):
     generated_at: datetime
     generation_params: Optional[Dict[str, Any]]
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class InsightStatistics(BaseModel):

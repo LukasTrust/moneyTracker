@@ -50,6 +50,7 @@ export default function CsvImportWizard({ accountId, onImportSuccess }) {
   const [isLoading, setIsLoading] = useState(false);
   const [importResult, setImportResult] = useState(null);
   const [importStage, setImportStage] = useState('uploading');
+  const [importProgress, setImportProgress] = useState({ status: '', progress: 0, message: '' });
 
   const { showToast } = useToast();
 
@@ -168,21 +169,26 @@ export default function CsvImportWizard({ accountId, onImportSuccess }) {
     setCurrentStep(3);
 
     try {
-      // Simulate realistic progress stages
+      // Use job-aware import with progress tracking
       setImportStage('uploading');
-      await new Promise(resolve => setTimeout(resolve, 500));
       
-      setImportStage('parsing');
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      setImportStage('validating');
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      setImportStage('importing');
-      const result = await importCsv(accountId, mapping, file);
+      const result = await importCsv(accountId, mapping, file, {
+        waitForCompletion: true,
+        onProgress: (progress) => {
+          setImportProgress(progress);
+          // Map job status to stages for UI
+          if (progress.status === 'pending') setImportStage('uploading');
+          else if (progress.status === 'running') {
+            if (progress.progress < 30) setImportStage('parsing');
+            else if (progress.progress < 60) setImportStage('validating');
+            else setImportStage('importing');
+          }
+          else if (progress.status === 'completed') setImportStage('finishing');
+        }
+      });
       
       setImportStage('finishing');
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 300));
       
       setImportResult(result);
       
@@ -247,6 +253,7 @@ export default function CsvImportWizard({ accountId, onImportSuccess }) {
     setMappingEditable(!existingMapping);
     setImportResult(null);
     setImportStage('uploading');
+    setImportProgress({ status: '', progress: 0, message: '' });
   };
 
   return (
@@ -546,10 +553,26 @@ export default function CsvImportWizard({ accountId, onImportSuccess }) {
         {currentStep === 3 && (
           <div className="space-y-6 text-center">
             {isLoading ? (
-              <ImportProgress 
-                estimatedRows={csvPreview?.total_rows || 0}
-                stage={importStage}
-              />
+              <>
+                <ImportProgress 
+                  estimatedRows={csvPreview?.total_rows || 0}
+                  stage={importStage}
+                />
+                {importProgress.progress > 0 && (
+                  <div className="mt-4 max-w-md mx-auto">
+                    <div className="flex justify-between text-sm text-neutral-600 mb-2">
+                      <span>{importProgress.message || importProgress.status}</span>
+                      <span>{Math.round(importProgress.progress)}%</span>
+                    </div>
+                    <div className="w-full bg-neutral-200 rounded-full h-2">
+                      <div
+                        className="bg-primary-600 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${importProgress.progress}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </>
             ) : importResult ? (
               <>
                 <div className="text-6xl mb-4">✅</div>

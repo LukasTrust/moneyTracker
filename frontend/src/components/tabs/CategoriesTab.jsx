@@ -35,8 +35,9 @@ import { useFilterStore } from '../../store';
  * @param {Object} props
  * @param {number} props.accountId - Konto-ID für Visualisierung
  * @param {string} props.currency - Währung (z.B. "EUR")
+ * @param {number} props.refreshTrigger - Trigger to force refresh after import
  */
-function CategoriesTab({ accountId, currency = 'EUR' }) {
+function CategoriesTab({ accountId, currency = 'EUR', refreshTrigger }) {
   // View Mode: 'manage' oder 'analyze'
   const [viewMode, setViewMode] = useState('analyze');
   
@@ -85,6 +86,17 @@ function CategoriesTab({ accountId, currency = 'EUR' }) {
       }
     }
   }, [categories]); // Nur categories in deps, nicht selectedCategory (würde Loop erzeugen)
+
+  /**
+   * Refresh data when refreshTrigger changes (e.g., after import)
+   */
+  useEffect(() => {
+    if (refreshTrigger !== undefined) {
+      console.log('CategoriesTab: Refreshing data due to trigger change');
+      refetchCategories();
+      refetchStats();
+    }
+  }, [refreshTrigger, refetchCategories, refetchStats]);
 
   /**
    * Handler für Kategorie-Änderungen (Erstellen/Bearbeiten/Löschen)

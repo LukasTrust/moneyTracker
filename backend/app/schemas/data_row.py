@@ -1,7 +1,7 @@
+"""DataRow Schemas
+Audit reference: 05_backend_schemas.md - Pydantic v2 config
 """
-DataRow Schemas
-"""
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
@@ -15,8 +15,7 @@ class DataRowResponse(BaseModel):
     category_id: Optional[int] = None
     created_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class DataRowListResponse(BaseModel):

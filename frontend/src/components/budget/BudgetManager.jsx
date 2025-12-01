@@ -248,7 +248,8 @@ function BudgetManager({ onBudgetChange }) {
    * Helper: Get category name by ID
    */
   const getCategoryName = (categoryId) => {
-    const category = categories.find((c) => c.id === categoryId);
+    const categoriesArray = Array.isArray(categories) ? categories : [];
+    const category = categoriesArray.find((c) => c.id === categoryId);
     return category ? category.name : 'Unbekannt';
   };
 
@@ -256,7 +257,8 @@ function BudgetManager({ onBudgetChange }) {
    * Helper: Get category color by ID
    */
   const getCategoryColor = (categoryId) => {
-    const category = categories.find((c) => c.id === categoryId);
+    const categoriesArray = Array.isArray(categories) ? categories : [];
+    const category = categoriesArray.find((c) => c.id === categoryId);
     return category ? category.color : '#3b82f6';
   };
 
@@ -268,7 +270,11 @@ function BudgetManager({ onBudgetChange }) {
     return option ? option.label : period;
   };
 
-  if (loading && budgets.length === 0) {
+  // Ensure categories and budgets are always arrays
+  const categoriesArray = Array.isArray(categories) ? categories : [];
+  const budgetsArray = Array.isArray(budgets) ? budgets : [];
+
+  if (loading && budgetsArray.length === 0) {
     return (
       <Card>
         <div className="text-center py-8 text-gray-500">Lade Budgets...</div>
@@ -281,7 +287,7 @@ function BudgetManager({ onBudgetChange }) {
       <Card>
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-gray-800">Budget-Verwaltung</h2>
-          <Button onClick={handleCreate} disabled={loading || categories.length === 0}>
+          <Button onClick={handleCreate} disabled={loading || categoriesArray.length === 0}>
             + Neues Budget
           </Button>
         </div>
@@ -292,13 +298,13 @@ function BudgetManager({ onBudgetChange }) {
           </div>
         )}
 
-        {categories.length === 0 && (
+        {categoriesArray.length === 0 && (
           <div className="text-center py-8 text-gray-500">
             Bitte erstelle zuerst Kategorien, bevor du Budgets anlegst.
           </div>
         )}
 
-        {budgets.length === 0 && categories.length > 0 ? (
+        {budgetsArray.length === 0 && categoriesArray.length > 0 ? (
           <div className="text-center py-8 text-gray-500">
             Noch keine Budgets vorhanden. Erstelle dein erstes Budget!
           </div>
@@ -316,7 +322,7 @@ function BudgetManager({ onBudgetChange }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {budgets.map((budget) => (
+                {budgetsArray.map((budget) => (
                   <tr key={budget.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
@@ -384,7 +390,7 @@ function BudgetManager({ onBudgetChange }) {
               disabled={isSaving}
             >
               <option value="">Kategorie wählen...</option>
-              {categories.map((cat) => (
+              {categoriesArray.map((cat) => (
                 <option key={cat.id} value={cat.id}>
                   {cat.icon} {cat.name}
                 </option>

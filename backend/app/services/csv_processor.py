@@ -1,5 +1,6 @@
 """
 CSV Processor - Handle CSV file parsing and data extraction
+Audit reference: 01_backend_action_plan.md - P0 Money precision
 """
 import pandas as pd
 import chardet
@@ -7,6 +8,9 @@ from typing import List, Dict, Any, Tuple, Optional
 from io import BytesIO
 from datetime import datetime
 import re
+from decimal import Decimal
+
+from ..utils.money import normalize_amount as normalize_amount_to_decimal
 
 
 class CsvProcessor:
@@ -143,50 +147,46 @@ class CsvProcessor:
         return result
     
     @staticmethod
-    def normalize_amount(amount_str: str) -> float:
+    def normalize_amount(amount_str: str) -> Decimal:
         """
-        Normalize amount string to float
+        Normalize amount string to Decimal for precise monetary calculations.
+        DEPRECATED: Use utils.money.normalize_amount directly.
         
         Args:
             amount_str: Amount as string (e.g., "-1.234,56" or "1,234.56")
             
         Returns:
-            Float value
+            Decimal value
+            
+        Raises:
+            ValueError: If amount cannot be parsed
             
         Example:
             >>> normalize_amount("-1.234,56")
-            -1234.56
+            Decimal('-1234.56')
             >>> normalize_amount("1,234.56")
-            1234.56
+            Decimal('1234.56')
         """
         if not amount_str or amount_str == '':
-            return 0.0
+            raise ValueError("Amount string is empty")
         
         # Remove whitespace
-        amount_str = amount_str.strip()
+        amount_str = str(amount_str).strip()
         
         # Detect format (German: 1.234,56 or English: 1,234.56)
-        if ',' in amount_str and '.' in amount_str:
-            # Both present - determine which is decimal separator
-            if amount_str.rindex(',') > amount_str.rindex('.'):
-                # German format: 1.234,56
-                amount_str = amount_str.replace('.', '').replace(',', '.')
-            else:
-                # English format: 1,234.56
-                amount_str = amount_str.replace(',', '')
-        elif ',' in amount_str:
-            # Only comma - could be decimal or thousand separator
-            # Assume decimal if only one comma and it's near the end
-            parts = amount_str.split(',')
-            if len(parts) == 2 and len(parts[1]) <= 2:
-                amount_str = amount_str.replace(',', '.')
-            else:
-                amount_str = amount_str.replace(',', '')
-        
+        # Use the centralized money utility
         try:
-            return float(amount_str)
-        except ValueError:
-            return 0.0
+            # Heuristic: if both separators present, determine which is decimal
+            if ',' in amount_str and '.' in amount_str:
+                # German format if comma comes after dot: 1.234,56
+                german_format = amount_str.rindex(',') > amount_str.rindex('.')
+            else:
+                # Auto-detect based on last separator
+                german_format = ',' in amount_str
+                
+            return normalize_amount_to_decimal(amount_str, german_format=german_format)
+        except ValueError as e:
+            raise ValueError(f"Invalid amount format: {amount_str}") from e
     
     @staticmethod
     def detect_delimiter(file_content: bytes, encoding: str = None) -> str:
@@ -407,12 +407,13 @@ class CsvProcessor:
     ) -> Dict[str, Any]:
         """
         Normalize and validate transaction data (3 required + 1 optional field)
+        Uses Decimal for amount precision.
         
         Args:
             row: Raw transaction data with mapped fields (date, amount, recipient, purpose?)
             
         Returns:
-            Normalized transaction data with 3-4 fields
+            Normalized transaction data with 3-4 fields (amount as Decimal)
             
         Raises:
             ValueError: If required fields are missing or invalid
@@ -430,16 +431,16 @@ class CsvProcessor:
         
         normalized['date'] = date_obj.isoformat()
         
-        # Parse amount
+        # Parse amount to Decimal
         amount_str = row.get('amount')
         if not amount_str:
             raise ValueError("Amount field is required")
         
         try:
             amount = CsvProcessor.normalize_amount(str(amount_str))
-            normalized['amount'] = amount
+            normalized['amount'] = amount  # Keep as Decimal
         except Exception as e:
-            raise ValueError(f"Invalid amount format: {amount_str}")
+            raise ValueError(f"Invalid amount format: {amount_str}") from e
         
         # Recipient (required)
         recipient = str(row.get('recipient', '')).strip()

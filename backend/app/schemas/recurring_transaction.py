@@ -83,3 +83,22 @@ class RecurringTransactionDetectionStats(BaseModel):
 class RecurringTransactionToggleRequest(BaseModel):
     """Request to manually toggle recurring status"""
     is_recurring: bool = Field(description="True to mark as recurring, False to unmark")
+
+
+class LinkedTransactionInfo(BaseModel):
+    """Info about a linked transaction"""
+    id: int
+    transaction_date: date
+    amount: Decimal
+    description: Optional[str] = None
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
+class RecurringTransactionDetailResponse(RecurringTransactionResponse):
+    """Detailed response with linked transactions and statistics"""
+    linked_transactions: list[LinkedTransactionInfo] = Field(default_factory=list, description="List of linked transactions")
+    total_spent: Decimal = Field(description="Total amount spent across all occurrences")
+    average_days_between: Optional[float] = Field(None, description="Average actual days between transactions")
+    min_amount: Decimal = Field(description="Minimum transaction amount")
+    max_amount: Decimal = Field(description="Maximum transaction amount")

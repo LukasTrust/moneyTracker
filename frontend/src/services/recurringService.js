@@ -137,6 +137,16 @@ export const toggleRecurringStatus = async (recurringId, isRecurring) => {
 };
 
 /**
+ * Get detailed information about a specific recurring transaction
+ * @param {number} recurringId - Recurring transaction ID
+ * @returns {Promise} - Promise resolving to detailed recurring transaction
+ */
+export const getRecurringDetails = async (recurringId) => {
+  const response = await api.get(`/accounts/recurring-transactions/${recurringId}`);
+  return response.data;
+};
+
+/**
  * Delete a recurring transaction
  * @param {number} recurringId - Recurring transaction ID
  * @returns {Promise} - Promise resolving to void
@@ -155,5 +165,6 @@ export default {
   detectAllRecurring,
   updateRecurring,
   toggleRecurringStatus,
-  deleteRecurring
+  deleteRecurring,
+  getRecurringDetails
 };

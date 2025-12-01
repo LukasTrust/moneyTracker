@@ -2,13 +2,19 @@
  * RecurringTransactionsWidget Component
  * Compact widget showing recurring transactions summary for dashboard
  */
-import React from 'react';
+import React, { useState } from 'react';
 import { useRecurring } from '../../hooks/useRecurring';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '../../hooks/useToast';
+import { getRecurringDetails } from '../../services/recurringService';
 
 const RecurringTransactionsWidget = ({ accountId = null }) => {
   const { recurring, stats, loading, error } = useRecurring(accountId);
   const navigate = useNavigate();
+  const { showToast } = useToast();
+  const [expandedId, setExpandedId] = useState(null);
+  const [expandedData, setExpandedData] = useState(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
 
   /**
    * Format currency
@@ -18,6 +24,44 @@ const RecurringTransactionsWidget = ({ accountId = null }) => {
       style: 'currency',
       currency: 'EUR'
     }).format(amount);
+  };
+
+  /**
+   * Format date to German locale
+   */
+  const formatDate = (dateString) => {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  };
+
+  /**
+   * Handle item click to expand/collapse details
+   */
+  const handleItemClick = async (recurringId, e) => {
+    e.stopPropagation();
+    
+    if (expandedId === recurringId) {
+      // Collapse if already expanded
+      setExpandedId(null);
+      setExpandedData(null);
+      return;
+    }
+
+    // Expand and load details
+    setExpandedId(recurringId);
+    setLoadingDetails(true);
+    setExpandedData(null);
+
+    try {
+      const details = await getRecurringDetails(recurringId);
+      setExpandedData(details);
+    } catch (err) {
+      showToast('Fehler beim Laden der Details: ' + (err.message || ''), 'error');
+      setExpandedId(null);
+    } finally {
+      setLoadingDetails(false);
+    }
   };
 
   /**
@@ -84,28 +128,113 @@ const RecurringTransactionsWidget = ({ accountId = null }) => {
             Top Verträge nach monatl. Kosten:
           </div>
           {topRecurring.map((item) => (
-            <div 
-              key={item.id}
-              className="flex justify-between items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-gray-900 truncate">
-                  {item.recipient}
+            <div key={item.id}>
+              <div 
+                className="flex justify-between items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                onClick={(e) => handleItemClick(item.id, e)}
+              >
+                <div className="flex-1 min-w-0 flex items-center">
+                  <div className="mr-2 text-gray-400 text-xs">
+                    {expandedId === item.id ? '▼' : '▶'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-gray-900 truncate">
+                      {item.recipient}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {item.average_interval_days <= 35 ? '📅 Monatlich' : 
+                       item.average_interval_days <= 100 ? '📅 Vierteljährlich' : 
+                       '📅 Jährlich'}
+                    </div>
+                  </div>
                 </div>
-                <div className="text-xs text-gray-500">
-                  {item.average_interval_days <= 35 ? '📅 Monatlich' : 
-                   item.average_interval_days <= 100 ? '📅 Vierteljährlich' : 
-                   '📅 Jährlich'}
+                <div className="text-right">
+                  <div className={"text-sm font-semibold " + (Number(item.monthly_cost || 0) < 0 ? 'text-red-600' : 'text-green-600')}>
+                    {formatCurrency(item.monthly_cost || 0)}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    /Monat
+                  </div>
                 </div>
               </div>
-              <div className="text-right">
-                <div className={"text-sm font-semibold " + (Number(item.monthly_cost || 0) < 0 ? 'text-red-600' : 'text-green-600')}>
-                  {formatCurrency(item.monthly_cost || 0)}
+
+              {/* Expanded Details */}
+              {expandedId === item.id && (
+                <div className="mt-2 p-4 bg-white border border-gray-200 rounded-lg">
+                  {loadingDetails ? (
+                    <div className="flex justify-center py-4">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                    </div>
+                  ) : expandedData ? (
+                    <div className="space-y-3">
+                      {/* Statistics */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-gray-50 rounded p-2 border">
+                          <div className="text-xs text-gray-500">Erste Transaktion</div>
+                          <div className="text-sm font-semibold text-gray-900">
+                            {formatDate(expandedData.first_occurrence)}
+                          </div>
+                        </div>
+                        <div className="bg-gray-50 rounded p-2 border">
+                          <div className="text-xs text-gray-500">
+                            {expandedData.total_spent >= 0 ? 'Gesamt erhalten' : 'Gesamt ausgegeben'}
+                          </div>
+                          <div className={"text-sm font-semibold " + (expandedData.total_spent >= 0 ? 'text-green-600' : 'text-red-600')}>
+                            {formatCurrency(expandedData.total_spent)}
+                          </div>
+                        </div>
+                        <div className="bg-gray-50 rounded p-2 border">
+                          <div className="text-xs text-gray-500">Ø Abstand</div>
+                          <div className="text-sm font-semibold text-gray-900">
+                            {expandedData.average_days_between 
+                              ? `${Math.round(expandedData.average_days_between)} Tage`
+                              : '-'}
+                          </div>
+                        </div>
+                        <div className="bg-gray-50 rounded p-2 border">
+                          <div className="text-xs text-gray-500">Betrag Spanne</div>
+                          <div className="text-xs font-semibold text-gray-900">
+                            {formatCurrency(expandedData.min_amount)} - {formatCurrency(expandedData.max_amount)}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Linked Transactions */}
+                      {expandedData.linked_transactions && expandedData.linked_transactions.length > 0 && (
+                        <div>
+                          <div className="text-xs font-semibold text-gray-700 mb-2">
+                            Letzte 5 Transaktionen:
+                          </div>
+                          <div className="bg-gray-50 rounded border max-h-48 overflow-y-auto">
+                            <div className="divide-y divide-gray-200">
+                              {expandedData.linked_transactions.slice(0, 5).map((tx) => (
+                                <div key={tx.id} className="p-2 hover:bg-gray-100 text-xs">
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-600">{formatDate(tx.transaction_date)}</span>
+                                    <span className="font-medium text-gray-900">{formatCurrency(tx.amount)}</span>
+                                  </div>
+                                  {tx.description && (
+                                    <div className="text-gray-500 truncate mt-1">{tx.description}</div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          {expandedData.linked_transactions.length > 5 && (
+                            <div className="text-xs text-gray-500 mt-1 text-center">
+                              +{expandedData.linked_transactions.length - 5} weitere Transaktionen
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center text-gray-500 py-2 text-sm">
+                      Keine Details verfügbar
+                    </div>
+                  )}
                 </div>
-                <div className="text-xs text-gray-500">
-                  /Monat
-                </div>
-              </div>
+              )}
             </div>
           ))}
         </div>

@@ -58,6 +58,26 @@ export const suggestMapping = async (file) => {
 };
 
 /**
+ * Validate saved mappings against CSV file
+ * 
+ * @param {number} accountId - Account ID with saved mappings
+ * @param {File} file - CSV file to validate against
+ * @returns {Promise} Validation result with missing/valid headers
+ */
+export const validateSavedMapping = async (accountId, file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await api.post(`/csv-import/validate-mapping/${accountId}`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+
+  return response.data;
+};
+
+/**
  * Import CSV file with custom mapping
  * Supports both sync and async (job-based) imports
  * 
@@ -220,6 +240,7 @@ export const getFieldIcon = (fieldName) => {
 export default {
   previewCsv,
   suggestMapping,
+  validateSavedMapping,
   importCsv,
   validateMapping,
   getFieldLabel,

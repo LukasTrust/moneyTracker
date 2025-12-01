@@ -10,7 +10,7 @@
 import React, { useState, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import ImportProgress from './ImportProgress';
-import { previewCsv, importCsv } from '../../services/csvImportApi';
+import { previewCsv, importCsv, validateSavedMapping } from '../../services/csvImportApi';
 import mappingService from '../../services/mappingService';
 import { useToast } from '../../hooks/useToast';
 
@@ -47,6 +47,7 @@ export default function CsvImportWizard({ accountId, onImportSuccess }) {
   });
   const [existingMapping, setExistingMapping] = useState(null);
   const [mappingEditable, setMappingEditable] = useState(false);
+  const [validationResult, setValidationResult] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [importResult, setImportResult] = useState(null);
   const [importStage, setImportStage] = useState('uploading');
@@ -101,22 +102,51 @@ export default function CsvImportWizard({ accountId, onImportSuccess }) {
       setFile(csvFile);
       
       try {
+        // First, get CSV preview
         const preview = await previewCsv(csvFile);
         setCsvPreview(preview);
         
-        // Check if existing mapping exists and if headers match
+        // Then validate against saved mappings
         if (existingMapping) {
-          const existingHeaders = Object.values(existingMapping).filter(h => h);
-          const headersMatch = existingHeaders.every(h => preview.headers.includes(h));
-          
-          if (!headersMatch) {
-            // Headers don't match - allow manual editing
-            setMappingEditable(true);
-            showToast('⚠️ CSV-Struktur weicht vom gespeicherten Mapping ab. Bitte prüfen Sie die Zuordnungen.', 'warning');
-          } else {
-            // Headers match - keep read-only but user can unlock
-            setMappingEditable(false);
-            showToast('✅ CSV erfolgreich geladen. Gespeichertes Mapping wird verwendet.', 'success');
+          try {
+            const validation = await validateSavedMapping(accountId, csvFile);
+            setValidationResult(validation);
+            
+            if (validation.is_valid) {
+              // All headers match - use saved mapping
+              setMappingEditable(false);
+              showToast('✅ CSV erfolgreich geladen. Gespeichertes Mapping wird verwendet.', 'success');
+            } else if (validation.has_saved_mapping) {
+              // Some headers are missing - enable editing and show warnings
+              setMappingEditable(true);
+              
+              // Apply suggestions where available
+              const updatedMapping = { ...existingMapping };
+              validation.validation_results.forEach(result => {
+                if (!result.is_valid && result.suggested_header) {
+                  updatedMapping[result.field] = result.suggested_header;
+                }
+              });
+              setMapping(updatedMapping);
+              
+              showToast(
+                `⚠️ ${validation.missing_headers.length} Spalte(n) nicht gefunden. Bitte Mapping überprüfen.`,
+                'warning'
+              );
+            }
+          } catch (error) {
+            console.error('Validation error:', error);
+            // Fallback to simple header check
+            const existingHeaders = Object.values(existingMapping).filter(h => h);
+            const headersMatch = existingHeaders.every(h => preview.headers.includes(h));
+            
+            if (!headersMatch) {
+              setMappingEditable(true);
+              showToast('⚠️ CSV-Struktur weicht vom gespeicherten Mapping ab.', 'warning');
+            } else {
+              setMappingEditable(false);
+              showToast('✅ CSV erfolgreich geladen.', 'success');
+            }
           }
         } else {
           // No existing mapping - enable manual editing
@@ -132,6 +162,7 @@ export default function CsvImportWizard({ accountId, onImportSuccess }) {
         );
         setFile(null);
         setCsvPreview(null);
+        setValidationResult(null);
       } finally {
         setIsLoading(false);
       }
@@ -251,6 +282,7 @@ export default function CsvImportWizard({ accountId, onImportSuccess }) {
       purpose: '',
     });
     setMappingEditable(!existingMapping);
+    setValidationResult(null);
     setImportResult(null);
     setImportStage('uploading');
     setImportProgress({ status: '', progress: 0, message: '' });
@@ -377,6 +409,42 @@ export default function CsvImportWizard({ accountId, onImportSuccess }) {
               </div>
             )}
 
+            {/* Validation Warnings */}
+            {validationResult && !validationResult.is_valid && validationResult.has_saved_mapping && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl">⚠️</span>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-yellow-900 mb-2">
+                      Gespeichertes Mapping nicht vollständig kompatibel
+                    </h3>
+                    <p className="text-sm text-yellow-800 mb-3">
+                      Folgende Spalten wurden in der CSV nicht gefunden:
+                    </p>
+                    <ul className="text-sm text-yellow-800 list-disc list-inside space-y-1">
+                      {validationResult.validation_results
+                        .filter(r => !r.is_valid)
+                        .map(result => (
+                          <li key={result.field}>
+                            <strong>{getFieldLabel(result.field)}</strong>: 
+                            erwartet wurde "<em>{result.csv_header}</em>"
+                            {result.suggested_header && (
+                              <span className="text-yellow-700">
+                                {' '}→ Vorschlag: "<em>{result.suggested_header}</em>"
+                              </span>
+                            )}
+                          </li>
+                        ))
+                      }
+                    </ul>
+                    <p className="text-sm text-yellow-800 mt-3">
+                      Bitte überprüfen Sie die Zuordnungen unten und passen Sie sie bei Bedarf an.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Mapping Configuration */}
             <div className="bg-white rounded-lg border border-neutral-200 p-6">
               <div className="flex items-center justify-between mb-4">
@@ -394,60 +462,99 @@ export default function CsvImportWizard({ accountId, onImportSuccess }) {
               </div>
 
               <div className="space-y-4">
-                {REQUIRED_FIELDS.map((field) => (
-                  <div key={field} className="border border-neutral-200 rounded-lg p-4">
-                    <label className="block text-sm font-medium text-neutral-900 mb-2">
-                      <span className="mr-2">{getFieldIcon(field)}</span>
-                      {getFieldLabel(field)}
-                      <span className="text-red-500 ml-1">*</span>
-                      {!mappingEditable && (
-                        <span className="ml-2 text-xs text-neutral-500">🔒 Gesperrt</span>
-                      )}
-                    </label>
-                    <select
-                      value={mapping[field] || ''}
-                      onChange={(e) => handleMappingChange(field, e.target.value)}
-                      disabled={!mappingEditable}
-                      className="mt-1 block w-full rounded-lg border-neutral-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 disabled:bg-neutral-100 disabled:cursor-not-allowed"
+                {REQUIRED_FIELDS.map((field) => {
+                  // Check if this field has a validation issue
+                  const fieldValidation = validationResult?.validation_results?.find(r => r.field === field);
+                  const hasIssue = fieldValidation && !fieldValidation.is_valid;
+                  const suggestedHeader = fieldValidation?.suggested_header;
+                  
+                  return (
+                    <div 
+                      key={field} 
+                      className={`border rounded-lg p-4 ${hasIssue ? 'border-yellow-400 bg-yellow-50' : 'border-neutral-200'}`}
                     >
-                      <option value="">-- Bitte wählen --</option>
-                      {csvPreview?.headers.map((header) => (
-                        <option key={header} value={header}>
-                          {header}
-                        </option>
-                      ))}
-                    </select>
-                    <p className="mt-1 text-xs text-neutral-500">{FIELD_CONFIG[field]?.description}</p>
-                  </div>
-                ))}
+                      <label className="block text-sm font-medium text-neutral-900 mb-2">
+                        <span className="mr-2">{getFieldIcon(field)}</span>
+                        {getFieldLabel(field)}
+                        <span className="text-red-500 ml-1">*</span>
+                        {!mappingEditable && (
+                          <span className="ml-2 text-xs text-neutral-500">🔒 Gesperrt</span>
+                        )}
+                        {hasIssue && (
+                          <span className="ml-2 text-xs text-yellow-700 font-semibold">⚠️ Spalte nicht gefunden</span>
+                        )}
+                      </label>
+                      <select
+                        value={mapping[field] || ''}
+                        onChange={(e) => handleMappingChange(field, e.target.value)}
+                        disabled={!mappingEditable}
+                        className={`mt-1 block w-full rounded-lg shadow-sm focus:border-primary-500 focus:ring-primary-500 disabled:bg-neutral-100 disabled:cursor-not-allowed ${
+                          hasIssue ? 'border-yellow-400' : 'border-neutral-300'
+                        }`}
+                      >
+                        <option value="">-- Bitte wählen --</option>
+                        {csvPreview?.headers.map((header) => (
+                          <option key={header} value={header}>
+                            {header}
+                          </option>
+                        ))}
+                      </select>
+                      {hasIssue && suggestedHeader && (
+                        <p className="mt-2 text-xs text-yellow-700">
+                          💡 Vorschlag: <strong>{suggestedHeader}</strong>
+                        </p>
+                      )}
+                      <p className="mt-1 text-xs text-neutral-500">{FIELD_CONFIG[field]?.description}</p>
+                    </div>
+                  );
+                })}
 
                 {/* Optional Fields Section */}
-                {OPTIONAL_FIELDS.map((field) => (
-                  <div key={field} className="border border-neutral-200 rounded-lg p-4 bg-neutral-50">
-                    <label className="block text-sm font-medium text-neutral-900 mb-2">
-                      <span className="mr-2">{getFieldIcon(field)}</span>
-                      {getFieldLabel(field)}
-                      <span className="text-neutral-400 ml-1 text-xs">(optional)</span>
-                      {!mappingEditable && (
-                        <span className="ml-2 text-xs text-neutral-500">🔒 Gesperrt</span>
-                      )}
-                    </label>
-                    <select
-                      value={mapping[field] || ''}
-                      onChange={(e) => handleMappingChange(field, e.target.value)}
-                      disabled={!mappingEditable}
-                      className="mt-1 block w-full rounded-lg border-neutral-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 disabled:bg-neutral-100 disabled:cursor-not-allowed"
+                {OPTIONAL_FIELDS.map((field) => {
+                  const fieldValidation = validationResult?.validation_results?.find(r => r.field === field);
+                  const hasIssue = fieldValidation && !fieldValidation.is_valid;
+                  const suggestedHeader = fieldValidation?.suggested_header;
+                  
+                  return (
+                    <div 
+                      key={field} 
+                      className={`border rounded-lg p-4 ${hasIssue ? 'border-yellow-300 bg-yellow-50' : 'border-neutral-200 bg-neutral-50'}`}
                     >
-                      <option value="">-- Nicht zuordnen --</option>
-                      {csvPreview?.headers.map((header) => (
-                        <option key={header} value={header}>
-                          {header}
-                        </option>
-                      ))}
-                    </select>
-                    <p className="mt-1 text-xs text-neutral-500">{FIELD_CONFIG[field]?.description}</p>
-                  </div>
-                ))}
+                      <label className="block text-sm font-medium text-neutral-900 mb-2">
+                        <span className="mr-2">{getFieldIcon(field)}</span>
+                        {getFieldLabel(field)}
+                        <span className="text-neutral-400 ml-1 text-xs">(optional)</span>
+                        {!mappingEditable && (
+                          <span className="ml-2 text-xs text-neutral-500">🔒 Gesperrt</span>
+                        )}
+                        {hasIssue && (
+                          <span className="ml-2 text-xs text-yellow-600">⚠️ Spalte nicht gefunden</span>
+                        )}
+                      </label>
+                      <select
+                        value={mapping[field] || ''}
+                        onChange={(e) => handleMappingChange(field, e.target.value)}
+                        disabled={!mappingEditable}
+                        className={`mt-1 block w-full rounded-lg shadow-sm focus:border-primary-500 focus:ring-primary-500 disabled:bg-neutral-100 disabled:cursor-not-allowed ${
+                          hasIssue ? 'border-yellow-300' : 'border-neutral-300'
+                        }`}
+                      >
+                        <option value="">-- Nicht zuordnen --</option>
+                        {csvPreview?.headers.map((header) => (
+                          <option key={header} value={header}>
+                            {header}
+                          </option>
+                        ))}
+                      </select>
+                      {hasIssue && suggestedHeader && (
+                        <p className="mt-2 text-xs text-yellow-600">
+                          💡 Vorschlag: <strong>{suggestedHeader}</strong>
+                        </p>
+                      )}
+                      <p className="mt-1 text-xs text-neutral-500">{FIELD_CONFIG[field]?.description}</p>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 

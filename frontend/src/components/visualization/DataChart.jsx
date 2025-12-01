@@ -27,7 +27,15 @@ export default function DataChart({ data, type = 'line', title, currency = 'EUR'
   const symbol = currencySymbols[currency] || currency;
 
   const formatAmount = (value) => {
-    return `${value.toFixed(2)} ${symbol}`;
+    // Ensure value is a number
+    const numValue = typeof value === 'number' ? value : parseFloat(value);
+    
+    // Check if conversion resulted in a valid number
+    if (isNaN(numValue)) {
+      return `0.00 ${symbol}`;
+    }
+    
+    return `${numValue.toFixed(2)} ${symbol}`;
   };
 
   const CustomTooltip = ({ active, payload, label }) => {

@@ -124,6 +124,9 @@ function CategoryPieChart({
 }) {
   // Filter und transformiere Daten basierend auf Typ
   const chartData = useMemo(() => {
+    console.log('[CategoryPieChart] Raw data:', data);
+    console.log('[CategoryPieChart] Type:', type);
+    
     if (!data || data.length === 0) return [];
 
     // Filter nach Typ (Ausgaben = negative Werte, Einnahmen = positive Werte)
@@ -134,6 +137,8 @@ function CategoryPieChart({
         return item.total_amount > 0;
       }
     });
+    
+    console.log('[CategoryPieChart] Filtered data:', filtered);
 
     // Transformiere für Recharts
     return filtered.map(item => ({

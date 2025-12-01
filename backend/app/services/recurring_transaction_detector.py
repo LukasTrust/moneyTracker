@@ -23,7 +23,9 @@ class RecurringTransactionDetector:
     
     Algorithmus:
     - Gleicher Empfänger
-    - Ähnlicher Betrag (±2€ Toleranz)
+    - Ähnlicher Betrag mit dynamischer Toleranz:
+      * ±2€ für normale Ausgaben
+      * ±250€ oder ±20% (je nachdem was größer ist) für Einnahmen über 400€ (z.B. Gehalt)
     - Regelmäßige Abstände (28-31 Tage Toleranz für monatlich)
     - Mindestens 3 Vorkommnisse
     - Smart Detection: Nur aktiv wenn kürzliche Transaktionen vorhanden
@@ -31,7 +33,10 @@ class RecurringTransactionDetector:
     
     # Configuration
     MIN_OCCURRENCES = 3
-    AMOUNT_TOLERANCE = 2.0  # ±2 EUR
+    AMOUNT_TOLERANCE = 2.0  # ±2 EUR (für normale Ausgaben)
+    AMOUNT_TOLERANCE_SALARY = 250.0  # ±250 EUR (für Gehalt/Einnahmen über 400€)
+    AMOUNT_TOLERANCE_SALARY_PERCENT = 0.20  # ±20% (für sehr hohe Beträge)
+    SALARY_THRESHOLD = 400.0  # Ab diesem Betrag gilt höhere Toleranz für Einnahmen
     INTERVAL_TOLERANCE_DAYS = 3  # ±3 days around expected interval
     
     # Typical intervals to check (in days)
@@ -54,6 +59,24 @@ class RecurringTransactionDetector:
             db: SQLAlchemy database session
         """
         self.db = db
+    
+    def _get_amount_tolerance(self, amount: float) -> float:
+        """
+        Get dynamic amount tolerance based on transaction type
+        
+        Args:
+            amount: Transaction amount (positive = income, negative = expense)
+            
+        Returns:
+            Tolerance value in EUR
+        """
+        # For income (positive amounts) over threshold, use higher tolerance
+        if amount > self.SALARY_THRESHOLD:
+            # Use the larger of: fixed tolerance or percentage-based tolerance
+            percent_tolerance = abs(amount) * self.AMOUNT_TOLERANCE_SALARY_PERCENT
+            return max(self.AMOUNT_TOLERANCE_SALARY, percent_tolerance)
+        # For regular expenses and small income, use standard tolerance
+        return self.AMOUNT_TOLERANCE
     
     def detect_recurring_for_account(self, account_id: int) -> List[RecurringTransaction]:
         """
@@ -156,7 +179,7 @@ class RecurringTransactionDetector:
     
     def _group_by_similar_amount(self, transactions: List[DataRow]) -> Dict[float, List[DataRow]]:
         """
-        Group transactions by similar amounts
+        Group transactions by similar amounts with dynamic tolerance
         
         Args:
             transactions: List of transactions
@@ -172,6 +195,8 @@ class RecurringTransactionDetector:
                 continue
             
             amount = float(tx.amount)
+            # Get dynamic tolerance based on amount
+            tolerance = self._get_amount_tolerance(amount)
             similar_group = [tx]
             processed.add(i)
             
@@ -181,7 +206,8 @@ class RecurringTransactionDetector:
                     continue
                 
                 other_amount = float(other_tx.amount)
-                if abs(amount - other_amount) <= self.AMOUNT_TOLERANCE:
+                # Use dynamic tolerance for comparison
+                if abs(amount - other_amount) <= tolerance:
                     similar_group.append(other_tx)
                     processed.add(j)
             
@@ -416,6 +442,9 @@ class RecurringTransactionDetector:
             RecurringTransactionLink.recurring_transaction_id == recurring.id
         ).delete()
         
+        # Get dynamic tolerance based on average amount
+        tolerance = self._get_amount_tolerance(float(recurring.average_amount))
+        
         # Find matching transactions
         matching_transactions = (
             self.db.query(DataRow)
@@ -424,8 +453,8 @@ class RecurringTransactionDetector:
                     DataRow.account_id == recurring.account_id,
                     DataRow.recipient.ilike(recurring.recipient),
                     DataRow.amount.between(
-                        float(recurring.average_amount) - self.AMOUNT_TOLERANCE,
-                        float(recurring.average_amount) + self.AMOUNT_TOLERANCE
+                        float(recurring.average_amount) - tolerance,
+                        float(recurring.average_amount) + tolerance
                     ),
                     DataRow.transaction_date >= recurring.first_occurrence,
                     DataRow.transaction_date <= recurring.last_occurrence

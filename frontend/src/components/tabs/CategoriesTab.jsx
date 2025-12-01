@@ -89,14 +89,15 @@ function CategoriesTab({ accountId, currency = 'EUR', refreshTrigger }) {
 
   /**
    * Refresh data when refreshTrigger changes (e.g., after import)
+   * Only refresh if trigger is > 0 to avoid initial mount refreshes
    */
   useEffect(() => {
-    if (refreshTrigger !== undefined) {
+    if (refreshTrigger && refreshTrigger > 0) {
       console.log('CategoriesTab: Refreshing data due to trigger change');
       refetchCategories();
       refetchStats();
     }
-  }, [refreshTrigger, refetchCategories, refetchStats]);
+  }, [refreshTrigger]);
 
   /**
    * Handler für Kategorie-Änderungen (Erstellen/Bearbeiten/Löschen)
@@ -144,6 +145,10 @@ function CategoriesTab({ accountId, currency = 'EUR', refreshTrigger }) {
    * Separate Ausgaben und Einnahmen
    */
   const { expenseData, incomeData, stats } = useMemo(() => {
+    console.log('[CategoriesTab] categoryData:', categoryData);
+    console.log('[CategoriesTab] categoryData type:', Array.isArray(categoryData) ? 'array' : typeof categoryData);
+    console.log('[CategoriesTab] categoryData length:', categoryData?.length);
+    
     // Handle undefined or null categoryData
     if (!categoryData || !Array.isArray(categoryData)) {
       return {

@@ -5,6 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRecurring } from '../../hooks/useRecurring';
 import { useToast } from '../../hooks/useToast';
+import { getRecurringDetails } from '../../services/recurringService';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
 
@@ -15,6 +16,9 @@ const RecurringTransactionsList = ({ accountId = null, showTitle = true }) => {
   const [detecting, setDetecting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmTarget, setConfirmTarget] = useState(null); // { id, recipient }
+  const [expandedId, setExpandedId] = useState(null);
+  const [expandedData, setExpandedData] = useState(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
 
   /**
    * Handle detection trigger
@@ -68,6 +72,33 @@ const RecurringTransactionsList = ({ accountId = null, showTitle = true }) => {
   const handleCancelDelete = () => {
     setConfirmOpen(false);
     setConfirmTarget(null);
+  };
+
+  /**
+   * Handle row click to expand/collapse details
+   */
+  const handleRowClick = async (recurringId) => {
+    if (expandedId === recurringId) {
+      // Collapse if already expanded
+      setExpandedId(null);
+      setExpandedData(null);
+      return;
+    }
+
+    // Expand and load details
+    setExpandedId(recurringId);
+    setLoadingDetails(true);
+    setExpandedData(null);
+
+    try {
+      const details = await getRecurringDetails(recurringId);
+      setExpandedData(details);
+    } catch (err) {
+      showToast('Fehler beim Laden der Details: ' + (err.message || ''), 'error');
+      setExpandedId(null);
+    } finally {
+      setLoadingDetails(false);
+    }
   };
 
   // Refresh when includeInactive changes
@@ -218,64 +249,159 @@ const RecurringTransactionsList = ({ accountId = null, showTitle = true }) => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {recurring.map((item) => (
-                <tr 
-                  key={item.id} 
-                  className={item.is_active ? '' : 'bg-gray-50 opacity-60'}
-                >
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {item.is_active ? (
-                      <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                        ✓ Aktiv
-                      </span>
-                    ) : (
-                      <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
-                        ⊗ Inaktiv
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm font-medium text-gray-900">{item.recipient}</div>
-                    <div className="text-xs text-gray-500">
-                      {item.occurrence_count}x erkannt
-                      {item.confidence_score < 1.0 && (
-                        <span className="ml-2 text-yellow-600">
-                          ⚠ {Math.round(item.confidence_score * 100)}% sicher
+                <React.Fragment key={item.id}>
+                  <tr 
+                    className={`cursor-pointer hover:bg-gray-50 transition-colors ${item.is_active ? '' : 'bg-gray-50 opacity-60'}`}
+                    onClick={() => handleRowClick(item.id)}
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {item.is_active ? (
+                        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                          ✓ Aktiv
+                        </span>
+                      ) : (
+                        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+                          ⊗ Inaktiv
                         </span>
                       )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatCurrency(item.average_amount)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {formatInterval(item.average_interval_days)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {formatCurrency(item.monthly_cost || 0)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {formatDate(item.last_occurrence)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {formatDate(item.next_expected_date)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
-                    <button
-                      onClick={() => handleToggle(item.id, item.is_active)}
-                      className="text-blue-600 hover:text-blue-800"
-                      title={item.is_active ? 'Als inaktiv markieren' : 'Als aktiv markieren'}
-                    >
-                      {item.is_active ? '⏸' : '▶'}
-                    </button>
-                    <button
-                      onClick={() => handleDelete(item.id, item.recipient)}
-                      className="text-red-600 hover:text-red-800"
-                      title="Löschen"
-                    >
-                      🗑
-                    </button>
-                  </td>
-                </tr>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center">
+                        <div className="mr-2 text-gray-400">
+                          {expandedId === item.id ? '▼' : '▶'}
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">{item.recipient}</div>
+                          <div className="text-xs text-gray-500">
+                            {item.occurrence_count}x erkannt
+                            {item.confidence_score < 1.0 && (
+                              <span className="ml-2 text-yellow-600">
+                                ⚠ {Math.round(item.confidence_score * 100)}% sicher
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {formatCurrency(item.average_amount)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      {formatInterval(item.average_interval_days)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {formatCurrency(item.monthly_cost || 0)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      {formatDate(item.last_occurrence)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      {formatDate(item.next_expected_date)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => handleToggle(item.id, item.is_active)}
+                        className="text-blue-600 hover:text-blue-800"
+                        title={item.is_active ? 'Als inaktiv markieren' : 'Als aktiv markieren'}
+                      >
+                        {item.is_active ? '⏸' : '▶'}
+                      </button>
+                      <button
+                        onClick={() => handleDelete(item.id, item.recipient)}
+                        className="text-red-600 hover:text-red-800"
+                        title="Löschen"
+                      >
+                        🗑
+                      </button>
+                    </td>
+                  </tr>
+                  
+                  {/* Expanded Details Row */}
+                  {expandedId === item.id && (
+                    <tr>
+                      <td colSpan="8" className="px-6 py-4 bg-gray-50">
+                        {loadingDetails ? (
+                          <div className="flex justify-center py-4">
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                          </div>
+                        ) : expandedData ? (
+                          <div className="space-y-4">
+                            {/* Statistics */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                              <div className="bg-white rounded-lg p-3 border">
+                                <div className="text-xs text-gray-500">Erste Transaktion</div>
+                                <div className="text-sm font-semibold text-gray-900">
+                                  {formatDate(expandedData.first_occurrence)}
+                                </div>
+                              </div>
+                              <div className="bg-white rounded-lg p-3 border">
+                                <div className="text-xs text-gray-500">
+                                  {expandedData.total_spent >= 0 ? 'Gesamt erhalten' : 'Gesamt ausgegeben'}
+                                </div>
+                                <div className={"text-sm font-semibold " + (expandedData.total_spent >= 0 ? 'text-green-600' : 'text-red-600')}>
+                                  {formatCurrency(expandedData.total_spent)}
+                                </div>
+                              </div>
+                              <div className="bg-white rounded-lg p-3 border">
+                                <div className="text-xs text-gray-500">Durchschn. Abstand</div>
+                                <div className="text-sm font-semibold text-gray-900">
+                                  {expandedData.average_days_between 
+                                    ? `${Math.round(expandedData.average_days_between)} Tage`
+                                    : '-'}
+                                </div>
+                              </div>
+                              <div className="bg-white rounded-lg p-3 border">
+                                <div className="text-xs text-gray-500">Betrag Spanne</div>
+                                <div className="text-sm font-semibold text-gray-900">
+                                  {formatCurrency(expandedData.min_amount)} - {formatCurrency(expandedData.max_amount)}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Linked Transactions */}
+                            {expandedData.linked_transactions && expandedData.linked_transactions.length > 0 && (
+                              <div>
+                                <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                                  Verknüpfte Transaktionen ({expandedData.linked_transactions.length})
+                                </h4>
+                                <div className="bg-white rounded-lg border max-h-64 overflow-y-auto">
+                                  <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-gray-50 sticky top-0">
+                                      <tr>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Datum</th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Betrag</th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Beschreibung</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-200">
+                                      {expandedData.linked_transactions.map((tx) => (
+                                        <tr key={tx.id} className="hover:bg-gray-50">
+                                          <td className="px-4 py-2 text-sm text-gray-900">
+                                            {formatDate(tx.transaction_date)}
+                                          </td>
+                                          <td className="px-4 py-2 text-sm font-medium text-gray-900">
+                                            {formatCurrency(tx.amount)}
+                                          </td>
+                                          <td className="px-4 py-2 text-sm text-gray-600 truncate max-w-xs">
+                                            {tx.description || '-'}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="text-center text-gray-500 py-4">
+                            Keine Details verfügbar
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
               ))}
             </tbody>
           </table>

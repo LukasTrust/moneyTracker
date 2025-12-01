@@ -32,11 +32,49 @@ export default function ComparisonView({ accountId }) {
     setPeriod2(currentMonth);
   }, []);
 
+  // Update periods when comparison type changes
+  useEffect(() => {
+    const now = new Date();
+    
+    if (comparisonType === 'month') {
+      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1);
+      const previousMonth = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}`;
+      
+      setPeriod1(previousMonth);
+      setPeriod2(currentMonth);
+    } else if (comparisonType === 'year') {
+      const currentYear = String(now.getFullYear());
+      const previousYear = String(now.getFullYear() - 1);
+      
+      setPeriod1(previousYear);
+      setPeriod2(currentYear);
+    }
+  }, [comparisonType]);
+
   // Load comparison data
   const loadComparison = async () => {
     if (!period1 || !period2) {
       setError('Bitte wähle beide Zeiträume aus');
       return;
+    }
+
+    // Validate format matches comparison type
+    if (comparisonType === 'year') {
+      // Check if periods are in year format (YYYY)
+      if (period1.includes('-') || period2.includes('-')) {
+        // Invalid format for year comparison, skip loading silently
+        // The periods will be updated shortly by the useEffect
+        console.log('Skipping comparison load - waiting for period format to update');
+        return;
+      }
+    } else if (comparisonType === 'month') {
+      // Check if periods are in month format (YYYY-MM)
+      if (!period1.includes('-') || !period2.includes('-')) {
+        // Invalid format for month comparison, skip loading silently
+        console.log('Skipping comparison load - waiting for period format to update');
+        return;
+      }
     }
 
     setLoading(true);

@@ -90,6 +90,17 @@ DEFAULT_CATEGORIES = [
         "icon": "💊",
         "mappings": {"patterns": ["Apotheke", "Arzt", "Krankenversicherung", "AOK", "TK"]}
     },
+    {
+        "name": "Versicherung",
+        "color": "#06b6d4",
+        "icon": "🛡️",
+        "mappings": {"patterns": [
+            "Versicherung", "HUK", "COBURG", "Allianz", "ERGO", "AXA", 
+            "Generali", "R+V", "Debeka", "CosmosDirekt", "DA Direkt",
+            "Haftpflicht", "KFZ-Versicherung", "Hausrat", "Rechtsschutz",
+            "Lebensversicherung", "Berufsunfähigkeit", "Riester", "Rürup"
+        ]}
+    },
 ]
 
 

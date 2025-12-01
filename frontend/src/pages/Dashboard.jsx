@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import AccountList from '../components/accounts/AccountList';
 import CategoryManager from '../components/categories/CategoryManager';
 import DashboardGraphOverview from '../components/dashboard/DashboardGraphOverview';
-import KpiTiles from '../components/dashboard/KpiTiles';
 import InsightPopup from '../components/dashboard/InsightPopup';
 import BudgetManager from '../components/budget/BudgetManager';
 import BudgetProgressCard from '../components/budget/BudgetProgressCard';
@@ -98,9 +97,6 @@ export default function Dashboard() {
         
         {activeTab === 'overview' && (
           <div className="space-y-6">            
-            {/* KPI Tiles: visible immediately on page load for quick insights */}
-            <KpiTiles />
-
             <DashboardGraphOverview />
             
             {/* Recurring Transactions Widget */}

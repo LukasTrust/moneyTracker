@@ -16,7 +16,9 @@ from app.schemas.recurring_transaction import (
     RecurringTransactionStats,
     RecurringTransactionDetectionStats,
     RecurringTransactionUpdate,
-    RecurringTransactionToggleRequest
+    RecurringTransactionToggleRequest,
+    RecurringTransactionDetailResponse,
+    LinkedTransactionInfo
 )
 from app.services.recurring_transaction_detector import (
     RecurringTransactionDetector,
@@ -391,6 +393,105 @@ def update_recurring_transaction(
     if recurring.average_interval_days > 0:
         monthly_cost = float(recurring.average_amount) * (30 / recurring.average_interval_days)
         response.monthly_cost = round(monthly_cost, 2)
+    
+    return response
+
+
+@router.get("/recurring-transactions/{recurring_id}", response_model=RecurringTransactionDetailResponse)
+def get_recurring_transaction_details(
+    recurring_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Get detailed information about a specific recurring transaction
+    
+    Args:
+        recurring_id: RecurringTransaction ID
+        
+    Returns:
+        Detailed recurring transaction with linked transactions and statistics
+    """
+    from app.models.data_row import DataRow
+    from app.models.recurring_transaction import RecurringTransactionLink
+    from decimal import Decimal
+    
+    recurring = db.query(RecurringTransaction).filter(
+        RecurringTransaction.id == recurring_id
+    ).first()
+    
+    if not recurring:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"RecurringTransaction {recurring_id} not found"
+        )
+    
+    # Get linked transactions
+    linked_data = (
+        db.query(DataRow)
+        .join(RecurringTransactionLink, RecurringTransactionLink.data_row_id == DataRow.id)
+        .filter(RecurringTransactionLink.recurring_transaction_id == recurring_id)
+        .order_by(DataRow.transaction_date.desc())
+        .all()
+    )
+    
+    # Build linked transaction info
+    linked_transactions = [
+        LinkedTransactionInfo(
+            id=tx.id,
+            transaction_date=tx.transaction_date,
+            amount=Decimal(str(tx.amount)),
+            description=tx.purpose
+        )
+        for tx in linked_data
+    ]
+    
+    # Calculate statistics
+    amounts = [Decimal(str(tx.amount)) for tx in linked_data]
+    total_spent = sum(amounts) if amounts else Decimal('0')
+    min_amount = min(amounts) if amounts else Decimal('0')
+    max_amount = max(amounts) if amounts else Decimal('0')
+    
+    # Calculate average days between transactions
+    average_days_between = None
+    if len(linked_data) > 1:
+        sorted_tx = sorted(linked_data, key=lambda t: t.transaction_date)
+        intervals = [
+            (sorted_tx[i + 1].transaction_date - sorted_tx[i].transaction_date).days
+            for i in range(len(sorted_tx) - 1)
+        ]
+        if intervals:
+            average_days_between = sum(intervals) / len(intervals)
+    
+    # Calculate monthly cost
+    monthly_cost = None
+    if recurring.average_interval_days > 0:
+        monthly_cost = Decimal(str(round(float(recurring.average_amount) * (30 / recurring.average_interval_days), 2)))
+    
+    # Create response with all required fields
+    response = RecurringTransactionDetailResponse(
+        id=recurring.id,
+        account_id=recurring.account_id,
+        recipient=recurring.recipient,
+        average_amount=recurring.average_amount,
+        average_interval_days=recurring.average_interval_days,
+        category_id=recurring.category_id,
+        notes=recurring.notes,
+        first_occurrence=recurring.first_occurrence,
+        last_occurrence=recurring.last_occurrence,
+        occurrence_count=recurring.occurrence_count,
+        is_active=recurring.is_active,
+        is_manually_overridden=recurring.is_manually_overridden,
+        next_expected_date=recurring.next_expected_date,
+        confidence_score=float(recurring.confidence_score),
+        created_at=recurring.created_at,
+        updated_at=recurring.updated_at,
+        monthly_cost=monthly_cost,
+        linked_transactions=linked_transactions,
+        total_spent=total_spent,
+        average_days_between=average_days_between,
+        min_amount=min_amount,
+        max_amount=max_amount
+    )
     
     return response
 

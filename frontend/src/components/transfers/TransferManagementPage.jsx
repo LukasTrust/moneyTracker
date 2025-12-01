@@ -284,6 +284,17 @@ function CandidateRow({ candidate, onAccept, onReject }) {
     confidence >= 70 ? 'text-yellow-600' : 
     'text-orange-600';
 
+  // Ensure amounts are numbers
+  const fromAmount = typeof candidate.from_transaction.amount === 'number' 
+    ? candidate.from_transaction.amount 
+    : parseFloat(candidate.from_transaction.amount) || 0;
+  const toAmount = typeof candidate.to_transaction.amount === 'number' 
+    ? candidate.to_transaction.amount 
+    : parseFloat(candidate.to_transaction.amount) || 0;
+  const transferAmount = typeof candidate.amount === 'number' 
+    ? candidate.amount 
+    : parseFloat(candidate.amount) || 0;
+
   return (
     <div className="flex items-center justify-between p-4 bg-primary-50 border border-primary-200 rounded-lg">
       <div className="flex-1 grid grid-cols-3 gap-4 items-center">
@@ -296,14 +307,14 @@ function CandidateRow({ candidate, onAccept, onReject }) {
             {new Date(candidate.from_transaction.date).toLocaleDateString()}
           </div>
           <div className="text-red-600 font-semibold">
-            -{Math.abs(candidate.from_transaction.amount).toFixed(2)} €
+            -{Math.abs(fromAmount).toFixed(2)} €
           </div>
         </div>
 
         {/* Arrow & Amount */}
         <div className="text-center">
           <div className="text-2xl text-blue-600 mb-1">→</div>
-          <div className="text-sm font-semibold">{candidate.amount.toFixed(2)} €</div>
+          <div className="text-sm font-semibold">{transferAmount.toFixed(2)} €</div>
           <div className={`text-xs ${confidenceColor}`}>
             {confidence}% Übereinstimmung
           </div>
@@ -318,7 +329,7 @@ function CandidateRow({ candidate, onAccept, onReject }) {
             {new Date(candidate.to_transaction.date).toLocaleDateString()}
           </div>
           <div className="text-green-600 font-semibold">
-            +{candidate.to_transaction.amount.toFixed(2)} €
+            +{toAmount.toFixed(2)} €
           </div>
         </div>
       </div>

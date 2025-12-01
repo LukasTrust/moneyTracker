@@ -21,6 +21,7 @@ from app.schemas.csv_import import (
     CsvImportSuggestions,
     MappingSuggestion
 )
+from app.schemas.mapping import MappingValidationResponse, MappingValidationResult
 from app.services.csv_processor import CsvProcessor
 from app.services.hash_service import HashService
 from app.services.category_matcher import CategoryMatcher
@@ -311,6 +312,113 @@ async def suggest_mapping(
         )
 
 
+@router.post("/validate-mapping/{account_id}", response_model=MappingValidationResponse)
+async def validate_saved_mapping(
+    account_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    """
+    Validate saved mappings against uploaded CSV file
+    
+    This endpoint checks if the saved mappings for an account are compatible
+    with the uploaded CSV file. It identifies missing headers and suggests
+    alternatives if available.
+    
+    Args:
+        account_id: Account ID with saved mappings
+        file: CSV file to validate against
+        
+    Returns:
+        Validation result with details about missing/valid headers
+        
+    Raises:
+        400: Invalid CSV file
+        404: Account not found
+        413: File too large
+    """
+    # Verify account exists
+    account = verify_account_exists(account_id, db)
+    
+    # Read and validate file
+    content = await file.read()
+    validate_file_size(content, file.filename)
+    
+    try:
+        # Parse CSV
+        df, _ = CsvProcessor.parse_csv_advanced(content)
+        validate_row_count(len(df), file.filename)
+        headers = CsvProcessor.get_headers(df)
+        
+        # Get saved mappings
+        saved_mappings = db.query(Mapping).filter(
+            Mapping.account_id == account_id
+        ).all()
+        
+        if not saved_mappings:
+            # No saved mappings - suggest new ones
+            suggestions_dict = MappingSuggester.suggest_mappings(headers)
+            
+            return MappingValidationResponse(
+                is_valid=False,
+                has_saved_mapping=False,
+                validation_results=[],
+                missing_headers=[],
+                available_headers=headers
+            )
+        
+        # Validate each saved mapping
+        validation_results = []
+        missing_headers = []
+        all_valid = True
+        
+        for mapping in saved_mappings:
+            is_valid = mapping.csv_header in headers
+            
+            if not is_valid:
+                all_valid = False
+                missing_headers.append(mapping.csv_header)
+                
+                # Try to suggest alternative
+                suggestions_dict = MappingSuggester.suggest_mappings(headers)
+                suggested = None
+                
+                if mapping.standard_field in suggestions_dict:
+                    suggested_header, confidence, alternatives = suggestions_dict[mapping.standard_field]
+                    if confidence > 0.5:
+                        suggested = suggested_header
+            else:
+                suggested = None
+            
+            validation_results.append(
+                MappingValidationResult(
+                    field=mapping.standard_field,
+                    csv_header=mapping.csv_header,
+                    is_valid=is_valid,
+                    suggested_header=suggested
+                )
+            )
+        
+        return MappingValidationResponse(
+            is_valid=all_valid,
+            has_saved_mapping=True,
+            validation_results=validation_results,
+            missing_headers=missing_headers,
+            available_headers=headers
+        )
+        
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid CSV file: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error validating mapping: {str(e)}"
+        )
+
+
 @router.post("/import", response_model=CsvImportResponse)
 async def import_csv_advanced(
     account_id: int = Form(...),
@@ -558,6 +666,32 @@ async def import_csv_advanced(
             error_message=error_summary
         )
         
+        # Save mapping configuration for future use
+        # This should happen regardless of imported_count to enable reuse even when all rows are duplicates
+        if len(mapped_data) > 0:  # Only save if CSV had valid data (regardless of duplicates)
+            try:
+                # Delete existing mappings for this account
+                db.query(Mapping).filter(Mapping.account_id == account_id).delete()
+                
+                # Save new mappings
+                for field_name, csv_header in mapping.to_dict().items():
+                    new_mapping = Mapping(
+                        account_id=account_id,
+                        csv_header=csv_header,
+                        standard_field=field_name
+                    )
+                    db.add(new_mapping)
+                
+                db.commit()
+                logger.info("Saved mappings for account", extra={
+                    "account_id": account_id, 
+                    "import_id": import_id,
+                    "mapping_count": len(mapping.to_dict())
+                })
+            except Exception as e:
+                # Log error but don't fail the import
+                logger.exception("Could not save mappings", exc_info=True, extra={"account_id": account_id, "import_id": import_id})
+        
         # Trigger recurring transaction detection after successful import
         # IMPORTANT: Always analyze ALL transactions for the account, not just newly imported ones
         recurring_count = 0
@@ -612,26 +746,6 @@ async def import_csv_advanced(
         except Exception:
             # Non-fatal: log and continue
             logger.exception("Transfer detection failed during import", exc_info=True, extra={"import_id": import_id, "account_id": account_id})
-        
-        # Save mapping configuration for future use
-        if imported_count > 0:
-            try:
-                # Delete existing mappings for this account
-                db.query(Mapping).filter(Mapping.account_id == account_id).delete()
-                
-                # Save new mappings
-                for field_name, csv_header in mapping.to_dict().items():
-                    new_mapping = Mapping(
-                        account_id=account_id,
-                        csv_header=csv_header,
-                        standard_field=field_name
-                    )
-                    db.add(new_mapping)
-                
-                db.commit()
-            except Exception as e:
-                # Log error but don't fail the import
-                logger.exception("Could not save mappings", exc_info=True, extra={"account_id": account_id, "import_id": import_id})
         
         success = error_count == 0 or imported_count > 0
         

@@ -36,6 +36,16 @@ function AccountSettings({ account }) {
   const [isEditingBalance, setIsEditingBalance] = useState(false);
   const [newBalance, setNewBalance] = useState(account?.initial_balance?.toString() || '0.00');
   const [isDeleting, setIsDeleting] = useState(false);
+  
+  /**
+   * Handle balance input change - accept both comma and dot as decimal separator
+   */
+  const handleBalanceInputChange = (e) => {
+    let value = e.target.value;
+    // Replace comma with dot for consistent decimal format
+    value = value.replace(',', '.');
+    setNewBalance(value);
+  };
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [confirmName, setConfirmName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -146,6 +156,9 @@ function AccountSettings({ account }) {
       await accountService.updateAccount(account.id, { initial_balance: balanceValue });
       
       setIsEditingBalance(false);
+      
+      // Reload page to refresh all dashboard data and calculations
+      window.location.reload();
     } catch (err) {
       console.error('Error updating initial balance:', err);
       setError(err.response?.data?.message || 'Fehler beim Aktualisieren des Startguthabens');
@@ -360,10 +373,9 @@ function AccountSettings({ account }) {
             <div className="space-y-4">
               <Input
                 label="Neues Startguthaben"
-                type="number"
-                step="0.01"
+                type="text"
                 value={newBalance}
-                onChange={(e) => setNewBalance(e.target.value)}
+                onChange={handleBalanceInputChange}
                 placeholder="0.00"
                 autoFocus
                 onKeyPress={(e) => {

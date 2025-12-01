@@ -336,7 +336,7 @@ export function useCategoryData() {
       console.log('[useCategoryData] Response length:', response?.length);
       
       // Handle both array and wrapped object responses
-      const categoriesArray = Array.isArray(response) ? response : (response?.data || response?.categories || []);
+      const categoriesArray = Array.isArray(response) ? response : (response?.items || response?.data || response?.categories || []);
       console.log('[useCategoryData] Final categories:', categoriesArray);
       
       setCategories(categoriesArray);
@@ -392,10 +392,21 @@ export function useCategoryStatistics(accountId, params = {}) {
       const { categoryService } = await import('../services/categoryService');
       
       // Lade sowohl Transaktionsdaten als auch alle Kategorien
-      const [transactionCategoryData, allCategories] = await Promise.all([
+      const [transactionCategoryDataResponse, allCategoriesResponse] = await Promise.all([
         categoryService.getCategoryData(accountId, params),
         categoryService.getCategories()
       ]);
+      
+      // Extract items from responses
+      const transactionCategoryData = Array.isArray(transactionCategoryDataResponse) 
+        ? transactionCategoryDataResponse 
+        : (transactionCategoryDataResponse?.items || transactionCategoryDataResponse?.data || []);
+      const allCategories = Array.isArray(allCategoriesResponse) 
+        ? allCategoriesResponse 
+        : (allCategoriesResponse?.items || allCategoriesResponse?.data || []);
+      
+      console.log('[useCategoryStatistics] Extracted transactionCategoryData:', transactionCategoryData);
+      console.log('[useCategoryStatistics] Extracted allCategories:', allCategories);
       
       // Wenn keine Transaktionsdaten vorhanden, zeige alle Kategorien mit 0-Werten
       let finalCategoryData = transactionCategoryData || [];
@@ -424,7 +435,8 @@ export function useCategoryStatistics(accountId, params = {}) {
         // Lade alle Kategorien mit 0-Werten
         try {
           const { categoryService } = await import('../services/categoryService');
-          const allCategories = await categoryService.getCategories();
+          const allCategoriesResponse = await categoryService.getCategories();
+          const allCategories = Array.isArray(allCategoriesResponse) ? allCategoriesResponse : (allCategoriesResponse?.items || allCategoriesResponse?.data || []);
           if (allCategories && allCategories.length > 0) {
             setCategoryData(allCategories.map(cat => ({
               category_id: cat.id,
@@ -519,12 +531,13 @@ export function useDashboardData(params = {}) {
           transaction_count: 0
         }));
       }
-
+      
       setSummary(summaryData);
       setCategories(finalCategories);
       setBalanceHistory(historyData);
-      setRecipients(recipientsData || []);
-      setSenders(sendersData || []);
+      // Handle normalized responses - extract items array if present
+      setRecipients(Array.isArray(recipientsData) ? recipientsData : (recipientsData?.items || []));
+      setSenders(Array.isArray(sendersData) ? sendersData : (sendersData?.items || []));
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
       setError(err.response?.data?.message || 'Fehler beim Laden der Dashboard-Daten');

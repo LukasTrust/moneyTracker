@@ -69,6 +69,26 @@ export const useRecurring = (accountId = null) => {
   }, [accountId]);
 
   /**
+   * Initial data fetch on mount and when accountId changes
+   * Only fetch active contracts for widget display
+   */
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        await Promise.all([
+          fetchRecurring(false), // Only active contracts
+          fetchStats()
+        ]);
+      } catch (err) {
+        console.error('Error fetching initial data:', err);
+      }
+    };
+    
+    fetchData();
+  }, [fetchRecurring, fetchStats]);
+
+  /**
    * Trigger detection
    */
   const triggerDetection = useCallback(async () => {
@@ -173,12 +193,6 @@ export const useRecurring = (accountId = null) => {
       setLoading(false);
     }
   }, [fetchStats]);
-
-  // Initial fetch
-  useEffect(() => {
-    fetchRecurring();
-    fetchStats();
-  }, [fetchRecurring, fetchStats]);
 
   return {
     recurring,

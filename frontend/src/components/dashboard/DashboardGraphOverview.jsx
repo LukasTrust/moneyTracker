@@ -190,13 +190,15 @@ function DashboardGraphOverview() {
       .filter(cat => cat.total_amount > 0) // Nur Einnahmen
       .map(cat => ({
         name: cat.category_name,
-        value: cat.total_amount,
+        value: Math.abs(cat.total_amount), // Ensure positive values
         color: cat.color,
         icon: cat.icon,
         count: cat.transaction_count
       }));
     
     console.log('Income pie data prepared:', result);
+    console.log('Income pie data length:', result.length);
+    console.log('Income pie data values:', result.map(r => r.value));
     return result;
   }, [categories]);
 
@@ -424,8 +426,9 @@ function DashboardGraphOverview() {
           
           {expensesPieData.length > 0 ? (
             <>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
+              <div style={{ width: '100%', height: 300 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
                   <Pie
                     data={expensesPieData}
                     cx="50%"
@@ -446,6 +449,7 @@ function DashboardGraphOverview() {
                   />
                 </PieChart>
               </ResponsiveContainer>
+              </div>
 
               {/* Legende */}
               <div className="mt-4 space-y-2 max-h-48 overflow-y-auto">
@@ -485,28 +489,30 @@ function DashboardGraphOverview() {
           
           {incomePieData.length > 0 ? (
             <>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={incomePieData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={renderPieLabel}
-                    outerRadius={100}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {incomePieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    formatter={(value) => formatCurrency(value)}
-                    content={<CustomTooltip />}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
+              <div style={{ width: '100%', height: 300 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={incomePieData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={renderPieLabel}
+                      outerRadius={100}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {incomePieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      formatter={(value) => formatCurrency(value)}
+                      content={<CustomTooltip />}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
 
               {/* Legende */}
               <div className="mt-4 space-y-2">

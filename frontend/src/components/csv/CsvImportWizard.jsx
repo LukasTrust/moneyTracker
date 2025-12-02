@@ -10,7 +10,9 @@
 import React, { useState, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import ImportProgress from './ImportProgress';
-import { previewCsv, importCsv, validateSavedMapping } from '../../services/csvImportApi';
+import TransferCandidates from './TransferCandidates';
+import { previewCsv, importCsv, validateSavedMapping, suggestMapping } from '../../services/csvImportApi';
+import { createTransfer } from '../../services/transferService';
 import mappingService from '../../services/mappingService';
 import { useToast } from '../../hooks/useToast';
 
@@ -149,9 +151,40 @@ export default function CsvImportWizard({ accountId, onImportSuccess }) {
             }
           }
         } else {
-          // No existing mapping - enable manual editing
+          // No existing mapping - get intelligent suggestions
           setMappingEditable(true);
-          showToast('✅ CSV erfolgreich geladen. Bitte ordnen Sie die Felder zu.', 'success');
+          try {
+            const suggestions = await suggestMapping(csvFile);
+            
+            // Auto-fill mapping with suggestions
+            const suggestedMapping = {
+              date: '',
+              amount: '',
+              recipient: '',
+              purpose: '',
+            };
+            
+            Object.entries(suggestions.suggestions).forEach(([field, suggestion]) => {
+              if (suggestion.suggested_header && suggestion.confidence > 0.5) {
+                suggestedMapping[field] = suggestion.suggested_header;
+              }
+            });
+            
+            setMapping(suggestedMapping);
+            
+            const autoMappedCount = Object.values(suggestedMapping).filter(v => v).length;
+            if (autoMappedCount > 0) {
+              showToast(
+                `✅ CSV geladen. ${autoMappedCount} Felder automatisch zugeordnet.`,
+                'success'
+              );
+            } else {
+              showToast('✅ CSV erfolgreich geladen. Bitte ordnen Sie die Felder zu.', 'success');
+            }
+          } catch (error) {
+            console.error('Error getting suggestions:', error);
+            showToast('✅ CSV erfolgreich geladen. Bitte ordnen Sie die Felder zu.', 'success');
+          }
         }
         
         setCurrentStep(2);
@@ -226,7 +259,7 @@ export default function CsvImportWizard({ accountId, onImportSuccess }) {
       // Show detailed success message
       if (result.imported_count > 0) {
         showToast(
-          `✅ ${result.imported_count} Transaktionen erfolgreich importiert!`,
+                `✅ ${result.imported_count} Transaktionen erfolgreich importiert!`,
           'success'
         );
       }
@@ -252,7 +285,12 @@ export default function CsvImportWizard({ accountId, onImportSuccess }) {
         );
       }
 
-      // Reload mappings (they were saved after import)
+      if (result.transfer_candidates && result.transfer_candidates.length > 0) {
+        showToast(
+          `🔄 ${result.transfer_candidates.length} mögliche Überweisungen gefunden`,
+          'info'
+        );
+      }      // Reload mappings (they were saved after import)
       await loadExistingMappings();
       
       // Notify parent component (without automatic redirect)
@@ -716,6 +754,41 @@ export default function CsvImportWizard({ accountId, onImportSuccess }) {
                     <p className="text-sm text-red-700 mt-1">Fehler</p>
                   </div>
                 </div>
+
+                {/* Transfer Candidates */}
+                {importResult.transfer_candidates && importResult.transfer_candidates.length > 0 && (
+                  <div className="max-w-4xl mx-auto mt-6">
+                    <TransferCandidates 
+                      candidates={importResult.transfer_candidates}
+                      onCreateTransfer={async (candidate) => {
+                        try {
+                          await createTransfer({
+                            from_transaction_id: candidate.from_transaction_id,
+                            to_transaction_id: candidate.to_transaction_id,
+                            amount: candidate.amount,
+                            transfer_date: candidate.transfer_date,
+                            notes: candidate.match_reason
+                          });
+                          
+                          // Remove candidate from list
+                          setImportResult(prev => ({
+                            ...prev,
+                            transfer_candidates: prev.transfer_candidates.filter(
+                              c => c.from_transaction_id !== candidate.from_transaction_id ||
+                                   c.to_transaction_id !== candidate.to_transaction_id
+                            )
+                          }));
+                          
+                          showToast('Transfer erfolgreich erstellt', 'success');
+                        } catch (error) {
+                          console.error('Error creating transfer:', error);
+                          showToast('Fehler beim Erstellen des Transfers', 'error');
+                        }
+                      }}
+                    />
+                  </div>
+                )}
+
                 <button
                   onClick={handleReset}
                   className="mt-6 bg-primary-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-primary-700"

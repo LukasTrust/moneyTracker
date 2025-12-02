@@ -27,7 +27,7 @@ logger = get_logger("app.routers.transfers")
 router = APIRouter()
 
 
-@router.get("/transfers", response_model=List[TransferResponse])
+@router.get("/transfers")
 def get_all_transfers(
     account_id: Optional[int] = None,
     date_from: Optional[str] = None,

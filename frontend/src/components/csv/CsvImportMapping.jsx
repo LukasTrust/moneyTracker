@@ -66,20 +66,19 @@ export default function CsvImportMapping({ accountId, onImportSuccess }) {
    */
   const loadExistingMappings = async () => {
     setIsLoadingMappings(true);
-              return (
-                <div key={field} className="border border-neutral-200 rounded-lg p-4 bg-neutral-50">
-                  <label className="block text-sm font-medium text-neutral-900 mb-2">
-                    <span className="mr-2">{getFieldIcon(field)}</span>
-                    {getFieldLabel(field)}
-                    <span className="text-neutral-400 ml-1 text-xs">(optional)</span>
-                    <span className="ml-2 text-xs text-neutral-500">🔒 Gesperrt</span>
-                  </label>
-                  <div className="mt-1 block w-full rounded-lg border-neutral-300 shadow-sm bg-neutral-100 px-3 py-2 text-sm text-neutral-700">
-                    {value}
-                  </div>
-                  <p className="mt-1 text-xs text-neutral-500">{FIELD_CONFIG[field]?.description}</p>
-                </div>
-              );
+    try {
+      const mappings = await mappingService.getMappings(accountId);
+      
+      if (mappings && mappings.length > 0) {
+        // Convert array to object
+        const mappingObj = {};
+        mappings.forEach((m) => {
+          mappingObj[m.standard_field] = m.csv_header;
+        });
+        
+        setExistingMapping(mappingObj);
+        setMapping(mappingObj);
+        setMappingEditable(false);
       } else {
         // No mapping exists, allow editing
         setExistingMapping(null);
@@ -127,9 +126,40 @@ export default function CsvImportMapping({ accountId, onImportSuccess }) {
           showToast('✅ CSV erfolgreich geladen. Gespeichertes Mapping wird verwendet.', 'success');
         }
       } else {
-        // No existing mapping - enable manual editing
+        // No existing mapping - get intelligent suggestions
         setMappingEditable(true);
-        showToast('✅ CSV erfolgreich geladen. Bitte ordnen Sie die Felder zu.', 'success');
+        try {
+          const suggestions = await suggestMapping(selectedFile);
+          
+          // Auto-fill mapping with suggestions
+          const suggestedMapping = {
+            date: '',
+            amount: '',
+            recipient: '',
+            purpose: '',
+          };
+          
+          Object.entries(suggestions.suggestions).forEach(([field, suggestion]) => {
+            if (suggestion.suggested_header && suggestion.confidence > 0.5) {
+              suggestedMapping[field] = suggestion.suggested_header;
+            }
+          });
+          
+          setMapping(suggestedMapping);
+          
+          const autoMappedCount = Object.values(suggestedMapping).filter(v => v).length;
+          if (autoMappedCount > 0) {
+            showToast(
+              `✅ CSV geladen. ${autoMappedCount} Felder automatisch zugeordnet.`,
+              'success'
+            );
+          } else {
+            showToast('✅ CSV erfolgreich geladen. Bitte ordnen Sie die Felder zu.', 'success');
+          }
+        } catch (error) {
+          console.error('Error getting suggestions:', error);
+          showToast('✅ CSV erfolgreich geladen. Bitte ordnen Sie die Felder zu.', 'success');
+        }
       }
     } catch (error) {
       console.error('Error loading CSV:', error);

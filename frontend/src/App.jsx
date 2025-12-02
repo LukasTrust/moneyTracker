@@ -10,6 +10,7 @@ const Dashboard = lazy(() => import('./pages/Dashboard'));
 const AccountDetailPage = lazy(() => import('./pages/AccountDetailPage'));
 const ComparisonPage = lazy(() => import('./pages/ComparisonPage'));
 const TransferManagementPage = lazy(() => import('./components/transfers/TransferManagementPage'));
+const ContractsPage = lazy(() => import('./pages/ContractsPage'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 /**
@@ -61,6 +62,11 @@ function App() {
           <Route path="/transfers" element={
             <ErrorBoundary>
               <TransferManagementPage />
+            </ErrorBoundary>
+          } />
+          <Route path="/contracts" element={
+            <ErrorBoundary>
+              <ContractsPage />
             </ErrorBoundary>
           } />
           <Route path="*" element={<NotFound />} />

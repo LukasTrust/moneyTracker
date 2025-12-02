@@ -5,10 +5,9 @@ import LoadingSpinner from '../common/LoadingSpinner';
 import Pagination from '../common/Pagination';
 import Modal from '../common/Modal';
 import { useToast } from '../../hooks/useToast';
+import { useTransferDetection } from '../../hooks/useTransfers';
 import { 
   getAllTransfers, 
-  detectTransfers, 
-  createTransfer, 
   deleteTransfer 
 } from '../../services/transferService';
 
@@ -22,12 +21,9 @@ import {
  */
 export default function TransferManagementPage() {
   const [transfers, setTransfers] = useState([]);
-  const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [detecting, setDetecting] = useState(false);
-  const [detectProgress, setDetectProgress] = useState({ status: '', progress: 0, message: '' });
-  const [stats, setStats] = useState(null);
   const { showToast } = useToast();
+  const { detect, detecting } = useTransferDetection();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmTarget, setConfirmTarget] = useState(null);
   // Pagination (client-side - backend currently returns all transfers)
@@ -45,7 +41,10 @@ export default function TransferManagementPage() {
       setLoading(true);
       // Keep calling existing API (returns full list). We'll paginate client-side to avoid backend changes.
       const data = await getAllTransfers({ include_details: true });
-      const list = Array.isArray(data) ? data : (data.transfers || []);
+      
+      // API interceptor normalizes arrays to { items: [...], total: N }
+      const list = data.items || (Array.isArray(data) ? data : []);
+      
       setTransfers(list);
       setTotal(list.length);
     } catch (error) {
@@ -53,67 +52,6 @@ export default function TransferManagementPage() {
       console.error('Error loading transfers:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleDetect = async () => {
-    try {
-      setDetecting(true);
-      setDetectProgress({ status: 'pending', progress: 0, message: 'Starte Erkennung...' });
-      
-      const result = await detectTransfers({
-        min_confidence: 0.7,
-        auto_create: false
-      }, {
-        waitForCompletion: true,
-        onProgress: (progress) => {
-          setDetectProgress(progress);
-        }
-      });
-      
-      setCandidates(result.candidates || []);
-      setStats({
-        total_found: result.total_found || (result.candidates?.length || 0),
-        auto_created: result.auto_created || 0
-      });
-      
-      const totalFound = result.total_found || (result.candidates?.length || 0);
-      showToast(
-        `${totalFound} möglicher Treffer${totalFound !== 1 ? 'n' : ''} gefunden`,
-        'success'
-      );
-    } catch (error) {
-      showToast('Fehler bei der Erkennung von Überweisungen', 'error');
-      console.error('Error detecting transfers:', error);
-    } finally {
-      setDetecting(false);
-      setDetectProgress({ status: '', progress: 0, message: '' });
-    }
-  };
-
-  const handleAutoCreate = async (candidate) => {
-    try {
-      await createTransfer({
-        from_transaction_id: candidate.from_transaction_id,
-        to_transaction_id: candidate.to_transaction_id,
-        amount: candidate.amount,
-        transfer_date: candidate.transfer_date,
-        notes: candidate.match_reason
-      });
-      
-      // Remove from candidates
-      setCandidates(prev => prev.filter(c => 
-        c.from_transaction_id !== candidate.from_transaction_id || 
-        c.to_transaction_id !== candidate.to_transaction_id
-      ));
-      
-      // Reload transfers
-      await loadTransfers();
-      
-      showToast('Überweisung erfolgreich erstellt', 'success');
-    } catch (error) {
-      showToast('Fehler beim Erstellen der Überweisung', 'error');
-      console.error('Error creating transfer:', error);
     }
   };
 
@@ -142,6 +80,16 @@ export default function TransferManagementPage() {
     setConfirmTarget(null);
   };
 
+  const handleDetect = async () => {
+    try {
+      const result = await detect({ auto_create: true, min_confidence: 0.85 });
+      await loadTransfers();
+      showToast(`Erkennung abgeschlossen: ✅ ${result.auto_created} neu verknüpft, ${result.total_found} Kandidaten gefunden`, 'success');
+    } catch (err) {
+      showToast('Fehler bei der Erkennung: ' + (err.message || ''), 'error');
+    }
+  };
+
   // Do not early-return — show skeleton inside the page for smoother transitions
 
   return (
@@ -151,27 +99,23 @@ export default function TransferManagementPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Transfers verwalten</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Überweisungen zwischen Konten ansehen und verwalten, um Ihre Auswertungen korrekt zu halten
+            Überweisungen zwischen Konten ansehen und verwalten. Transfers werden automatisch beim CSV-Import erkannt.
           </p>
         </div>
         <Button
           onClick={handleDetect}
           disabled={detecting}
-          leftIcon={detecting ? <span className="animate-spin">⟳</span> : <span>✨</span>}
-          title="Sucht mögliche Überweisungen zwischen Konten"
-          aria-label="Transfers automatisch erkennen"
+          loading={detecting}
+          leftIcon={detecting ? <span className="animate-spin">⟳</span> : <span>🔍</span>}
+          size="md"
         >
-          {detecting ? (
-            detectProgress.progress > 0 
-              ? `${Math.round(detectProgress.progress)}% Erkenne...`
-              : 'Erkenne...'
-          ) : 'Automatisch erkennen'}
+          {detecting ? '🔄 Erkenne...' : 'Erkennung starten'}
         </Button>
       </div>
 
       {/* Stats Card */}
       <Card padding="md">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="text-center">
             <div className="text-3xl font-bold text-primary-600">{transfers.length}</div>
             <div className="text-sm text-gray-600">Verknüpfte Überweisungen</div>
@@ -181,12 +125,6 @@ export default function TransferManagementPage() {
               {transfers.filter(t => t.is_auto_detected).length}
             </div>
             <div className="text-sm text-gray-600">Automatisch erkannt</div>
-          </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-accent-600">
-              {candidates.length}
-            </div>
-            <div className="text-sm text-gray-600">Mögliche Treffer</div>
           </div>
         </div>
       </Card>
@@ -202,25 +140,6 @@ export default function TransferManagementPage() {
             </div>
           </div>
         </Modal>
-      )}
-
-      {/* Candidates Section */}
-      {candidates.length > 0 && (
-        <Card 
-          title="Mögliche Überweisungen" 
-          subtitle={`${candidates.length} möglicher Treffer${candidates.length !== 1 ? 'n' : ''} gefunden`}
-        >
-          <div className="space-y-3">
-            {candidates.map((candidate, index) => (
-              <CandidateRow
-                key={index}
-                candidate={candidate}
-                onAccept={() => handleAutoCreate(candidate)}
-                onReject={() => setCandidates(prev => prev.filter((_, i) => i !== index))}
-              />
-            ))}
-          </div>
-        </Card>
       )}
 
       {/* Existing Transfers */}
@@ -256,7 +175,7 @@ export default function TransferManagementPage() {
           <div className="text-center py-8 text-gray-500">
             <div className="text-5xl mb-3 opacity-50">🔄</div>
             <p>Keine Überweisungen gefunden</p>
-            <p className="text-sm mt-1">Nutzen Sie „Automatisch erkennen“, um mögliche Überweisungen zu finden</p>
+            <p className="text-sm mt-1">Transfers werden automatisch beim CSV-Import erkannt</p>
           </div>
         ) : (
           <div className={`space-y-3 transition-opacity duration-200`} key={`transfers-page-${page}`}>
@@ -270,93 +189,6 @@ export default function TransferManagementPage() {
           </div>
         )}
       </Card>
-    </div>
-  );
-}
-
-/**
- * CandidateRow - Display a potential transfer match
- */
-function CandidateRow({ candidate, onAccept, onReject }) {
-  const confidence = Math.round(candidate.confidence_score * 100);
-  const confidenceColor = 
-    confidence >= 90 ? 'text-green-600' : 
-    confidence >= 70 ? 'text-yellow-600' : 
-    'text-orange-600';
-
-  // Ensure amounts are numbers
-  const fromAmount = typeof candidate.from_transaction.amount === 'number' 
-    ? candidate.from_transaction.amount 
-    : parseFloat(candidate.from_transaction.amount) || 0;
-  const toAmount = typeof candidate.to_transaction.amount === 'number' 
-    ? candidate.to_transaction.amount 
-    : parseFloat(candidate.to_transaction.amount) || 0;
-  const transferAmount = typeof candidate.amount === 'number' 
-    ? candidate.amount 
-    : parseFloat(candidate.amount) || 0;
-
-  return (
-    <div className="flex items-center justify-between p-4 bg-primary-50 border border-primary-200 rounded-lg">
-      <div className="flex-1 grid grid-cols-3 gap-4 items-center">
-        {/* From Transaction */}
-        <div className="text-sm">
-          <div className="font-medium text-gray-900">
-            {candidate.from_transaction.recipient || 'Unbekannt'}
-          </div>
-          <div className="text-gray-600">
-            {new Date(candidate.from_transaction.date).toLocaleDateString()}
-          </div>
-          <div className="text-red-600 font-semibold">
-            -{Math.abs(fromAmount).toFixed(2)} €
-          </div>
-        </div>
-
-        {/* Arrow & Amount */}
-        <div className="text-center">
-          <div className="text-2xl text-blue-600 mb-1">→</div>
-          <div className="text-sm font-semibold">{transferAmount.toFixed(2)} €</div>
-          <div className={`text-xs ${confidenceColor}`}>
-            {confidence}% Übereinstimmung
-          </div>
-        </div>
-
-        {/* To Transaction */}
-        <div className="text-sm text-right">
-          <div className="font-medium text-gray-900">
-            {candidate.to_transaction.recipient || 'Unbekannt'}
-          </div>
-          <div className="text-gray-600">
-            {new Date(candidate.to_transaction.date).toLocaleDateString()}
-          </div>
-          <div className="text-green-600 font-semibold">
-            +{toAmount.toFixed(2)} €
-          </div>
-        </div>
-      </div>
-
-      {/* Actions */}
-        <div className="flex items-center gap-2 ml-4">
-        <Button
-          size="sm"
-          variant="success"
-          onClick={onAccept}
-            leftIcon={<span>✓</span>}
-            title="Überweisung erstellen und verknüpfen"
-            aria-label="Verknüpfen"
-          >
-          Verknüpfen
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={onReject}
-            leftIcon={<span>✕</span>}
-            title="Treffer ignorieren"
-            aria-label="Ignorieren"
-          >
-          Ignorieren
-        </Button>
-      </div>
     </div>
   );
 }

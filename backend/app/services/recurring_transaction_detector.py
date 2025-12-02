@@ -437,7 +437,7 @@ class RecurringTransactionDetector:
         if not recurring.id:
             self.db.flush()  # Ensure ID is generated
         
-        # Remove old links
+        # Remove old links for this recurring transaction
         self.db.query(RecurringTransactionLink).filter(
             RecurringTransactionLink.recurring_transaction_id == recurring.id
         ).delete()
@@ -463,13 +463,23 @@ class RecurringTransactionDetector:
             .all()
         )
         
-        # Create links
+        # Get existing links for these transactions to avoid duplicates
+        existing_links = set()
+        if matching_transactions:
+            tx_ids = [tx.id for tx in matching_transactions]
+            existing = self.db.query(RecurringTransactionLink.data_row_id).filter(
+                RecurringTransactionLink.data_row_id.in_(tx_ids)
+            ).all()
+            existing_links = {link[0] for link in existing}
+        
+        # Create links only for transactions that aren't already linked
         for tx in matching_transactions:
-            link = RecurringTransactionLink(
-                recurring_transaction_id=recurring.id,
-                data_row_id=tx.id
-            )
-            self.db.add(link)
+            if tx.id not in existing_links:
+                link = RecurringTransactionLink(
+                    recurring_transaction_id=recurring.id,
+                    data_row_id=tx.id
+                )
+                self.db.add(link)
     
     def toggle_manual_override(self, recurring_id: int, is_recurring: bool) -> RecurringTransaction:
         """

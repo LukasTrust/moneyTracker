@@ -719,6 +719,8 @@ async def import_csv_advanced(
                 logger.exception("Could not detect recurring transactions", exc_info=True, extra={"account_id": account_id, "import_id": import_id})
 
         # Run transfer detection for the imported rows and include candidates in response
+        # Run this even if no new rows were imported (e.g., all duplicates) to detect transfers
+        # between existing transactions
         transfer_candidates = None
         try:
             matcher = TransferMatcher(db)
@@ -728,6 +730,27 @@ async def import_csv_advanced(
             date_min, date_max = db.query(func.min(DataRow.transaction_date), func.max(DataRow.transaction_date)).filter(
                 DataRow.import_id == import_id
             ).one()
+
+            # If no new transactions were imported (all duplicates), check date range of all transactions in account
+            if not date_min or not date_max:
+                # Use date range from the CSV data that was attempted to be imported
+                if mapped_data:
+                    # Get date range from the mapped data
+                    dates = [row.get('date') for row in mapped_data if row.get('date')]
+                    if dates:
+                        from datetime import datetime as _dt
+                        parsed_dates = []
+                        for d in dates:
+                            if isinstance(d, date):
+                                parsed_dates.append(d)
+                            elif isinstance(d, str):
+                                parsed_dt = CsvProcessor.parse_date(d)
+                                if parsed_dt:
+                                    parsed_dates.append(parsed_dt.date())
+                        
+                        if parsed_dates:
+                            date_min = min(parsed_dates)
+                            date_max = max(parsed_dates)
 
             # Call matcher to find candidates involving this account within the date range
             candidates = matcher.find_transfer_candidates(

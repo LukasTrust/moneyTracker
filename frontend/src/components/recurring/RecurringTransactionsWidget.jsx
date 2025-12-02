@@ -100,11 +100,11 @@ const RecurringTransactionsWidget = ({ accountId = null }) => {
     <div className="bg-white rounded-lg shadow p-6">
       {/* Header */}
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold">📋 Verträge</h3>
+        <h3 className="text-lg font-semibold">📋 Aktive Verträge</h3>
       </div>
 
       {/* Summary Stats */}
-      {stats && (
+      {stats && stats.active_count > 0 && (
         <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-green-50 rounded-lg border border-blue-200">
           <div className="flex justify-between items-center">
             <div>
@@ -240,7 +240,7 @@ const RecurringTransactionsWidget = ({ accountId = null }) => {
         </div>
       ) : (
         <div className="text-center py-8 text-gray-500">
-          <p className="text-sm">Keine Verträge gefunden</p>
+          <p className="text-sm font-medium">Keine aktiven Verträge gefunden</p>
           <p className="text-xs mt-1">
             Importiere Transaktionen für automatische Erkennung
           </p>

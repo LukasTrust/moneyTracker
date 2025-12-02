@@ -101,6 +101,8 @@ class CsvImportResponse(BaseModel):
     total_rows: int = Field(..., description="Total number of rows processed")
     errors: Optional[List[str]] = Field(default=None, description="List of error messages")
     recurring_detected: Optional[int] = Field(default=None, description="Number of recurring transactions detected")
+    import_id: Optional[int] = Field(default=None, description="Import history record ID")
+    transfer_candidates: Optional[List[Dict[str, Any]]] = Field(default=None, description="Potential transfer matches detected during import")
     
     class Config:
         json_schema_extra = {
@@ -112,7 +114,9 @@ class CsvImportResponse(BaseModel):
                 "error_count": 0,
                 "total_rows": 120,
                 "errors": None,
-                "recurring_detected": 8
+                "recurring_detected": 8,
+                "import_id": 42,
+                "transfer_candidates": []
             }
         }
 

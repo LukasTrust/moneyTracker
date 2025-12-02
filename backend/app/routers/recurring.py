@@ -30,7 +30,6 @@ from app.utils.pagination import paginate_query
 from app.config import settings
 
 logger = get_logger(__name__)
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 
 router = APIRouter()
 
@@ -43,42 +42,6 @@ def get_job_status(job_id: int, db: Session = Depends(get_db)):
     if not job:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Job {job_id} not found")
     return job.to_dict()
-
-
-@router.get("/recurring-transactions", response_model=RecurringTransactionListResponse)
-def get_all_recurring_transactions(
-    include_inactive: bool = False,
-    limit: int = Query(settings.DEFAULT_LIMIT, ge=1),
-    offset: int = Query(0, ge=0),
-    db: Session = Depends(get_db)
-):
-    """
-    Get all recurring transactions (Verträge) across all accounts
-    
-    Args:
-        include_inactive: Include inactive recurring transactions
-        
-    Returns:
-        List of recurring transactions
-    """
-    query = db.query(RecurringTransaction)
-
-    if not include_inactive:
-        query = query.filter(RecurringTransaction.is_active == True)
-
-    base_query = query.order_by(RecurringTransaction.account_id, RecurringTransaction.average_amount.desc())
-    items, total, eff_limit, eff_offset, pages = paginate_query(base_query, limit, offset)
-
-    result = []
-    for r in items:
-        r_dict = RecurringTransactionResponse.from_orm(r)
-        if r.average_interval_days > 0:
-            monthly_cost = float(r.average_amount) * (30 / r.average_interval_days)
-            r_dict.monthly_cost = round(monthly_cost, 2)
-        result.append(r_dict)
-
-    page = (eff_offset // eff_limit) + 1 if eff_limit > 0 else 1
-    return RecurringTransactionListResponse(total=total, recurring_transactions=result, limit=eff_limit, offset=eff_offset, pages=pages, page=page)
 
 
 @router.get("/{account_id}/recurring-transactions", response_model=RecurringTransactionListResponse)

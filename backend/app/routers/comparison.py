@@ -92,6 +92,146 @@ def get_period_comparison(
     return comparison_data
 
 
+@router.get("/{account_id}/multi-year", response_model=dict)
+def get_multi_year_comparison(
+    years: str = Query(..., description="Comma-separated list of years to compare (e.g., '2023,2024,2025')"),
+    top_limit: int = Query(5, description="Number of top recipients to include", ge=1, le=20),
+    account: Account = Depends(get_account_by_id),
+    db: Session = Depends(get_db)
+):
+    """
+    Compare multiple years at once
+    
+    Args:
+        account_id: Account ID to compare
+        years: Comma-separated list of years (e.g., "2023,2024,2025")
+        top_limit: Number of top recipients to include
+        
+    Returns:
+        Multi-year comparison data with trends
+        
+    Example:
+        GET /api/comparison/1/multi-year?years=2023,2024,2025
+    """
+    try:
+        year_list = [int(y.strip()) for y in years.split(',')]
+        
+        if len(year_list) < 2:
+            raise HTTPException(
+                status_code=400,
+                detail="At least 2 years required for comparison"
+            )
+        
+        if len(year_list) > 5:
+            raise HTTPException(
+                status_code=400,
+                detail="Maximum 5 years allowed for comparison"
+            )
+        
+        # Sort years
+        year_list.sort()
+        
+    except (ValueError, AttributeError) as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid years format. Use comma-separated years (e.g., '2023,2024'). Error: {str(e)}"
+        )
+    
+    aggregator = DataAggregator(db)
+    multi_year_data = aggregator.get_multi_year_comparison(
+        account_id=account.id,
+        years=year_list,
+        top_limit=top_limit
+    )
+    
+    return multi_year_data
+
+
+@router.get("/{account_id}/quarterly", response_model=dict)
+def get_quarterly_comparison(
+    year: int = Query(..., description="Year for quarterly comparison"),
+    compare_to_previous_year: bool = Query(False, description="Compare to same quarters in previous year"),
+    account: Account = Depends(get_account_by_id),
+    db: Session = Depends(get_db)
+):
+    """
+    Compare quarters within a year, optionally with previous year
+    
+    Args:
+        account_id: Account ID to compare
+        year: Year for quarterly comparison
+        compare_to_previous_year: If true, compare each quarter to same quarter in previous year
+        
+    Returns:
+        Quarterly comparison data
+        
+    Example:
+        GET /api/comparison/1/quarterly?year=2024
+        GET /api/comparison/1/quarterly?year=2024&compare_to_previous_year=true
+    """
+    if year < 2000 or year > 2100:
+        raise HTTPException(
+            status_code=400,
+            detail="Year must be between 2000 and 2100"
+        )
+    
+    aggregator = DataAggregator(db)
+    quarterly_data = aggregator.get_quarterly_comparison(
+        account_id=account.id,
+        year=year,
+        compare_to_previous_year=compare_to_previous_year
+    )
+    
+    return quarterly_data
+
+
+@router.get("/{account_id}/benchmark", response_model=dict)
+def get_benchmark_analysis(
+    year: Optional[int] = Query(None, description="Year for benchmark (defaults to current year)"),
+    month: Optional[int] = Query(None, description="Month for benchmark (1-12, optional)"),
+    account: Account = Depends(get_account_by_id),
+    db: Session = Depends(get_db)
+):
+    """
+    Get benchmark analysis comparing user's spending to averages
+    
+    This endpoint calculates the average spending per category across all time periods
+    and compares the specified period to these averages.
+    
+    Args:
+        account_id: Account ID to analyze
+        year: Year for benchmark (defaults to current year)
+        month: Optional month (1-12) for more specific benchmark
+        
+    Returns:
+        Benchmark analysis showing differences from average per category
+        
+    Example:
+        GET /api/comparison/1/benchmark
+        GET /api/comparison/1/benchmark?year=2024
+        GET /api/comparison/1/benchmark?year=2024&month=12
+    """
+    # Default to current year if not specified
+    if year is None:
+        year = date.today().year
+    
+    # Validate month
+    if month is not None and (month < 1 or month > 12):
+        raise HTTPException(
+            status_code=400,
+            detail="Month must be between 1 and 12"
+        )
+    
+    aggregator = DataAggregator(db)
+    benchmark_data = aggregator.get_benchmark_analysis(
+        account_id=account.id,
+        year=year,
+        month=month
+    )
+    
+    return benchmark_data
+
+
 @router.get("/{account_id}/quick-compare", response_model=dict)
 def get_quick_comparison(
     compare_to: str = Query(..., description="Quick comparison: 'last_month', 'last_year', 'month_yoy', 'year_yoy'"),

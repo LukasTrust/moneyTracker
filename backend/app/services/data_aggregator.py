@@ -5,6 +5,7 @@ from typing import List, Dict, Any, Optional, Tuple, Set
 from sqlalchemy.orm import Session
 from sqlalchemy import func, case, and_, or_
 from datetime import datetime, date
+from dateutil.relativedelta import relativedelta
 from collections import defaultdict
 import calendar
 
@@ -1029,3 +1030,371 @@ class DataAggregator:
         
         # Otherwise, show date range
         return f"{start_date.strftime('%d.%m.%Y')} - {end_date.strftime('%d.%m.%Y')}"
+
+    def get_multi_year_comparison(
+        self,
+        account_id: int,
+        years: List[int],
+        top_limit: int = 5
+    ) -> Dict[str, Any]:
+        """
+        Compare multiple years with trend analysis
+        
+        Args:
+            account_id: Account ID to compare
+            years: List of years to compare (sorted)
+            top_limit: Number of top recipients to include
+            
+        Returns:
+            Multi-year comparison data with trends
+        """
+        years_data = []
+        
+        # Collect data for each year
+        for year in years:
+            year_start = date(year, 1, 1)
+            year_end = date(year, 12, 31)
+            
+            summary = self.get_summary(
+                account_id=account_id,
+                from_date=year_start,
+                to_date=year_end
+            )
+            
+            categories = self.get_category_aggregation(
+                account_id=account_id,
+                from_date=year_start,
+                to_date=year_end,
+                limit=20
+            )
+            
+            years_data.append({
+                'year': year,
+                'total_income': summary['total_income'],
+                'total_expenses': summary['total_expenses'],
+                'net_balance': summary['total_income'] + summary['total_expenses'],  # expenses are negative
+                'transaction_count': summary['transaction_count'],
+                'categories': categories
+            })
+        
+        # Calculate year-over-year changes and trends
+        trends = []
+        for i in range(1, len(years_data)):
+            prev_year = years_data[i-1]
+            curr_year = years_data[i]
+            
+            def calc_change(old_val: float, new_val: float) -> float:
+                if old_val == 0:
+                    return 100.0 if new_val != 0 else 0.0
+                return round(((new_val - old_val) / abs(old_val)) * 100, 2)
+            
+            trends.append({
+                'from_year': prev_year['year'],
+                'to_year': curr_year['year'],
+                'income_change': round(curr_year['total_income'] - prev_year['total_income'], 2),
+                'income_change_percent': calc_change(prev_year['total_income'], curr_year['total_income']),
+                'expenses_change': round(curr_year['total_expenses'] - prev_year['total_expenses'], 2),
+                'expenses_change_percent': calc_change(abs(prev_year['total_expenses']), abs(curr_year['total_expenses'])),
+                'balance_change': round(curr_year['net_balance'] - prev_year['net_balance'], 2),
+                'balance_change_percent': calc_change(prev_year['net_balance'], curr_year['net_balance'])
+            })
+        
+        # Calculate overall averages
+        total_income = sum(y['total_income'] for y in years_data)
+        total_expenses = sum(abs(y['total_expenses']) for y in years_data)
+        avg_income = round(total_income / len(years_data), 2)
+        avg_expenses = round(total_expenses / len(years_data), 2)
+        
+        return {
+            'years': years_data,
+            'trends': trends,
+            'summary': {
+                'years_compared': len(years),
+                'average_income': avg_income,
+                'average_expenses': avg_expenses,
+                'average_net': round(avg_income - avg_expenses, 2),
+                'total_income_all_years': round(total_income, 2),
+                'total_expenses_all_years': round(total_expenses, 2)
+            }
+        }
+    
+    def get_quarterly_comparison(
+        self,
+        account_id: int,
+        year: int,
+        compare_to_previous_year: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Compare quarters within a year, optionally with previous year
+        
+        Args:
+            account_id: Account ID to compare
+            year: Year for quarterly comparison
+            compare_to_previous_year: Compare to previous year's quarters
+            
+        Returns:
+            Quarterly comparison data
+        """
+        quarters = []
+        quarter_definitions = [
+            (1, 3, 'Q1'),   # Jan-Mar
+            (4, 6, 'Q2'),   # Apr-Jun
+            (7, 9, 'Q3'),   # Jul-Sep
+            (10, 12, 'Q4')  # Oct-Dec
+        ]
+        
+        # Get data for each quarter
+        for start_month, end_month, quarter_label in quarter_definitions:
+            quarter_start = date(year, start_month, 1)
+            # Last day of end_month
+            if end_month == 12:
+                quarter_end = date(year, 12, 31)
+            else:
+                next_month = date(year, end_month + 1, 1)
+                quarter_end = next_month - relativedelta(days=1)
+            
+            summary = self.get_summary(
+                account_id=account_id,
+                from_date=quarter_start,
+                to_date=quarter_end
+            )
+            
+            categories = self.get_category_aggregation(
+                account_id=account_id,
+                from_date=quarter_start,
+                to_date=quarter_end,
+                limit=10
+            )
+            
+            quarter_data = {
+                'quarter': quarter_label,
+                'year': year,
+                'start_date': quarter_start.isoformat(),
+                'end_date': quarter_end.isoformat(),
+                'total_income': summary['total_income'],
+                'total_expenses': summary['total_expenses'],
+                'net_balance': summary['total_income'] + summary['total_expenses'],  # expenses are negative
+                'transaction_count': summary['transaction_count'],
+                'categories': categories
+            }
+            
+            # Compare to previous year if requested
+            if compare_to_previous_year:
+                prev_year_start = date(year - 1, start_month, 1)
+                if end_month == 12:
+                    prev_year_end = date(year - 1, 12, 31)
+                else:
+                    prev_next_month = date(year - 1, end_month + 1, 1)
+                    prev_year_end = prev_next_month - relativedelta(days=1)
+                
+                prev_summary = self.get_summary(
+                    account_id=account_id,
+                    from_date=prev_year_start,
+                    to_date=prev_year_end
+                )
+                
+                def calc_change(old_val: float, new_val: float) -> float:
+                    if old_val == 0:
+                        return 100.0 if new_val != 0 else 0.0
+                    return round(((new_val - old_val) / abs(old_val)) * 100, 2)
+                
+                quarter_data['comparison_to_previous_year'] = {
+                    'previous_year': year - 1,
+                    'previous_income': prev_summary['total_income'],
+                    'previous_expenses': prev_summary['total_expenses'],
+                    'previous_net': prev_summary['total_income'] + prev_summary['total_expenses'],  # expenses are negative
+                    'income_change': round(summary['total_income'] - prev_summary['total_income'], 2),
+                    'income_change_percent': calc_change(prev_summary['total_income'], summary['total_income']),
+                    'expenses_change': round(summary['total_expenses'] - prev_summary['total_expenses'], 2),
+                    'expenses_change_percent': calc_change(abs(prev_summary['total_expenses']), abs(summary['total_expenses']))
+                }
+            
+            quarters.append(quarter_data)
+        
+        # Calculate quarter-to-quarter changes within the year
+        qoq_changes = []
+        for i in range(1, len(quarters)):
+            prev_q = quarters[i-1]
+            curr_q = quarters[i]
+            
+            def calc_change(old_val: float, new_val: float) -> float:
+                if old_val == 0:
+                    return 100.0 if new_val != 0 else 0.0
+                return round(((new_val - old_val) / abs(old_val)) * 100, 2)
+            
+            qoq_changes.append({
+                'from_quarter': prev_q['quarter'],
+                'to_quarter': curr_q['quarter'],
+                'income_change': round(curr_q['total_income'] - prev_q['total_income'], 2),
+                'income_change_percent': calc_change(prev_q['total_income'], curr_q['total_income']),
+                'expenses_change': round(curr_q['total_expenses'] - prev_q['total_expenses'], 2),
+                'expenses_change_percent': calc_change(abs(prev_q['total_expenses']), abs(curr_q['total_expenses']))
+            })
+        
+        return {
+            'year': year,
+            'quarters': quarters,
+            'quarter_to_quarter_changes': qoq_changes,
+            'year_summary': {
+                'total_income': sum(q['total_income'] for q in quarters),
+                'total_expenses': sum(q['total_expenses'] for q in quarters),
+                'avg_quarterly_income': round(sum(q['total_income'] for q in quarters) / 4, 2),
+                'avg_quarterly_expenses': round(sum(abs(q['total_expenses']) for q in quarters) / 4, 2)
+            }
+        }
+    
+    def get_benchmark_analysis(
+        self,
+        account_id: int,
+        year: int,
+        month: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """
+        Compare spending to historical averages (benchmark)
+        
+        Args:
+            account_id: Account ID to analyze
+            year: Year for benchmark
+            month: Optional month for more specific benchmark
+            
+        Returns:
+            Benchmark analysis with category comparisons
+        """
+        from dateutil.relativedelta import relativedelta
+        
+        # Define the period to analyze
+        if month:
+            period_start = date(year, month, 1)
+            period_end = (datetime(year, month, 1) + relativedelta(months=1, days=-1)).date()
+            period_label = f"{calendar.month_name[month]} {year}"
+        else:
+            period_start = date(year, 1, 1)
+            period_end = date(year, 12, 31)
+            period_label = str(year)
+        
+        # Get current period data
+        current_summary = self.get_summary(
+            account_id=account_id,
+            from_date=period_start,
+            to_date=period_end
+        )
+        
+        current_categories = self.get_category_aggregation(
+            account_id=account_id,
+            from_date=period_start,
+            to_date=period_end,
+            limit=50
+        )
+        
+        # Calculate historical averages (all data excluding current period)
+        # Get all transactions for this account to calculate averages
+        all_transactions = self.db.query(DataRow).filter(
+            DataRow.account_id == account_id,
+            or_(
+                DataRow.transaction_date < period_start,
+                DataRow.transaction_date > period_end
+            )
+        ).all()
+        
+        # Calculate time range for historical data
+        if all_transactions:
+            min_date = min(t.transaction_date for t in all_transactions)
+            max_date = max(t.transaction_date for t in all_transactions)
+            
+            # Calculate number of periods (months or years)
+            if month:
+                # Count months
+                months_diff = (max_date.year - min_date.year) * 12 + max_date.month - min_date.month + 1
+                num_periods = max(months_diff, 1)
+            else:
+                # Count years
+                years_diff = max_date.year - min_date.year + 1
+                num_periods = max(years_diff, 1)
+            
+            # Get historical averages by category
+            historical_categories = self.get_category_aggregation(
+                account_id=account_id,
+                from_date=min_date,
+                to_date=period_start - relativedelta(days=1),
+                limit=50
+            )
+        else:
+            # No historical data available
+            num_periods = 1
+            historical_categories = []
+        
+        # Calculate average per period for each category
+        category_benchmarks = []
+        current_cat_dict = {cat['category_id']: cat for cat in current_categories}
+        
+        for hist_cat in historical_categories:
+            cat_id = hist_cat['category_id']
+            # total_amount is negative for expenses, positive for income
+            # We want to compare absolute expense amounts
+            hist_amount = abs(hist_cat.get('total_amount', 0))
+            avg_expenses = round(hist_amount / num_periods, 2) if num_periods > 0 else 0
+            
+            current_cat = current_cat_dict.get(cat_id, {})
+            current_expenses = abs(current_cat.get('total_amount', 0))
+            
+            diff = round(current_expenses - avg_expenses, 2)
+            
+            if avg_expenses > 0:
+                diff_percent = round((diff / avg_expenses) * 100, 2)
+            else:
+                diff_percent = 100.0 if current_expenses > 0 else 0.0
+            
+            category_benchmarks.append({
+                'category_id': cat_id,
+                'category_name': hist_cat.get('category_name', 'Unknown'),
+                'current_expenses': current_expenses,
+                'average_expenses': avg_expenses,
+                'difference': diff,
+                'difference_percent': diff_percent,
+                'status': 'above' if diff > 0 else 'below' if diff < 0 else 'equal'
+            })
+        
+        # Sort by absolute difference
+        category_benchmarks.sort(key=lambda x: abs(x['difference']), reverse=True)
+        
+        # Calculate overall benchmark
+        total_current_expenses = abs(current_summary['total_expenses'])
+        
+        # Get historical overall average
+        if all_transactions:
+            historical_summary = self.get_summary(
+                account_id=account_id,
+                from_date=min_date,
+                to_date=period_start - relativedelta(days=1)
+            )
+            avg_total_expenses = round(abs(historical_summary['total_expenses']) / num_periods, 2) if num_periods > 0 else 0
+        else:
+            avg_total_expenses = 0
+        
+        overall_diff = round(total_current_expenses - avg_total_expenses, 2)
+        
+        if avg_total_expenses > 0:
+            overall_diff_percent = round((overall_diff / avg_total_expenses) * 100, 2)
+        else:
+            overall_diff_percent = 100.0 if total_current_expenses > 0 else 0.0
+        
+        return {
+            'period': period_label,
+            'period_start': period_start.isoformat(),
+            'period_end': period_end.isoformat(),
+            'current': {
+                'total_income': current_summary['total_income'],
+                'total_expenses': total_current_expenses,
+                'net_balance': current_summary['total_income'] + current_summary['total_expenses'],  # expenses are negative
+                'transaction_count': current_summary['transaction_count']
+            },
+            'benchmark': {
+                'average_expenses': avg_total_expenses,
+                'difference': overall_diff,
+                'difference_percent': overall_diff_percent,
+                'status': 'above' if overall_diff > 0 else 'below' if overall_diff < 0 else 'equal',
+                'num_periods_analyzed': num_periods
+            },
+            'categories': category_benchmarks[:20]  # Top 20 categories by difference
+        }
+

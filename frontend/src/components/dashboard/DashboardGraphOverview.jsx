@@ -3,6 +3,7 @@ import Card from '../common/Card';
 import Button from '../common/Button';
 import LoadingSpinner from '../common/LoadingSpinner';
 import UnifiedFilter from '../common/UnifiedFilter';
+import MoneyFlow from './MoneyFlow';
 import { useDashboardData } from '../../hooks/useDataFetch';
 import { useFilterStore } from '../../store/filterStore';
 import { format } from 'date-fns';
@@ -112,7 +113,7 @@ function DashboardGraphOverview() {
   ]);
 
   // Fetch Dashboard Data (will automatically re-fetch when filterParams change)
-  const { summary, categories, balanceHistory, recipients, senders, loading, error, refetch } = useDashboardData(filterParams);
+  const { summary, categories, balanceHistory, recipients, senders, moneyFlow, loading, error, refetch } = useDashboardData(filterParams);
 
   /**
    * Format currency
@@ -362,6 +363,14 @@ function DashboardGraphOverview() {
             </div>
           </div>
         </Card>
+      </div>
+
+      {/* Money Flow Visualization */}
+      <div>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          💸 Geldfluss: Einnahmen → Ausgaben
+        </h3>
+        <MoneyFlow moneyFlowData={moneyFlow} loading={loading} />
       </div>
 
       {/* Line Chart: Entwicklung des Aktuellen Kontostands */}

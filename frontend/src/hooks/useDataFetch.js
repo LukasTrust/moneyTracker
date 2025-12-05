@@ -357,6 +357,48 @@ export function useCategoryData() {
 }
 
 /**
+ * Custom Hook für Money Flow Daten eines Kontos
+ * 
+ * @param {number} accountId - Konto-ID
+ * @param {object} params - Query-Parameter (fromDate, toDate, categoryIds, etc.)
+ * @returns {object} { moneyFlow, loading, error, refetch }
+ * 
+ * VERWENDUNG:
+ * const { moneyFlow, loading } = useAccountMoneyFlow(accountId, {
+ *   fromDate: '2024-01-01',
+ *   toDate: '2024-12-31'
+ * });
+ */
+export function useAccountMoneyFlow(accountId, params = {}) {
+  const [moneyFlow, setMoneyFlow] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const fetchMoneyFlow = async () => {
+    if (!accountId) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await dataService.getMoneyFlow(accountId, params);
+      setMoneyFlow(response);
+    } catch (err) {
+      console.error('Error fetching money flow:', err);
+      setError(err.response?.data?.message || 'Fehler beim Laden der Money Flow Daten');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMoneyFlow();
+  }, [accountId, params.fromDate, params.toDate, params.categoryIds, params.minAmount, params.maxAmount, params.recipient, params.purpose, params.transactionType, params._refreshKey]);
+
+  return { moneyFlow, loading, error, refetch: fetchMoneyFlow };
+}
+
+/**
  * Custom Hook für Kategorie-Statistiken eines Kontos
  * 
  * @param {number} accountId - Konto-ID
@@ -497,6 +539,7 @@ export function useDashboardData(params = {}) {
   const [balanceHistory, setBalanceHistory] = useState(null);
   const [recipients, setRecipients] = useState([]);
   const [senders, setSenders] = useState([]);
+  const [moneyFlow, setMoneyFlow] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -510,13 +553,14 @@ export function useDashboardData(params = {}) {
       const { categoryService } = await import('../services/categoryService');
       
       // Parallel alle Daten laden, inklusive globale Kategorien
-      const [summaryData, categoriesData, historyData, recipientsData, sendersData, allCategories] = await Promise.all([
+      const [summaryData, categoriesData, historyData, recipientsData, sendersData, allCategories, moneyFlowData] = await Promise.all([
         dashboardService.getSummary(params),
         dashboardService.getCategoriesData({ ...params, limit: 10 }),
         dashboardService.getBalanceHistory({ ...params, groupBy: 'month' }),
         dashboardService.getRecipientsData({ ...params, transactionType: 'expense', limit: 10 }),
         dashboardService.getRecipientsData({ ...params, transactionType: 'income', limit: 10 }),
-        categoryService.getCategories()
+        categoryService.getCategories(),
+        dashboardService.getMoneyFlow(params)
       ]);
 
       // Wenn keine Transaktionsdaten vorhanden, zeige alle Kategorien mit 0-Werten
@@ -538,6 +582,7 @@ export function useDashboardData(params = {}) {
       // Handle normalized responses - extract items array if present
       setRecipients(Array.isArray(recipientsData) ? recipientsData : (recipientsData?.items || []));
       setSenders(Array.isArray(sendersData) ? sendersData : (sendersData?.items || []));
+      setMoneyFlow(moneyFlowData);
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
       setError(err.response?.data?.message || 'Fehler beim Laden der Dashboard-Daten');
@@ -557,6 +602,7 @@ export function useDashboardData(params = {}) {
     balanceHistory, 
     recipients,
     senders,
+    moneyFlow,
     loading, 
     error, 
     refetch: fetchDashboardData 
@@ -570,6 +616,7 @@ export default {
   useRecipientData,
   useSenderData,
   useCategoryData,
+  useAccountMoneyFlow,
   useCategoryStatistics,
   useDashboardData,
 };

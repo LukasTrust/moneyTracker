@@ -302,6 +302,77 @@ export const dashboardService = {
     const response = await api.get(`/dashboard/recipients-data?${queryParams}`);
     return response.data;
   },
+
+  /**
+   * Money Flow Daten über alle Accounts
+   * Zeigt wie Einnahmen in Ausgaben-Kategorien fließen
+   * 
+   * @param {object} params - Query-Parameter { fromDate, toDate, categoryIds, minAmount, maxAmount, recipient, purpose, transactionType }
+   * @returns {Promise<object>} { total_income, total_expenses, income_categories, expense_categories, period }
+   * 
+   * BACKEND-ROUTE:
+   * GET /api/v1/dashboard/money-flow?from_date=&to_date=&category_ids=&min_amount=&max_amount=&recipient=&purpose=&transaction_type=
+   * 
+   * Response Format:
+   * {
+   *   "total_income": 5000.00,
+   *   "total_expenses": 3500.00,
+   *   "income_categories": [
+   *     {
+   *       "id": 1,
+   *       "name": "Gehalt",
+   *       "value": 4500.00,
+   *       "color": "#10b981",
+   *       "icon": "💰",
+   *       "count": 1
+   *     }
+   *   ],
+   *   "expense_categories": [
+   *     {
+   *       "id": 2,
+   *       "name": "Lebensmittel",
+   *       "value": 800.00,
+   *       "color": "#ef4444",
+   *       "icon": "🛒",
+   *       "count": 25
+   *     }
+   *   ],
+   *   "period": {
+   *     "from_date": "2024-01-01",
+   *     "to_date": "2024-12-31"
+   *   }
+   * }
+   */
+  async getMoneyFlow(params = {}) {
+    const { 
+      fromDate, 
+      toDate, 
+      categoryIds,
+      minAmount,
+      maxAmount,
+      recipient,
+      purpose,
+      transactionType
+    } = params;
+    
+    const queryParams = new URLSearchParams();
+    
+    if (fromDate) queryParams.append('from_date', fromDate);
+    if (toDate) queryParams.append('to_date', toDate);
+    
+    if (categoryIds) {
+      queryParams.append('category_ids', categoryIds);
+    }
+    
+    if (minAmount !== undefined && minAmount !== null) queryParams.append('min_amount', toApiAmount(minAmount));
+    if (maxAmount !== undefined && maxAmount !== null) queryParams.append('max_amount', toApiAmount(maxAmount));
+    if (recipient) queryParams.append('recipient', recipient);
+    if (purpose) queryParams.append('purpose', purpose);
+    if (transactionType && transactionType !== 'all') queryParams.append('transaction_type', transactionType);
+
+    const response = await api.get(`/dashboard/money-flow?${queryParams}`);
+    return response.data;
+  },
 };
 
 export default dashboardService;

@@ -368,3 +368,130 @@ def get_account_recipients_data(
     )
     
     return recipients
+
+
+@router.get("/{account_id}/transactions/money-flow", response_model=dict)
+def get_account_money_flow(
+    account_id: int,
+    from_date: Optional[date] = Query(None, description="Start date filter"),
+    to_date: Optional[date] = Query(None, description="End date filter"),
+    category_id: Optional[int] = Query(None, description="Filter by single category ID"),
+    category_ids: Optional[str] = Query(None, description="Filter by multiple category IDs (comma-separated)"),
+    min_amount: Optional[float] = Query(None, description="Minimum amount filter"),
+    max_amount: Optional[float] = Query(None, description="Maximum amount filter"),
+    recipient: Optional[str] = Query(None, description="Recipient search query"),
+    purpose: Optional[str] = Query(None, description="Purpose search query"),
+    transaction_type: Optional[str] = Query(None, description="Transaction type: 'income', 'expense', 'all'"),
+    account: Account = Depends(get_account_by_id),
+    db: Session = Depends(get_db)
+):
+    """
+    Get money flow data showing how income flows into different expense categories for an account
+    
+    Args:
+        account_id: Account ID
+        from_date: Filter by start date
+        to_date: Filter by end date
+        category_id: Filter by single category ID
+        category_ids: Filter by multiple categories
+        min_amount: Minimum amount filter
+        max_amount: Maximum amount filter
+        recipient: Recipient search query
+        purpose: Purpose search query
+        transaction_type: Transaction type filter
+        
+    Returns:
+        Money flow data with income sources and expense categories
+        
+    Raises:
+        404: Account not found
+    """
+    aggregator = DataAggregator(db)
+    
+    # Get total income and income by category
+    income_categories = aggregator.get_category_aggregation(
+        account_id=account.id,
+        from_date=from_date,
+        to_date=to_date,
+        limit=100,  # Get all income categories
+        category_id=category_id,
+        category_ids=category_ids,
+        min_amount=min_amount,
+        max_amount=max_amount,
+        recipient=recipient,
+        purpose=purpose,
+        transaction_type='income'  # Only income
+    )
+    
+    # Get expense categories
+    expense_categories = aggregator.get_category_aggregation(
+        account_id=account.id,
+        from_date=from_date,
+        to_date=to_date,
+        limit=100,  # Get all expense categories
+        category_id=category_id,
+        category_ids=category_ids,
+        min_amount=min_amount,
+        max_amount=max_amount,
+        recipient=recipient,
+        purpose=purpose,
+        transaction_type='expense'  # Only expenses
+    )
+    
+    # Get summary for total values
+    summary = aggregator.get_summary(
+        account_id=account.id,
+        from_date=from_date,
+        to_date=to_date,
+        category_id=category_id,
+        category_ids=category_ids,
+        min_amount=min_amount,
+        max_amount=max_amount,
+        recipient=recipient,
+        purpose=purpose,
+        transaction_type=transaction_type
+    )
+    
+    # Format income data
+    income_data = []
+    if income_categories:
+        for cat in income_categories:
+            # Handle both dict and object responses
+            total_amount = cat.get('total_amount') if isinstance(cat, dict) else cat.total_amount
+            if total_amount > 0:  # Only positive amounts
+                income_data.append({
+                    "id": cat.get('category_id', -1) if isinstance(cat, dict) else (cat.category_id if cat.category_id else -1),
+                    "name": cat.get('category_name') if isinstance(cat, dict) else cat.category_name,
+                    "value": float(total_amount),
+                    "color": cat.get('color') if isinstance(cat, dict) else cat.color,
+                    "icon": cat.get('icon') if isinstance(cat, dict) else cat.icon,
+                    "count": cat.get('transaction_count') if isinstance(cat, dict) else cat.transaction_count
+                })
+    
+    # Format expense data
+    expense_data = []
+    if expense_categories:
+        for cat in expense_categories:
+            # Handle both dict and object responses
+            total_amount = cat.get('total_amount') if isinstance(cat, dict) else cat.total_amount
+            if total_amount < 0:  # Only negative amounts
+                expense_data.append({
+                    "id": cat.get('category_id', -1) if isinstance(cat, dict) else (cat.category_id if cat.category_id else -1),
+                    "name": cat.get('category_name') if isinstance(cat, dict) else cat.category_name,
+                    "value": abs(float(total_amount)),
+                    "color": cat.get('color') if isinstance(cat, dict) else cat.color,
+                    "icon": cat.get('icon') if isinstance(cat, dict) else cat.icon,
+                    "count": cat.get('transaction_count') if isinstance(cat, dict) else cat.transaction_count
+                })
+    
+    return {
+        "total_income": float(summary.get('total_income', 0)),
+        "total_expenses": abs(float(summary.get('total_expenses', 0))),
+        "income_categories": income_data,
+        "expense_categories": expense_data,
+        "period": {
+            "from_date": from_date.isoformat() if from_date else None,
+            "to_date": to_date.isoformat() if to_date else None
+        }
+    }
+

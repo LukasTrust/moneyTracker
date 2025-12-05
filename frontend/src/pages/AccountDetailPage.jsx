@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import useAccountStore from '../store/accountStore';
 import { useFilterStore } from '../store/filterStore';
-import { useTransactionData, useSummaryData, useChartData } from '../hooks/useDataFetch';
+import { useTransactionData, useSummaryData, useChartData, useAccountMoneyFlow } from '../hooks/useDataFetch';
 import Button from '../components/common/Button';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import CsvImportWizard from '../components/csv/CsvImportWizard';
@@ -10,6 +10,7 @@ import SummaryCards from '../components/visualization/SummaryCards';
 import DataChart from '../components/visualization/DataChart';
 import TransactionTable from '../components/visualization/TransactionTable';
 import UnifiedFilter from '../components/common/UnifiedFilter';
+import MoneyFlow from '../components/dashboard/MoneyFlow';
 import RecipientsTab from '../components/tabs/RecipientsTab';
 import CategoriesTab from '../components/tabs/CategoriesTab';
 import BudgetsTab from '../components/tabs/BudgetsTab';
@@ -112,6 +113,12 @@ export default function AccountDetailPage() {
     refetch: refetchChart
   } = useChartData(id, 'month', { ...filterParams, _refreshKey: dataRefreshKey });
 
+  const { 
+    moneyFlow, 
+    loading: moneyFlowLoading,
+    refetch: refetchMoneyFlow
+  } = useAccountMoneyFlow(id, { ...filterParams, _refreshKey: dataRefreshKey });
+
   useEffect(() => {
     if (id) {
       fetchAccount(id);
@@ -136,8 +143,9 @@ export default function AccountDetailPage() {
       refetchTransactions();
       refetchSummary();
       refetchChart();
+      refetchMoneyFlow();
     }, 500); // Small delay to ensure backend has processed
-  }, [refetchTransactions, refetchSummary, refetchChart]);
+  }, [refetchTransactions, refetchSummary, refetchChart, refetchMoneyFlow]);
 
   const dataLoading = transactionsLoading || summaryLoading || chartLoading;
 
@@ -252,6 +260,18 @@ export default function AccountDetailPage() {
             ) : (
               <SummaryCards summary={summary} currency={currentAccount.currency} />
             )}
+
+            {/* Money Flow Visualization */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                💸 Geldfluss: Einnahmen → Ausgaben
+              </h3>
+              {moneyFlowLoading ? (
+                <div className="bg-gray-100 rounded-lg h-80 animate-pulse" />
+              ) : (
+                <MoneyFlow moneyFlowData={moneyFlow} loading={moneyFlowLoading} />
+              )}
+            </div>
 
             {/* Chart mit Loading State */}
             {chartLoading ? (

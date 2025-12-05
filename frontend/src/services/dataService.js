@@ -165,6 +165,50 @@ export const dataService = {
     );
     return response.data;
   },
+
+  /**
+   * Money Flow Daten für ein Konto
+   * Zeigt wie Einnahmen in Ausgaben-Kategorien fließen
+   * 
+   * @param {number} accountId - Konto-ID
+   * @param {object} params - Query-Parameter { fromDate, toDate, categoryIds, minAmount, maxAmount, recipient, purpose, transactionType }
+   * @returns {Promise<object>} { total_income, total_expenses, income_categories, expense_categories, period }
+   * 
+   * BACKEND-ROUTE:
+   * GET /api/v1/accounts/{id}/transactions/money-flow?from_date=&to_date=&category_ids=&min_amount=&max_amount=&recipient=&purpose=&transaction_type=
+   */
+  async getMoneyFlow(accountId, params = {}) {
+    const { 
+      fromDate, 
+      toDate, 
+      categoryIds,
+      minAmount,
+      maxAmount,
+      recipient,
+      purpose,
+      transactionType
+    } = params;
+    
+    const queryParams = new URLSearchParams();
+    
+    if (fromDate) queryParams.append('from_date', fromDate);
+    if (toDate) queryParams.append('to_date', toDate);
+    
+    if (categoryIds) {
+      queryParams.append('category_ids', categoryIds);
+    }
+    
+    if (minAmount !== undefined && minAmount !== null) queryParams.append('min_amount', toApiAmount(minAmount));
+    if (maxAmount !== undefined && maxAmount !== null) queryParams.append('max_amount', toApiAmount(maxAmount));
+    if (recipient) queryParams.append('recipient', recipient);
+    if (purpose) queryParams.append('purpose', purpose);
+    if (transactionType && transactionType !== 'all') queryParams.append('transaction_type', transactionType);
+
+    const response = await api.get(
+      `/accounts/${accountId}/transactions/money-flow?${queryParams}`
+    );
+    return response.data;
+  },
 };
 
 export default dataService;

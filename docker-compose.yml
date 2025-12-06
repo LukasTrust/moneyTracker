@@ -6,20 +6,19 @@ services:
   backend:
     image: ghcr.io/lukastrust/moneytracker-backend:latest
     container_name: moneytracker-backend-prod
-    ports:
-      - "8050:8000"
+    expose:
+      - "8000"  # Only expose internally to Docker network
     environment:
       - DATABASE_URL=sqlite:////app/data/moneytracker.db
       - API_V1_PREFIX=/api/v1
       - PROJECT_NAME=Money Tracker API
       - HOST=0.0.0.0
-      - PORT=8000
+      - PORT=8000  # Backend runs on port 8000 inside container
       - RELOAD=false
       - ENV=production
       - WEB_CONCURRENCY=2
       - AUTO_MIGRATE=true
-      - AUTO_CREATE_TABLES=true
-      - BACKEND_CORS_ORIGINS=["http://localhost","http://localhost:80","http://localhost:5173"]
+      - BACKEND_CORS_ORIGINS=["http://localhost","http://localhost:3002","http://localhost:80"]
     volumes:
       # Only mount data volume, no source code
       - sqlite-data-prod:/app/data
@@ -50,10 +49,13 @@ services:
     image: ghcr.io/lukastrust/moneytracker-frontend:latest
     container_name: moneytracker-frontend-prod
     ports:
-      - "80:80"  # Nginx serves on port 80
+      - "3002:80"  # Access frontend at localhost:3002
     environment:
-      - VITE_API_URL=http://localhost:8050/api/v1
+      - BACKEND_HOST=backend  # Backend service name for Nginx proxy
+      - BACKEND_PORT=8000     # Backend internal port
       - NODE_ENV=production
+    depends_on:
+      - backend
     restart: always
     networks:
       - moneytracker-network

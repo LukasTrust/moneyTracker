@@ -51,9 +51,16 @@ RUN npm run build
 # ============================================
 FROM nginx:alpine AS production
 
-# Copy custom nginx config
+# Install envsubst (gettext package) for environment variable substitution
+RUN apk add --no-cache gettext
+
+# Copy custom nginx config template
 COPY --from=builder /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/templates/default.conf.template
+
+# Environment variables with defaults
+ENV BACKEND_HOST=backend
+ENV BACKEND_PORT=8000
 
 # Expose port 80
 EXPOSE 80
@@ -62,6 +69,15 @@ EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:80 || exit 1
 
-# Run nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Create entrypoint script that substitutes env vars and starts nginx
+RUN echo '#!/bin/sh' > /docker-entrypoint.sh && \
+    echo 'set -e' >> /docker-entrypoint.sh && \
+    echo 'echo "Configuring Nginx with BACKEND_HOST=$BACKEND_HOST and BACKEND_PORT=$BACKEND_PORT"' >> /docker-entrypoint.sh && \
+    echo 'envsubst '\''$BACKEND_HOST $BACKEND_PORT'\'' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf' >> /docker-entrypoint.sh && \
+    echo 'echo "Starting Nginx..."' >> /docker-entrypoint.sh && \
+    echo 'exec nginx -g "daemon off;"' >> /docker-entrypoint.sh && \
+    chmod +x /docker-entrypoint.sh
+
+# Run entrypoint script
+CMD ["/docker-entrypoint.sh"]
 

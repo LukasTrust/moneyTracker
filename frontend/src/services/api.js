@@ -2,7 +2,9 @@ import axios from 'axios';
 import { useUIStore } from '../store';
 
 // API Basis-Konfiguration
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+// In production, API requests go through Nginx proxy at /api/v1
+// In development, use VITE_API_URL environment variable
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
 const api = axios.create({
   baseURL: API_BASE_URL,

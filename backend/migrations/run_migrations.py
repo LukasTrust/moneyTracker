@@ -55,15 +55,13 @@ def apply_migration(cursor, migration_file, migrations_dir):
     with open(migration_path, 'r') as f:
         sql = f.read()
     
-    # Split by semicolon and execute each statement
-    statements = [s.strip() for s in sql.split(';') if s.strip()]
-    
-    for statement in statements:
-        try:
-            cursor.execute(statement)
-        except sqlite3.Error as e:
-            print(f"   ⚠️  Error in statement: {statement[:100]}...")
-            raise e
+    # Execute the entire SQL file as a script
+    # This handles complex statements like triggers correctly
+    try:
+        cursor.executescript(sql)
+    except sqlite3.Error as e:
+        print(f"   ⚠️  Error executing migration script")
+        raise e
     
     # Record migration as applied
     version = migration_file.replace('.sql', '')

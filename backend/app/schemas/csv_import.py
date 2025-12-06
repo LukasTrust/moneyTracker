@@ -164,3 +164,31 @@ class CsvImportSuggestions(BaseModel):
                 }
             }
         }
+
+
+class BulkImportFileResult(BaseModel):
+    """Result for a single file in bulk import"""
+    filename: str = Field(..., description="Name of the imported file")
+    success: bool = Field(..., description="Whether import was successful")
+    message: str = Field(..., description="Success/error message")
+    imported_count: int = Field(default=0, description="Number of rows successfully imported")
+    duplicate_count: int = Field(default=0, description="Number of duplicate rows skipped")
+    error_count: int = Field(default=0, description="Number of rows with errors")
+    total_rows: int = Field(default=0, description="Total number of rows processed")
+    errors: Optional[List[str]] = Field(default=None, description="List of error messages")
+    import_id: Optional[int] = Field(default=None, description="Import history record ID")
+
+
+class BulkImportResponse(BaseModel):
+    """Response model for bulk CSV import operation"""
+    success: bool = Field(..., description="Whether bulk import completed")
+    message: str = Field(..., description="Summary message")
+    total_files: int = Field(..., description="Total number of files processed")
+    successful_files: int = Field(..., description="Number of files imported successfully")
+    failed_files: int = Field(..., description="Number of files that failed")
+    total_imported_count: int = Field(default=0, description="Total rows imported across all files")
+    total_duplicate_count: int = Field(default=0, description="Total duplicates across all files")
+    total_error_count: int = Field(default=0, description="Total errors across all files")
+    file_results: List[BulkImportFileResult] = Field(..., description="Results for each file")
+    recurring_detected: Optional[int] = Field(default=None, description="Total recurring transactions detected")
+    transfer_candidates: Optional[List[Dict[str, Any]]] = Field(default=None, description="Potential transfer matches detected")

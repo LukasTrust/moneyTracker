@@ -239,11 +239,53 @@ export const getFieldIcon = (fieldName) => {
   return icons[fieldName] || '📋';
 };
 
+/**
+ * Import multiple CSV files with the same mapping (bulk import)
+ * 
+ * @param {number} accountId - Target account ID
+ * @param {Object} mapping - Mapping configuration
+ * @param {File[]} files - Array of CSV files to import
+ * @param {Object} options - Import options
+ * @param {Function} options.onProgress - Progress callback for each file
+ * @returns {Promise} Bulk import results
+ */
+export const bulkImportCsv = async (accountId, mapping, files, options = {}) => {
+  const { onProgress } = options;
+  
+  const formData = new FormData();
+  formData.append('account_id', accountId.toString());
+  formData.append('mapping_json', JSON.stringify(mapping));
+  
+  // Append all files
+  files.forEach((file) => {
+    formData.append('files', file);
+  });
+
+  const response = await api.post('/csv-import/bulk-import', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+    onUploadProgress: (progressEvent) => {
+      if (onProgress) {
+        const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        onProgress({
+          status: 'uploading',
+          progress: percentCompleted,
+          message: `Uploading files... ${percentCompleted}%`
+        });
+      }
+    }
+  });
+
+  return response.data;
+};
+
 export default {
   previewCsv,
   suggestMapping,
   validateSavedMapping,
   importCsv,
+  bulkImportCsv,
   validateMapping,
   getFieldLabel,
   getFieldIcon,

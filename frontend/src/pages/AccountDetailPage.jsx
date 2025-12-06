@@ -6,6 +6,7 @@ import { useTransactionData, useSummaryData, useChartData, useAccountMoneyFlow }
 import Button from '../components/common/Button';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import CsvImportWizard from '../components/csv/CsvImportWizard';
+import CsvBulkImportWizard from '../components/csv/CsvBulkImportWizard';
 import SummaryCards from '../components/visualization/SummaryCards';
 import DataChart from '../components/visualization/DataChart';
 import TransactionTable from '../components/visualization/TransactionTable';
@@ -43,6 +44,7 @@ export default function AccountDetailPage() {
   const [activeTab, setActiveTab] = useState('data');
   const [importHistoryRefresh, setImportHistoryRefresh] = useState(0);
   const [dataRefreshKey, setDataRefreshKey] = useState(0);
+  const [importMode, setImportMode] = useState('single'); // 'single' or 'bulk'
 
   // Pagination State (page is 1-based)
   const [pagination, setPagination] = useState({
@@ -366,15 +368,48 @@ export default function AccountDetailPage() {
         {/* CSV Import & Mapping Tab */}
         {activeTab === 'csv-import' && (
           <div className="space-y-8">
-            {/* CSV Import Wizard */}
+            {/* Tab Selector for Single/Bulk Import */}
+            <div className="bg-white rounded-lg border border-neutral-200 p-4">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setImportMode('single')}
+                  className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+                    importMode === 'single'
+                      ? 'bg-primary-600 text-white'
+                      : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
+                  }`}
+                >
+                  📄 Einzelner Import
+                </button>
+                <button
+                  onClick={() => setImportMode('bulk')}
+                  className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+                    importMode === 'bulk'
+                      ? 'bg-primary-600 text-white'
+                      : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
+                  }`}
+                >
+                  📁 Bulk-Import (mehrere Dateien)
+                </button>
+              </div>
+            </div>
+
+            {/* CSV Import Wizard (Single or Bulk) */}
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                CSV Import
+                {importMode === 'single' ? 'CSV Import' : 'CSV Bulk-Import'}
               </h2>
-              <CsvImportWizard
-                accountId={id}
-                onImportSuccess={handleUploadComplete}
-              />
+              {importMode === 'single' ? (
+                <CsvImportWizard
+                  accountId={id}
+                  onImportSuccess={handleUploadComplete}
+                />
+              ) : (
+                <CsvBulkImportWizard
+                  accountId={id}
+                  onImportSuccess={handleUploadComplete}
+                />
+              )}
             </div>
 
             {/* Divider */}

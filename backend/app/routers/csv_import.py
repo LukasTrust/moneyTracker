@@ -19,7 +19,9 @@ from app.schemas.csv_import import (
     CsvImportResponse,
     CsvImportMapping,
     CsvImportSuggestions,
-    MappingSuggestion
+    MappingSuggestion,
+    BulkImportResponse,
+    BulkImportFileResult
 )
 from app.schemas.mapping import MappingValidationResponse, MappingValidationResult
 from app.services.csv_processor import CsvProcessor
@@ -889,3 +891,426 @@ def get_transfer_candidates_for_import(import_id: int, db: Session = Depends(get
         "candidates": candidates,
         "total_found": len(candidates)
     }
+
+
+@router.post("/bulk-import", response_model=BulkImportResponse)
+async def bulk_import_csv(
+    account_id: int = Form(...),
+    mapping_json: str = Form(...),
+    files: List[UploadFile] = File(...),
+    db: Session = Depends(get_db),
+    background_tasks: BackgroundTasks = None
+):
+    """
+    Import multiple CSV files with the same mapping configuration
+    
+    Uses the first file to define the schema/mapping, then applies it to all files.
+    If a file fails, it's logged as an error but processing continues with the next file.
+    
+    Args:
+        account_id: Target account ID
+        mapping_json: JSON string of mapping configuration (derived from first file)
+        files: List of CSV files to import
+        
+    Returns:
+        Bulk import statistics with results for each file
+        
+    Raises:
+        400: Invalid data or mapping
+        404: Account not found
+        413: File too large
+    """
+    # Check if account exists
+    account = verify_account_exists(account_id, db)
+    
+    # Parse mapping JSON
+    try:
+        mapping_dict = json.loads(mapping_json)
+        mapping = CsvImportMapping(**mapping_dict)
+    except json.JSONDecodeError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid mapping JSON format"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid mapping configuration: {str(e)}"
+        )
+    
+    if not files or len(files) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No files provided for bulk import"
+        )
+    
+    # Process each file
+    file_results = []
+    total_imported = 0
+    total_duplicates = 0
+    total_errors = 0
+    successful_files = 0
+    failed_files = 0
+    all_transfer_candidates = []
+    
+    for file in files:
+        try:
+            # Read file content
+            content = await file.read()
+            
+            # Validate file size
+            try:
+                validate_file_size(content, file.filename)
+            except HTTPException as e:
+                # File too large - skip and continue
+                file_results.append(BulkImportFileResult(
+                    filename=file.filename,
+                    success=False,
+                    message=f"Datei zu groß: {e.detail}",
+                    imported_count=0,
+                    duplicate_count=0,
+                    error_count=0,
+                    total_rows=0,
+                    errors=[e.detail]
+                ))
+                failed_files += 1
+                continue
+            
+            # Create import history record
+            import_record = ImportHistoryService.create_import_record(
+                db=db,
+                account_id=account_id,
+                filename=file.filename,
+                file_content=content
+            )
+            import_id = import_record.id
+            
+            try:
+                # Parse CSV
+                df, _ = CsvProcessor.parse_csv_advanced(content)
+                headers = CsvProcessor.get_headers(df)
+                
+                # Validate row count
+                try:
+                    validate_row_count(len(df), file.filename)
+                except HTTPException as e:
+                    raise ValueError(e.detail)
+                
+                # Validate mapping against this file's headers
+                is_valid, errors = MappingSuggester.validate_mapping(
+                    mapping.to_dict(),
+                    headers
+                )
+                
+                if not is_valid:
+                    raise ValueError(f"Mapping nicht kompatibel: {'; '.join(errors)}")
+                
+                # Apply mappings
+                mapped_data = CsvProcessor.apply_mappings_advanced(df, mapping.to_dict())
+                
+                if not mapped_data:
+                    raise ValueError("Keine gültigen Datenzeilen nach Mapping gefunden")
+                
+                # Get existing hashes for duplicate detection
+                existing_hashes = {
+                    row.row_hash
+                    for row in db.query(DataRow.row_hash).filter(
+                        DataRow.account_id == account_id
+                    ).all()
+                }
+                
+                # Initialize matchers
+                category_matcher = CategoryMatcher(db)
+                recipient_matcher = RecipientMatcher(db)
+                
+                # Process each row
+                imported_count = 0
+                duplicate_count = 0
+                error_count = 0
+                error_messages = []
+                
+                for idx, row_data in enumerate(mapped_data, start=1):
+                    try:
+                        # Normalize transaction data
+                        normalized_data = CsvProcessor.normalize_transaction_data(row_data)
+
+                        # Validate with Pydantic schema
+                        try:
+                            validated = TransactionRow.model_validate(normalized_data)
+                            validated_data = validated.model_dump()
+
+                            # Validate amount
+                            import math
+                            from decimal import Decimal, InvalidOperation
+                            amt = validated_data.get('amount')
+                            if amt is None:
+                                error_count += 1
+                                error_messages.append(f"Row {idx}: Amount is required")
+                                continue
+                            
+                            try:
+                                amt_float = float(amt)
+                                if not math.isfinite(amt_float):
+                                    error_count += 1
+                                    error_messages.append(f"Row {idx}: Invalid amount value: {amt}")
+                                    continue
+                            except (ValueError, InvalidOperation, TypeError):
+                                error_count += 1
+                                error_messages.append(f"Row {idx}: Invalid amount value: {amt}")
+                                continue
+                        except ValidationError as ve:
+                            error_count += 1
+                            error_messages.append(f"Row {idx}: Validation error - {ve.errors()}")
+                            continue
+
+                        # Generate hash
+                        date_val = validated_data.get('date')
+                        if hasattr(date_val, 'isoformat'):
+                            date_str_for_hash = date_val.isoformat()
+                        else:
+                            date_str_for_hash = str(date_val) if date_val is not None else None
+
+                        row_hash = HashService.generate_hash({
+                            'date': date_str_for_hash,
+                            'amount': validated_data.get('amount'),
+                            'recipient': validated_data.get('recipient')
+                        })
+                        
+                        # Check for duplicates
+                        if HashService.is_duplicate(row_hash, existing_hashes):
+                            duplicate_count += 1
+                            continue
+                        
+                        # Match category
+                        category_id = category_matcher.match_category(validated_data)
+
+                        # Find or create recipient
+                        recipient = None
+                        recipient_name = validated_data.get('recipient')
+                        if recipient_name:
+                            recipient = recipient_matcher.find_or_create_recipient(recipient_name)
+
+                        # Parse date
+                        date_val = validated_data.get('date')
+                        transaction_date = None
+                        if date_val:
+                            if isinstance(date_val, str):
+                                parsed_dt = CsvProcessor.parse_date(date_val)
+                                if parsed_dt:
+                                    transaction_date = parsed_dt.date()
+                                else:
+                                    try:
+                                        from datetime import datetime as _dt
+                                        parsed_dt = _dt.fromisoformat(date_val)
+                                        transaction_date = parsed_dt.date()
+                                    except Exception:
+                                        transaction_date = None
+                            else:
+                                try:
+                                    transaction_date = date_val.date()
+                                except Exception:
+                                    transaction_date = None
+
+                        # Convert amount to float
+                        amount = float(validated_data.get('amount', 0.0))
+
+                        # Get recipient and purpose
+                        recipient_str = validated_data.get('recipient', '')
+                        purpose = validated_data.get('purpose', '')
+                        currency = row_data.get('currency', 'EUR')
+                        
+                        # Create data row
+                        new_row = DataRow(
+                            account_id=account_id,
+                            row_hash=row_hash,
+                            transaction_date=transaction_date,
+                            amount=amount,
+                            recipient=recipient_str[:200] if recipient_str else None,
+                            purpose=purpose,
+                            currency=currency,
+                            raw_data=row_data,
+                            category_id=category_id,
+                            recipient_id=recipient.id if recipient else None,
+                            import_id=import_id
+                        )
+                        
+                        db.add(new_row)
+                        existing_hashes.add(row_hash)
+                        imported_count += 1
+                        
+                    except ValueError as e:
+                        error_count += 1
+                        error_messages.append(f"Row {idx}: {str(e)}")
+                        continue
+                    except Exception as e:
+                        error_count += 1
+                        error_messages.append(f"Row {idx}: {str(e)}")
+                        continue
+                
+                # Commit changes for this file
+                db.commit()
+                
+                # Update import history
+                status_value = 'success' if error_count == 0 else ('partial' if imported_count > 0 else 'failed')
+                error_summary = '; '.join(error_messages[:5]) if error_messages else None
+                
+                ImportHistoryService.update_import_stats(
+                    db=db,
+                    import_id=import_id,
+                    row_count=len(mapped_data),
+                    rows_inserted=imported_count,
+                    rows_duplicated=duplicate_count,
+                    status=status_value,
+                    error_message=error_summary
+                )
+                
+                # Detect transfers for this file
+                try:
+                    from sqlalchemy import func
+                    date_min, date_max = db.query(
+                        func.min(DataRow.transaction_date), 
+                        func.max(DataRow.transaction_date)
+                    ).filter(DataRow.import_id == import_id).one()
+                    
+                    if date_min and date_max:
+                        matcher = TransferMatcher(db)
+                        candidates = matcher.find_transfer_candidates(
+                            account_ids=[account_id],
+                            date_from=date_min,
+                            date_to=date_max,
+                            min_confidence=0.7,
+                            exclude_existing=True
+                        )
+                        all_transfer_candidates.extend(candidates[:50])  # Limit per file
+                except Exception:
+                    logger.exception("Transfer detection failed", exc_info=True)
+                
+                # Create file result
+                success = error_count == 0 or imported_count > 0
+                message = f"{imported_count} Transaktionen importiert"
+                if duplicate_count > 0:
+                    message += f", {duplicate_count} Duplikate"
+                if error_count > 0:
+                    message += f", {error_count} Fehler"
+                
+                file_results.append(BulkImportFileResult(
+                    filename=file.filename,
+                    success=success,
+                    message=message,
+                    imported_count=imported_count,
+                    duplicate_count=duplicate_count,
+                    error_count=error_count,
+                    total_rows=len(mapped_data),
+                    errors=error_messages[:10] if error_messages else None,  # First 10 errors
+                    import_id=import_id
+                ))
+                
+                # Update counters
+                total_imported += imported_count
+                total_duplicates += duplicate_count
+                total_errors += error_count
+                if success:
+                    successful_files += 1
+                else:
+                    failed_files += 1
+                    
+            except Exception as e:
+                # File-specific error
+                db.rollback()
+                
+                # Update import status to failed
+                ImportHistoryService.update_import_stats(
+                    db=db,
+                    import_id=import_id,
+                    row_count=0,
+                    rows_inserted=0,
+                    rows_duplicated=0,
+                    status='failed',
+                    error_message=str(e)
+                )
+                
+                file_results.append(BulkImportFileResult(
+                    filename=file.filename,
+                    success=False,
+                    message=f"Fehler: {str(e)}",
+                    imported_count=0,
+                    duplicate_count=0,
+                    error_count=0,
+                    total_rows=0,
+                    errors=[str(e)],
+                    import_id=import_id
+                ))
+                failed_files += 1
+                continue
+                
+        except Exception as e:
+            # Unexpected error for this file
+            file_results.append(BulkImportFileResult(
+                filename=file.filename,
+                success=False,
+                message=f"Unerwarteter Fehler: {str(e)}",
+                imported_count=0,
+                duplicate_count=0,
+                error_count=0,
+                total_rows=0,
+                errors=[str(e)]
+            ))
+            failed_files += 1
+            continue
+    
+    # Save mapping configuration after successful imports
+    if successful_files > 0:
+        try:
+            db.query(Mapping).filter(Mapping.account_id == account_id).delete()
+            for field_name, csv_header in mapping.to_dict().items():
+                new_mapping = Mapping(
+                    account_id=account_id,
+                    csv_header=csv_header,
+                    standard_field=field_name
+                )
+                db.add(new_mapping)
+            db.commit()
+        except Exception as e:
+            logger.exception("Could not save mappings", exc_info=True)
+    
+    # Trigger recurring transaction detection if any files were imported
+    recurring_count = 0
+    if total_imported > 0:
+        try:
+            if background_tasks is not None:
+                from app.services.job_service import JobService
+                job = JobService.create_job(db, task_type="recurring_detection", account_id=account_id)
+                background_tasks.add_task(run_update_recurring_transactions, account_id)
+            else:
+                detector = RecurringTransactionDetector(db)
+                stats = detector.update_recurring_transactions(account_id)
+                from app.models.recurring_transaction import RecurringTransaction
+                recurring_count = db.query(RecurringTransaction).filter(
+                    RecurringTransaction.account_id == account_id,
+                    RecurringTransaction.is_active == True
+                ).count()
+        except Exception:
+            logger.exception("Recurring detection failed", exc_info=True)
+    
+    # Build response message
+    message = f"{successful_files}/{len(files)} Dateien erfolgreich importiert. "
+    message += f"Insgesamt {total_imported} Transaktionen importiert"
+    if total_duplicates > 0:
+        message += f", {total_duplicates} Duplikate"
+    if total_errors > 0:
+        message += f", {total_errors} Fehler"
+    
+    return BulkImportResponse(
+        success=successful_files > 0,
+        message=message,
+        total_files=len(files),
+        successful_files=successful_files,
+        failed_files=failed_files,
+        total_imported_count=total_imported,
+        total_duplicate_count=total_duplicates,
+        total_error_count=total_errors,
+        file_results=file_results,
+        recurring_detected=recurring_count if recurring_count > 0 else None,
+        transfer_candidates=all_transfer_candidates[:200] if all_transfer_candidates else None
+    )
+

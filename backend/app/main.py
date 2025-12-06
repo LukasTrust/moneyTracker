@@ -152,10 +152,10 @@ async def lifespan(app: FastAPI):
     env = getattr(settings, 'ENV', 'development').lower()
     auto_create = getattr(settings, 'AUTO_CREATE_TABLES', True)
     
-    if env == 'development' and auto_create:
+    if (env == 'development' or auto_create) and auto_create:
         try:
             await asyncio.to_thread(Base.metadata.create_all, bind=engine)
-            logger.info("Database tables ensured/created (development mode)")
+            logger.info("Database tables ensured/created (env=%s, auto_create=%s)", env, auto_create)
         except Exception:
             logger.exception("Creating database tables failed")
     else:

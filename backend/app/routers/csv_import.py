@@ -4,7 +4,7 @@ Audit reference: 06_backend_routers.md - CSV import scaling & file size limits
 """
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, BackgroundTasks
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Optional, List
 import json
 
 from app.database import get_db

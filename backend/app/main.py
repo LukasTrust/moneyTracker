@@ -105,7 +105,7 @@ DEFAULT_CATEGORIES = [
 
 
 def init_default_categories():
-    """Initialize default categories if database is empty.
+    """Initialize default categories if they don't exist.
 
     This function is intentionally synchronous and safe to run in a thread
     via `asyncio.to_thread(...)` from an async startup hook so it won't
@@ -114,17 +114,20 @@ def init_default_categories():
     logger = get_logger("app.init")
     db = SessionLocal()
     try:
-        # Check if categories already exist
-        existing_count = db.query(Category).count()
-        if existing_count > 0:
-            logger.info("%d categories already exist - skipping defaults", existing_count)
+        # Check which default categories are missing
+        existing_names = {cat.name for cat in db.query(Category.name).all()}
+        missing_categories = [cat for cat in DEFAULT_CATEGORIES if cat["name"] not in existing_names]
+        
+        if not missing_categories:
+            logger.info("All %d default categories already exist", len(DEFAULT_CATEGORIES))
             return
-
-        for cat_data in DEFAULT_CATEGORIES:
+        
+        # Create missing categories
+        for cat_data in missing_categories:
             db.add(Category(**cat_data))
 
         db.commit()
-        logger.info("Created %d default categories", len(DEFAULT_CATEGORIES))
+        logger.info("Created %d missing default categories (total: %d)", len(missing_categories), len(DEFAULT_CATEGORIES))
     except Exception:
         logger.exception("Error creating default categories")
         try:

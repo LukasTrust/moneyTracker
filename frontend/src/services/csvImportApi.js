@@ -10,7 +10,9 @@
 import axios from 'axios';
 import { waitForJob, startPolling } from './jobPoller';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+// Use relative URL for production (goes through Nginx proxy)
+// or VITE_API_URL for development
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
 const api = axios.create({
   baseURL: API_BASE_URL,

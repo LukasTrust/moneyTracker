@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Modal from '../common/Modal';
 import Input from '../common/Input';
 import Button from '../common/Button';
+import { parseAmount } from '../../utils/amount';
 
 /**
  * Modal zum Erstellen eines neuen Kontos
@@ -43,7 +44,7 @@ export default function CreateAccountModal({ isOpen, onClose, onCreate }) {
       // Convert initial_balance to number before sending
       const dataToSend = {
         ...formData,
-        initial_balance: parseFloat(formData.initial_balance) || 0.0,
+        initial_balance: parseAmount(formData.initial_balance) || 0.0,
       };
       await onCreate(dataToSend);
       // Reset form

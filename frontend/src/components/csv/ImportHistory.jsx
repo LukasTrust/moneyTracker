@@ -9,6 +9,7 @@ import Button from '../common/Button';
 import LoadingSpinner from '../common/LoadingSpinner';
 import Pagination from '../common/Pagination';
 import { useToast } from '../../hooks/useToast';
+import { parseAmount } from '../../utils/amount';
 
 /**
  * Import History Component
@@ -257,16 +258,16 @@ export default function ImportHistory({ accountId, onRollbackSuccess, refreshTri
                 <p className="text-xs text-neutral-500 mb-1">Summe</p>
                 <p
                   className={`text-lg font-semibold ${
-                    parseFloat(importItem.total_income) +
-                      parseFloat(importItem.total_expenses) >=
+                    parseAmount(importItem.total_income) +
+                      parseAmount(importItem.total_expenses) >=
                     0
                       ? 'text-green-600'
                       : 'text-red-600'
                   }`}
                 >
                   {formatCurrency(
-                    parseFloat(importItem.total_income) +
-                      parseFloat(importItem.total_expenses)
+                    parseAmount(importItem.total_income) +
+                      parseAmount(importItem.total_expenses)
                   )}
                 </p>
               </div>

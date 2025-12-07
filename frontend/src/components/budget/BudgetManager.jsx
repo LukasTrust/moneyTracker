@@ -7,6 +7,7 @@ import Modal from '../common/Modal';
 import Card from '../common/Card';
 import { ConfirmDialog } from '../common/Modal';
 import { useToast } from '../../hooks/useToast';
+import { parseAmount } from '../../utils/amount';
 
 /**
  * BudgetManager - CRUD-Interface für Budgets
@@ -127,7 +128,7 @@ function BudgetManager({ onBudgetChange }) {
       errors.category_id = 'Kategorie ist erforderlich';
     }
 
-    if (!formData.amount || parseFloat(formData.amount) <= 0) {
+    if (!formData.amount || parseAmount(formData.amount) <= 0) {
       errors.amount = 'Betrag muss größer als 0 sein';
     }
 
@@ -160,7 +161,7 @@ function BudgetManager({ onBudgetChange }) {
       const budgetData = {
         category_id: parseInt(formData.category_id),
         period: formData.period,
-        amount: parseFloat(formData.amount),
+        amount: parseAmount(formData.amount),
         start_date: formData.start_date,
         end_date: formData.end_date,
         description: formData.description || null
@@ -337,7 +338,7 @@ function BudgetManager({ onBudgetChange }) {
                       {getPeriodLabel(budget.period)}
                     </td>
                     <td className="px-4 py-3 text-right font-semibold text-green-600">
-                      {parseFloat(budget.amount).toFixed(2)} €
+                      {parseAmount(budget.amount).toFixed(2)} €
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600">
                       {budget.start_date} bis {budget.end_date}

@@ -19,6 +19,7 @@
 import React, { useState } from 'react';
 import { useFilterStore, DATE_PRESETS } from '../../store/filterStore';
 import { useCategoryStore } from '../../store/categoryStore';
+import { parseAmount } from '../../utils/amount';
 
 export default function UnifiedFilter({
   showDateRange = true,
@@ -103,8 +104,8 @@ export default function UnifiedFilter({
   };
 
   const handleAmountChange = (min, max) => {
-    const parsedMin = min !== '' && min !== null ? parseFloat(min) : null;
-    const parsedMax = max !== '' && max !== null ? parseFloat(max) : null;
+    const parsedMin = min !== '' && min !== null ? parseAmount(min) : null;
+    const parsedMax = max !== '' && max !== null ? parseAmount(max) : null;
     setAmountRange(parsedMin, parsedMax);
     onChange?.();
   };

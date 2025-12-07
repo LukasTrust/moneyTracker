@@ -6,6 +6,7 @@ import Pagination from '../common/Pagination';
 import Modal from '../common/Modal';
 import { useToast } from '../../hooks/useToast';
 import { useTransferDetection } from '../../hooks/useTransfers';
+import { parseAmount } from '../../utils/amount';
 import { 
   getAllTransfers, 
   deleteTransfer 
@@ -209,7 +210,7 @@ function TransferRow({ transfer, onDelete }) {
             {transfer.from_transaction?.recipient || 'Unbekannt'}
           </div>
           <div className="text-red-600 font-semibold">
-            -{Math.abs(transfer.amount).toFixed(2)} €
+            -{Math.abs(parseAmount(transfer.amount)).toFixed(2)} €
           </div>
         </div>
 
@@ -236,7 +237,7 @@ function TransferRow({ transfer, onDelete }) {
             {transfer.to_transaction?.recipient || 'Unknown'}
           </div>
           <div className="text-green-600 font-semibold">
-            +{transfer.amount.toFixed(2)} €
+            +{parseAmount(transfer.amount).toFixed(2)} €
           </div>
         </div>
       </div>

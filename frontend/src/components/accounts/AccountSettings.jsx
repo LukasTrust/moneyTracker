@@ -6,6 +6,7 @@ import Card from '../common/Card';
 import Modal from '../common/Modal';
 import accountService from '../../services/accountService';
 import useAccountStore from '../../store/accountStore';
+import { parseAmount } from '../../utils/amount';
 
 /**
  * AccountSettings - Komponente für Account-Verwaltung
@@ -130,14 +131,14 @@ function AccountSettings({ account }) {
    * Mit optimistischem Update für schnelle UI-Reaktion
    */
   const handleBalanceUpdate = useCallback(async () => {
-    const balanceValue = parseFloat(newBalance);
+    const balanceValue = parseAmount(newBalance);
     
     if (isNaN(balanceValue)) {
       setError('Ungültiger Betrag');
       return;
     }
 
-    if (balanceValue === parseFloat(account.initial_balance)) {
+    if (balanceValue === parseAmount(account.initial_balance)) {
       setIsEditingBalance(false);
       return;
     }
@@ -244,7 +245,7 @@ function AccountSettings({ account }) {
                 Startguthaben
               </label>
                 <p className="text-sm text-neutral-900 bg-neutral-50 px-3 py-2 rounded">
-                {parseFloat(account.initial_balance || 0).toLocaleString('de-DE', {
+                {parseAmount(account.initial_balance || 0).toLocaleString('de-DE', {
                   style: 'currency',
                   currency: account.currency || 'EUR'
                 })}
@@ -410,7 +411,7 @@ function AccountSettings({ account }) {
               <div>
                 <p className="text-sm text-gray-600">Aktuelles Startguthaben:</p>
                 <p className="text-lg font-semibold text-gray-900">
-                  {parseFloat(account.initial_balance || 0).toLocaleString('de-DE', {
+                  {parseAmount(account.initial_balance || 0).toLocaleString('de-DE', {
                     style: 'currency',
                     currency: account.currency || 'EUR'
                   })}

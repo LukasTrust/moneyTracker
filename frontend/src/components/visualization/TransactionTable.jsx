@@ -5,6 +5,7 @@ import Card from '../common/Card';
 import Pagination from '../common/Pagination';
 import { useTransferForTransaction } from '../../hooks/useTransfers';
 import TransferBadge, { TransferIndicator } from '../common/TransferBadge';
+import { parseAmount } from '../../utils/amount';
 
 /**
  * Transaktions-Tabelle mit Pagination
@@ -125,7 +126,7 @@ export default function TransactionTable({
  */
 function TransactionRow({ transaction, symbol, formatAmount, formatDate }) {
   const data = typeof transaction.data === 'string' ? JSON.parse(transaction.data) : transaction.data;
-  const amount = parseFloat(data.amount || 0);
+  const amount = parseAmount(data.amount || 0);
   const isNegative = amount < 0;
 
   // Use hook to fetch transfer info for this transaction (may be null)

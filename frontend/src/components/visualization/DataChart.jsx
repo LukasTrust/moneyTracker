@@ -12,6 +12,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import Card from '../common/Card';
+import { parseAmount } from '../../utils/amount';
 
 /**
  * Chart-Komponente für Datenvisualisierung
@@ -28,7 +29,7 @@ export default function DataChart({ data, type = 'line', title, currency = 'EUR'
 
   const formatAmount = (value) => {
     // Ensure value is a number
-    const numValue = typeof value === 'number' ? value : parseFloat(value);
+    const numValue = typeof value === 'number' ? value : parseAmount(value);
     
     // Check if conversion resulted in a valid number
     if (isNaN(numValue)) {

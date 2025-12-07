@@ -622,6 +622,9 @@ async def import_csv_advanced(
                 # Currency (from raw data or default)
                 currency = row_data.get('currency', 'EUR')
                 
+                # Saldo (optional - keep as Decimal)
+                saldo = validated_data.get('saldo', None)
+                
                 # Create data row with structured fields
                 new_row = DataRow(
                     account_id=account_id,
@@ -632,6 +635,7 @@ async def import_csv_advanced(
                     recipient=recipient_str[:200] if recipient_str else None,  # Truncate to 200 chars
                     purpose=purpose,
                     currency=currency,
+                    saldo=saldo,  # Store saldo from CSV
                     raw_data=row_data,  # Keep original CSV data for audit
                     # Relations
                     category_id=category_id,
@@ -654,6 +658,39 @@ async def import_csv_advanced(
         
         # Commit all changes
         db.commit()
+        
+        # Update account initial_balance based on earliest imported transaction with saldo
+        # Logic: initial_balance = first_saldo - first_amount
+        # This ensures balance calculations start from the correct opening balance
+        if imported_count > 0:
+            try:
+                # Find the earliest transaction with saldo for this import
+                earliest_with_saldo = db.query(DataRow).filter(
+                    DataRow.import_id == import_id,
+                    DataRow.saldo.isnot(None)
+                ).order_by(DataRow.transaction_date.asc()).first()
+                
+                if earliest_with_saldo:
+                    # Calculate initial_balance: opening_balance = saldo_after_transaction - transaction_amount
+                    # Example: if first transaction is -50 and saldo after is 950, opening was 1000
+                    calculated_initial_balance = earliest_with_saldo.saldo - earliest_with_saldo.amount
+                    
+                    # Update account with new initial_balance
+                    account.initial_balance = calculated_initial_balance
+                    db.commit()
+                    
+                    logger.info(
+                        f"Updated account {account_id} initial_balance to {calculated_initial_balance} "
+                        f"based on earliest transaction (date={earliest_with_saldo.transaction_date}, "
+                        f"saldo={earliest_with_saldo.saldo}, amount={earliest_with_saldo.amount})"
+                    )
+            except Exception as e:
+                # Log error but don't fail the import
+                logger.exception(
+                    f"Could not update initial_balance for account {account_id}",
+                    exc_info=True,
+                    extra={"account_id": account_id, "import_id": import_id}
+                )
         
         # Update import history with final statistics
         status_value = 'success' if error_count == 0 else ('partial' if imported_count > 0 else 'failed')

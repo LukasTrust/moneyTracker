@@ -15,18 +15,19 @@ class FieldMapping(BaseModel):
     @classmethod
     def validate_field_name(cls, v):
         """Validate that field_name is one of the allowed values"""
-        allowed_fields = ['date', 'amount', 'recipient', 'purpose']
+        allowed_fields = ['date', 'amount', 'recipient', 'purpose', 'saldo']
         if v not in allowed_fields:
             raise ValueError(f"field_name must be one of: {', '.join(allowed_fields)}")
         return v
 
 
 class CsvImportMapping(BaseModel):
-    """Complete mapping configuration for CSV import (4 fields: 3 required + 1 optional)"""
+    """Complete mapping configuration for CSV import (3 required + 2 optional fields)"""
     date: str = Field(..., description="CSV header for date field")
     amount: str = Field(..., description="CSV header for amount field")
     recipient: str = Field(..., description="CSV header for recipient/sender field")
     purpose: Optional[str] = Field(None, description="CSV header for purpose/description field (optional)")
+    saldo: Optional[str] = Field(None, description="CSV header for balance/saldo field (optional)")
     
     def to_dict(self) -> Dict[str, str]:
         """Convert to dictionary, excluding None values"""
@@ -50,7 +51,8 @@ class CsvImportRequest(BaseModel):
                     "date": "Buchungstag",
                     "amount": "Betrag",
                     "recipient": "Empfänger/Sender",
-                    "purpose": "Verwendungszweck"
+                    "purpose": "Verwendungszweck",
+                    "saldo": "Kontostand"
                 }
             }
         }

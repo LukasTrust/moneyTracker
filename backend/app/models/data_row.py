@@ -37,6 +37,7 @@ class DataRow(Base):
     # Additional optional fields
     valuta_date = Column(Date, nullable=True, comment="Value date (Wertstellung)")
     currency = Column(String(3), nullable=False, default='EUR', comment="Currency code (ISO 4217)")
+    saldo = Column(Numeric(15, 2), nullable=True, comment="Account balance at transaction time (from CSV)")
     
     # Raw data for audit trail and additional fields from CSV
     # Contains original CSV data plus any bank-specific fields
@@ -103,6 +104,7 @@ class DataRow(Base):
             'purpose': self.purpose,
             'valuta_date': self.valuta_date.isoformat() if self.valuta_date else None,
             'currency': self.currency,
+            'saldo': str(self.saldo) if self.saldo is not None else None,
         })
         
         return result

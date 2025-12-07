@@ -19,3 +19,4 @@ class TransactionRow(BaseModel):
     amount: Decimal = Field(..., description="Transaction amount (Decimal for precision)")
     recipient: str = Field(..., min_length=1, max_length=200, description="Recipient or sender")
     purpose: Optional[str] = Field(None, max_length=1000, description="Purpose / booking text")
+    saldo: Optional[Decimal] = Field(None, description="Account balance at transaction time (optional)")

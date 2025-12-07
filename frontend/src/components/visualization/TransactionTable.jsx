@@ -94,6 +94,9 @@ export default function TransactionTable({
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Betrag
               </th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Saldo
+              </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Empfänger
               </th>
@@ -128,6 +131,7 @@ function TransactionRow({ transaction, symbol, formatAmount, formatDate }) {
   const data = typeof transaction.data === 'string' ? JSON.parse(transaction.data) : transaction.data;
   const amount = parseAmount(data.amount || 0);
   const isNegative = amount < 0;
+  const saldo = data.saldo ? parseAmount(data.saldo) : null;
 
   // Use hook to fetch transfer info for this transaction (may be null)
   const { transfer, loading } = useTransferForTransaction(transaction.id);
@@ -141,6 +145,9 @@ function TransactionRow({ transaction, symbol, formatAmount, formatDate }) {
         isNegative ? 'text-red-600' : 'text-green-600'
       }`}>
         {formatAmount(amount)} {symbol}
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+        {saldo !== null ? `${formatAmount(saldo)} ${symbol}` : '-'}
       </td>
       <td className="px-6 py-4 text-sm text-gray-600">
         <div className="flex items-center gap-2">

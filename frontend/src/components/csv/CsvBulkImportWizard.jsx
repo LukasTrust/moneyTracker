@@ -22,13 +22,14 @@ const STEPS = [
 ];
 
 const REQUIRED_FIELDS = ['date', 'amount', 'recipient'];
-const OPTIONAL_FIELDS = ['purpose'];
+const OPTIONAL_FIELDS = ['purpose', 'saldo'];
 
 const FIELD_CONFIG = {
   date: { label: 'Datum', icon: '📅', description: 'Transaktionsdatum' },
   amount: { label: 'Betrag', icon: '💰', description: 'Transaktionsbetrag' },
   recipient: { label: 'Empfänger/Absender', icon: '👤', description: 'Gegenpartei der Transaktion' },
   purpose: { label: 'Verwendungszweck', icon: '📝', description: 'Beschreibung/Buchungstext (optional)' },
+  saldo: { label: 'Saldo', icon: '💳', description: 'Kontostand nach Transaktion (optional)' },
 };
 
 const getFieldLabel = (field) => FIELD_CONFIG[field]?.label || field;
@@ -43,6 +44,7 @@ export default function CsvBulkImportWizard({ accountId, onImportSuccess }) {
     amount: '',
     recipient: '',
     purpose: '',
+    saldo: '',
   });
   const [existingMapping, setExistingMapping] = useState(null);
   const [mappingEditable, setMappingEditable] = useState(false);

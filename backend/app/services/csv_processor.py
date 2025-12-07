@@ -11,6 +11,9 @@ import re
 from decimal import Decimal
 
 from ..utils.money import normalize_amount as normalize_amount_to_decimal
+from ..utils import get_logger
+
+logger = get_logger(__name__)
 
 
 class CsvProcessor:
@@ -108,7 +111,8 @@ class CsvProcessor:
         mappings: Dict[str, str]
     ) -> List[Dict[str, Any]]:
         """
-        Apply header mappings and convert DataFrame to list of dicts
+        Apply header mappings and convert DataFrame to list of dicts.
+        Intelligently detects date format across entire dataset for consistent parsing.
         
         Args:
             df: Pandas DataFrame
@@ -132,6 +136,22 @@ class CsvProcessor:
         """
         result = []
         
+        # Detect date format if 'date' field is mapped
+        detected_date_format = None
+        date_column = None
+        
+        for csv_header, standard_field in mappings.items():
+            if standard_field == 'date' and csv_header in df.columns:
+                date_column = csv_header
+                # Extract all date values for format detection
+                date_values = df[csv_header].tolist()
+                detected_date_format = CsvProcessor.detect_date_format(date_values)
+                break
+        
+        # Store detected format for logging/debugging
+        if detected_date_format:
+            logger.info(f"Detected date format for column '{date_column}': {detected_date_format}")
+        
         for _, row in df.iterrows():
             mapped_row = {}
             for csv_header, standard_field in mappings.items():
@@ -141,6 +161,10 @@ class CsvProcessor:
                     if pd.isna(value) or value == '':
                         value = None
                     mapped_row[standard_field] = value
+            
+            # Store detected format for later use in normalization
+            if detected_date_format:
+                mapped_row['_detected_date_format'] = detected_date_format
             
             result.append(mapped_row)
         
@@ -371,12 +395,152 @@ class CsvProcessor:
         return result
     
     @staticmethod
-    def parse_date(date_str: str) -> Optional[datetime]:
+    def detect_date_format(date_strings: List[str]) -> Optional[str]:
         """
-        Parse date string with multiple format support
+        Intelligently detect the date format by analyzing all dates in the CSV.
+        This ensures consistent parsing across the entire file.
+        
+        Args:
+            date_strings: List of date strings from the CSV
+            
+        Returns:
+            The detected format string or None if no format fits all dates
+            
+        Strategy:
+            1. For ambiguous formats (e.g., 1/2/2025 could be DD/MM or MM/DD),
+               we look at the entire dataset to find entries that disambiguate
+            2. We test each format and only accept it if ALL dates can be parsed
+            3. Priority is given to formats that make chronological sense
+        """
+        if not date_strings:
+            return None
+        
+        # Clean and filter empty strings
+        clean_dates = [d.strip() for d in date_strings if d and str(d).strip()]
+        if not clean_dates:
+            return None
+        
+        # Define candidate formats with priority
+        # Order matters: more specific formats first
+        candidate_formats = [
+            '%d.%m.%Y',      # 31.12.2024 (German/European - unambiguous with dots)
+            '%d.%m.%y',      # 31.12.24
+            '%Y-%m-%d',      # 2024-12-31 (ISO - unambiguous with year first)
+            '%d/%m/%Y',      # 31/12/2024 (European with slashes)
+            '%d/%m/%y',      # 31/12/24
+            '%m/%d/%Y',      # 12/31/2024 (US with slashes)
+            '%m/%d/%y',      # 12/31/24
+            '%d-%m-%Y',      # 31-12-2024 (European with dashes)
+            '%d-%m-%y',      # 31-12-24
+            '%m-%d-%Y',      # 12-31-2024 (US with dashes)
+            '%m-%d-%y',      # 12-31-24
+            '%Y/%m/%d',      # 2024/12/31 (ISO with slashes)
+            '%Y.%m.%d',      # 2024.12.31 (ISO with dots)
+            '%d.%m.%Y %H:%M',  # 31.12.2024 14:30
+            '%Y-%m-%d %H:%M:%S',  # 2024-12-31 14:30:00
+        ]
+        
+        # Test each format to see if it parses ALL dates consistently
+        for fmt in candidate_formats:
+            parsed_dates = []
+            all_valid = True
+            
+            for date_str in clean_dates:
+                try:
+                    parsed = datetime.strptime(date_str, fmt)
+                    parsed_dates.append(parsed)
+                except ValueError:
+                    all_valid = False
+                    break
+            
+            # If all dates parsed successfully with this format, it's our winner
+            if all_valid and parsed_dates:
+                # Additional validation: check if dates are reasonable
+                # (e.g., not all in the far future or distant past)
+                current_year = datetime.now().year
+                reasonable = all(1950 <= d.year <= current_year + 10 for d in parsed_dates)
+                
+                if reasonable:
+                    return fmt
+        
+        # Fallback: Try flexible manual parsing for formats like "1/2/2025"
+        # We'll attempt to disambiguate DD/MM vs MM/DD by looking for values > 12
+        if all('/' in d for d in clean_dates):
+            # Check if any date has a part > 12, which tells us which part is day
+            has_day_gt_12 = False
+            position_of_day = None  # 0 for first position, 1 for second
+            
+            for date_str in clean_dates:
+                parts = date_str.split('/')
+                if len(parts) == 3:
+                    try:
+                        first = int(parts[0])
+                        second = int(parts[1])
+                        
+                        # If first part > 12, it must be day (DD/MM format)
+                        if first > 12:
+                            has_day_gt_12 = True
+                            position_of_day = 0
+                            break
+                        # If second part > 12, it must be day (MM/DD format)
+                        elif second > 12:
+                            has_day_gt_12 = True
+                            position_of_day = 1
+                            break
+                    except ValueError:
+                        continue
+            
+            # If we found a disambiguating date, use that format for all
+            if has_day_gt_12:
+                if position_of_day == 0:
+                    return 'DD/MM'  # Custom marker for European format
+                else:
+                    return 'MM/DD'  # Custom marker for US format
+        
+        # Same for dash-separated dates
+        if all('-' in d for d in clean_dates):
+            # Skip if it looks like ISO format (YYYY-MM-DD)
+            first_date = clean_dates[0].split('-')
+            if len(first_date) == 3 and len(first_date[0]) == 4:
+                return None  # Should have been caught by '%Y-%m-%d' above
+            
+            has_day_gt_12 = False
+            position_of_day = None
+            
+            for date_str in clean_dates:
+                parts = date_str.split('-')
+                if len(parts) == 3:
+                    try:
+                        first = int(parts[0])
+                        second = int(parts[1])
+                        
+                        if first > 12:
+                            has_day_gt_12 = True
+                            position_of_day = 0
+                            break
+                        elif second > 12:
+                            has_day_gt_12 = True
+                            position_of_day = 1
+                            break
+                    except ValueError:
+                        continue
+            
+            if has_day_gt_12:
+                if position_of_day == 0:
+                    return 'DD-MM'  # Custom marker
+                else:
+                    return 'MM-DD'  # Custom marker
+        
+        return None
+    
+    @staticmethod
+    def parse_date(date_str: str, date_format: Optional[str] = None) -> Optional[datetime]:
+        """
+        Parse date string with optional format hint for consistent parsing.
         
         Args:
             date_str: Date string in various formats
+            date_format: Optional format hint from detect_date_format()
             
         Returns:
             datetime object or None if parsing fails
@@ -384,6 +548,63 @@ class CsvProcessor:
         if not date_str or date_str == '':
             return None
         
+        date_str_clean = date_str.strip()
+        
+        # If we have a specific format hint, use it
+        if date_format:
+            # Handle custom markers for ambiguous formats
+            if date_format == 'DD/MM':
+                parts = date_str_clean.split('/')
+                if len(parts) == 3:
+                    try:
+                        day, month, year = int(parts[0]), int(parts[1]), int(parts[2])
+                        if year < 100:
+                            year = 2000 + year if year <= 50 else 1900 + year
+                        return datetime(year, month, day)
+                    except (ValueError, IndexError):
+                        pass
+            
+            elif date_format == 'MM/DD':
+                parts = date_str_clean.split('/')
+                if len(parts) == 3:
+                    try:
+                        month, day, year = int(parts[0]), int(parts[1]), int(parts[2])
+                        if year < 100:
+                            year = 2000 + year if year <= 50 else 1900 + year
+                        return datetime(year, month, day)
+                    except (ValueError, IndexError):
+                        pass
+            
+            elif date_format == 'DD-MM':
+                parts = date_str_clean.split('-')
+                if len(parts) == 3:
+                    try:
+                        day, month, year = int(parts[0]), int(parts[1]), int(parts[2])
+                        if year < 100:
+                            year = 2000 + year if year <= 50 else 1900 + year
+                        return datetime(year, month, day)
+                    except (ValueError, IndexError):
+                        pass
+            
+            elif date_format == 'MM-DD':
+                parts = date_str_clean.split('-')
+                if len(parts) == 3:
+                    try:
+                        month, day, year = int(parts[0]), int(parts[1]), int(parts[2])
+                        if year < 100:
+                            year = 2000 + year if year <= 50 else 1900 + year
+                        return datetime(year, month, day)
+                    except (ValueError, IndexError):
+                        pass
+            
+            else:
+                # Standard format string
+                try:
+                    return datetime.strptime(date_str_clean, date_format)
+                except ValueError:
+                    pass
+        
+        # Fallback to old behavior if no format hint or parsing failed
         # Common date formats (ordered by likelihood)
         formats = [
             '%d.%m.%Y',      # 31.12.2024
@@ -392,64 +613,19 @@ class CsvProcessor:
             '%d/%m/%Y',      # 31/12/2024
             '%d-%m-%Y',      # 31-12-2024
             '%Y/%m/%d',      # 2024/12/31
-            '%m-%d-%y',      # 06-24-25 (US format with 2-digit year) - ING format
-            '%m/%d/%Y',      # 06/24/2025 (US format with leading zeros)
-            '%-m/%-d/%Y',    # 6/24/2025 (US format without leading zeros)
-            '%m/%d/%y',      # 06/24/25 (US format with 2-digit year)
-            '%-m/%-d/%y',    # 6/24/25 (US format without leading zeros, 2-digit year)
-            '%m-%d-%Y',      # 06-24-2025 (US format with dashes)
-            '%-m-%-d-%Y',    # 6-24-2025 (US format with dashes, no leading zeros)
-            '%-m-%-d-%y',    # 6-24-25 (US format with dashes, no leading zeros, 2-digit year)
+            '%m/%d/%Y',      # 12/31/2024
+            '%m/%d/%y',      # 12/31/24
+            '%m-%d-%Y',      # 12-31-2024
+            '%m-%d-%y',      # 12-31-24
             '%d.%m.%Y %H:%M',  # 31.12.2024 14:30
             '%Y-%m-%d %H:%M:%S',  # 2024-12-31 14:30:00
         ]
-        
-        date_str_clean = date_str.strip()
         
         for fmt in formats:
             try:
                 return datetime.strptime(date_str_clean, fmt)
             except ValueError:
                 continue
-        
-        # Fallback: Try manual parsing for formats like "6/24/2025"
-        # This handles cases where strptime with %-m doesn't work on all platforms
-        try:
-            # Try M/D/YYYY or M/D/YY format
-            if '/' in date_str_clean:
-                parts = date_str_clean.split('/')
-                if len(parts) == 3:
-                    month, day, year = parts
-                    month = int(month)
-                    day = int(day)
-                    year = int(year)
-                    
-                    # Handle 2-digit year
-                    if year < 100:
-                        # Assume 2000+ for years 00-50, 1900+ for 51-99
-                        year = 2000 + year if year <= 50 else 1900 + year
-                    
-                    return datetime(year, month, day)
-            
-            # Try M-D-YYYY or M-D-YY format
-            if '-' in date_str_clean:
-                parts = date_str_clean.split('-')
-                if len(parts) == 3:
-                    # Check if it's likely M-D-Y (first part is small number)
-                    first = int(parts[0])
-                    if first <= 12:  # Likely month
-                        month, day, year = parts
-                        month = int(month)
-                        day = int(day)
-                        year = int(year)
-                        
-                        # Handle 2-digit year
-                        if year < 100:
-                            year = 2000 + year if year <= 50 else 1900 + year
-                        
-                        return datetime(year, month, day)
-        except (ValueError, IndexError):
-            pass
         
         return None
     
@@ -458,26 +634,30 @@ class CsvProcessor:
         row: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
-        Normalize and validate transaction data (3 required + 1 optional field)
-        Uses Decimal for amount precision.
+        Normalize and validate transaction data (3 required + 2 optional fields)
+        Uses Decimal for amount precision and respects detected date format.
         
         Args:
-            row: Raw transaction data with mapped fields (date, amount, recipient, purpose?)
+            row: Raw transaction data with mapped fields (date, amount, recipient, purpose?, saldo?)
+                 May contain '_detected_date_format' key for consistent parsing
             
         Returns:
-            Normalized transaction data with 3-4 fields (amount as Decimal)
+            Normalized transaction data with 3-5 fields (amount and saldo as Decimal)
             
         Raises:
             ValueError: If required fields are missing or invalid
         """
         normalized = {}
         
-        # Parse date
+        # Extract detected date format if available
+        detected_format = row.get('_detected_date_format')
+        
+        # Parse date with detected format for consistency
         date_str = row.get('date')
         if not date_str:
             raise ValueError("Date field is required")
         
-        date_obj = CsvProcessor.parse_date(date_str)
+        date_obj = CsvProcessor.parse_date(date_str, date_format=detected_format)
         if not date_obj:
             raise ValueError(f"Invalid date format: {date_str}")
         
@@ -505,6 +685,16 @@ class CsvProcessor:
         purpose = str(row.get('purpose', '')).strip() if row.get('purpose') else ''
         if purpose:
             normalized['purpose'] = purpose
+        
+        # Saldo (optional)
+        saldo_str = row.get('saldo')
+        if saldo_str:
+            try:
+                saldo = CsvProcessor.normalize_amount(str(saldo_str))
+                normalized['saldo'] = saldo  # Keep as Decimal
+            except Exception as e:
+                # Log warning but don't fail import if saldo is invalid
+                logger.warning(f"Invalid saldo format: {saldo_str}, skipping saldo for this row")
         
         return normalized
 

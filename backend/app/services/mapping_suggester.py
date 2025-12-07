@@ -50,6 +50,12 @@ class MappingSuggester:
             'notiz', 'note', 'memo', 'reference', 'ref',
             'buchungstext', 'transaktionstext',  # Lower priority - could be description or purpose
             'text'  # Generic, lowest priority
+        ],
+        'saldo': [
+            # Most specific first
+            'saldo', 'kontostand', 'balance', 'account.*balance',
+            'stand', 'bestand', 'guthaben', 'kontosaldo',
+            'balance.*after', 'saldo.*nach'
         ]
     }
     

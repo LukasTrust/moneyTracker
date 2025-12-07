@@ -5,6 +5,7 @@ Audit reference: 06_backend_routers.md - CSV import scaling & file size limits
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import Optional, List
+from decimal import Decimal
 import json
 
 from app.database import get_db
@@ -611,8 +612,8 @@ async def import_csv_advanced(
                         except Exception:
                             transaction_date = None
 
-                # Amount: convert Decimal to float for DB storage
-                amount = float(validated_data.get('amount', 0.0))
+                # Amount: keep as Decimal for precise storage
+                amount = validated_data.get('amount', Decimal('0.0'))
 
                 # Recipient and Purpose
                 recipient_str = validated_data.get('recipient', '')
@@ -1111,8 +1112,8 @@ async def bulk_import_csv(
                                 except Exception:
                                     transaction_date = None
 
-                        # Convert amount to float
-                        amount = float(validated_data.get('amount', 0.0))
+                        # Keep amount as Decimal for precise storage
+                        amount = validated_data.get('amount', Decimal('0.0'))
 
                         # Get recipient and purpose
                         recipient_str = validated_data.get('recipient', '')

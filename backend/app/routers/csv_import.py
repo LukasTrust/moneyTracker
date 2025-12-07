@@ -675,15 +675,18 @@ async def import_csv_advanced(
                     # Example: if first transaction is -50 and saldo after is 950, opening was 1000
                     calculated_initial_balance = earliest_with_saldo.saldo - earliest_with_saldo.amount
                     
-                    # Update account with new initial_balance
-                    account.initial_balance = calculated_initial_balance
-                    db.commit()
-                    
-                    logger.info(
-                        f"Updated account {account_id} initial_balance to {calculated_initial_balance} "
-                        f"based on earliest transaction (date={earliest_with_saldo.transaction_date}, "
-                        f"saldo={earliest_with_saldo.saldo}, amount={earliest_with_saldo.amount})"
-                    )
+                    # Reload account to ensure it's attached to the session
+                    account = db.query(Account).filter(Account.id == account_id).first()
+                    if account:
+                        # Update account with new initial_balance
+                        account.initial_balance = calculated_initial_balance
+                        db.commit()
+                        
+                        logger.info(
+                            f"Updated account {account_id} initial_balance to {calculated_initial_balance} "
+                            f"based on earliest transaction (date={earliest_with_saldo.transaction_date}, "
+                            f"saldo={earliest_with_saldo.saldo}, amount={earliest_with_saldo.amount})"
+                        )
             except Exception as e:
                 # Log error but don't fail the import
                 logger.exception(

@@ -48,12 +48,26 @@ export const useCategoryStore = create((set, get) => ({
     try {
       // Use shared callApi helper with a 5-minute TTL
       const data = await callApi('categories', () => categoryService.getCategories(), { force, cacheTTL: 300000 });
+      
+      // Handle different response formats: Array, {items: []}, {categories: []}, or {data: []}
+      let categories = [];
+      if (Array.isArray(data)) {
+        categories = data;
+      } else if (data.items && Array.isArray(data.items)) {
+        categories = data.items;
+      } else if (data.categories && Array.isArray(data.categories)) {
+        categories = data.categories;
+      } else if (data.data && Array.isArray(data.data)) {
+        categories = data.data;
+      }
+            
       set({ 
-        categories: data.categories || data,
+        categories: categories,
         loading: false,
         lastFetch: Date.now()
       });
     } catch (error) {
+      console.error('[categoryStore] Error fetching categories:', error);
       set({ 
         error: error.response?.data?.message || 'Fehler beim Laden der Kategorien',
         loading: false 

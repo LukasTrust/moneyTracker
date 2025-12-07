@@ -23,10 +23,30 @@ export default function TransactionTable({
   onPageChange = () => {},
   onPageSizeChange = () => {},
 }) {
-  // Lade Kategorien für Icon-Anzeige
-  const { categories } = useCategoryStore();
+  // Lade Kategorien für Icon-Anzeige mit fetchCategories
+  const { categories, fetchCategories } = useCategoryStore();
+  
   // Stelle sicher, dass categories immer ein Array ist
   const categoriesArray = Array.isArray(categories) ? categories : [];
+  
+  // Stelle sicher, dass Kategorien beim Mount geladen werden
+  React.useEffect(() => {
+    if (categoriesArray.length === 0) {
+      fetchCategories();
+    }
+  }, [categoriesArray.length, fetchCategories]);
+  
+  // Debug: Log first transaction
+  if (transactions.length > 0 && categoriesArray.length > 0) {
+    const firstTx = transactions[0];
+    const txCategory = categoriesArray.find(cat => cat.id === firstTx.category_id);
+    console.log('[TransactionTable] First transaction:', {
+      id: firstTx.id,
+      category_id: firstTx.category_id,
+      found_category: txCategory ? txCategory.name : 'NOT FOUND',
+      total_categories: categoriesArray.length
+    });
+  }
   
   const currencySymbols = {
     EUR: '€',

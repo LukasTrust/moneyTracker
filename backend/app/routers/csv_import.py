@@ -4,9 +4,10 @@ Audit reference: 06_backend_routers.md - CSV import scaling & file size limits
 """
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, BackgroundTasks
 from sqlalchemy.orm import Session
-from typing import Optional, List
+from typing import Optional, List, Tuple, Dict, Any
 from decimal import Decimal
 import json
+import pandas as pd
 
 from app.database import get_db
 from app.config import settings
@@ -42,6 +43,354 @@ logger = get_logger(__name__)
 from app.services.import_history_service import ImportHistoryService
 
 router = APIRouter()
+
+
+def _parse_and_validate_csv(content: bytes, filename: str) -> Tuple[pd.DataFrame, str, List[str]]:
+    """
+    Parse and validate CSV file.
+    
+    Args:
+        content: File content bytes
+        filename: Original filename
+        
+    Returns:
+        Tuple of (DataFrame, delimiter, headers)
+        
+    Raises:
+        HTTPException: On validation errors
+    """
+    validate_file_size(content, filename)
+    
+    try:
+        df, delimiter = CsvProcessor.parse_csv_advanced(content)
+        validate_row_count(len(df), filename)
+        headers = CsvProcessor.get_headers(df)
+        return df, delimiter, headers
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid CSV file: {str(e)}"
+        )
+
+
+def _validate_and_apply_mapping(
+    df: pd.DataFrame,
+    headers: List[str],
+    mapping: CsvImportMapping
+) -> List[Dict[str, Any]]:
+    """
+    Validate mapping and apply to DataFrame.
+    
+    Args:
+        df: Pandas DataFrame
+        headers: CSV headers
+        mapping: Mapping configuration
+        
+    Returns:
+        List of mapped data dictionaries
+        
+    Raises:
+        HTTPException: On validation errors
+    """
+    is_valid, errors = MappingSuggester.validate_mapping(
+        mapping.to_dict(),
+        headers
+    )
+    
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid mapping: {'; '.join(errors)}"
+        )
+    
+    mapped_data = CsvProcessor.apply_mappings_advanced(df, mapping.to_dict())
+    
+    if not mapped_data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No valid data rows found in CSV after mapping"
+        )
+    
+    return mapped_data
+
+
+def _process_transaction_row(
+    idx: int,
+    row_data: Dict[str, Any],
+    account_id: int,
+    import_id: int,
+    existing_hashes: set,
+    category_matcher: CategoryMatcher,
+    recipient_matcher: RecipientMatcher,
+    db: Session
+) -> Tuple[Optional[DataRow], bool, Optional[str]]:
+    """
+    Process a single transaction row.
+    
+    Args:
+        idx: Row index (for error messages)
+        row_data: Raw row data from CSV
+        account_id: Target account ID
+        import_id: Import history ID
+        existing_hashes: Set of existing row hashes
+        category_matcher: CategoryMatcher instance
+        recipient_matcher: RecipientMatcher instance
+        db: Database session
+        
+    Returns:
+        Tuple of (DataRow or None, is_duplicate, error_message or None)
+    """
+    try:
+        # Normalize transaction data
+        normalized_data = CsvProcessor.normalize_transaction_data(row_data)
+
+        # Validate with Pydantic schema
+        try:
+            validated = TransactionRow.model_validate(normalized_data)
+            validated_data = validated.model_dump()
+
+            # Validate amount is finite
+            import math
+            from decimal import Decimal, InvalidOperation
+            amt = validated_data.get('amount')
+            if amt is None:
+                return None, False, "Amount is required"
+            
+            try:
+                amt_float = float(amt)
+                if not math.isfinite(amt_float):
+                    return None, False, f"Invalid amount value: {amt} (not finite)"
+            except (ValueError, InvalidOperation, TypeError):
+                return None, False, f"Invalid amount value: {amt} (cannot convert to number)"
+        except ValidationError as ve:
+            return None, False, f"Validation error - {ve.errors()}"
+
+        # Generate hash
+        date_val = validated_data.get('date')
+        if hasattr(date_val, 'isoformat'):
+            date_str_for_hash = date_val.isoformat()
+        else:
+            date_str_for_hash = str(date_val) if date_val is not None else None
+
+        row_hash = HashService.generate_hash({
+            'date': date_str_for_hash,
+            'amount': validated_data.get('amount'),
+            'recipient': validated_data.get('recipient')
+        })
+        
+        # Check for duplicates
+        if HashService.is_duplicate(row_hash, existing_hashes):
+            return None, True, None
+        
+        # Match category
+        category_id = category_matcher.match_category(validated_data)
+
+        # Find or create recipient
+        recipient = None
+        recipient_name = validated_data.get('recipient')
+        if recipient_name:
+            recipient = recipient_matcher.find_or_create_recipient(recipient_name)
+
+        # Parse date
+        date_val = validated_data.get('date')
+        transaction_date = None
+        if date_val:
+            if isinstance(date_val, str):
+                parsed_dt = CsvProcessor.parse_date(date_val)
+                if parsed_dt:
+                    transaction_date = parsed_dt.date()
+                else:
+                    try:
+                        from datetime import datetime as _dt
+                        parsed_dt = _dt.fromisoformat(date_val)
+                        transaction_date = parsed_dt.date()
+                    except Exception:
+                        transaction_date = None
+            else:
+                try:
+                    transaction_date = date_val.date()
+                except Exception:
+                    transaction_date = None
+
+        # Keep amount as Decimal for precise storage
+        amount = validated_data.get('amount', Decimal('0.0'))
+
+        # Get recipient and purpose
+        recipient_str = validated_data.get('recipient', '')
+        purpose = validated_data.get('purpose', '')
+        currency = row_data.get('currency', 'EUR')
+        
+        # Saldo (optional - keep as Decimal)
+        saldo = validated_data.get('saldo', None)
+        
+        # Create data row
+        new_row = DataRow(
+            account_id=account_id,
+            row_hash=row_hash,
+            transaction_date=transaction_date,
+            amount=amount,
+            recipient=recipient_str[:200] if recipient_str else None,
+            purpose=purpose,
+            currency=currency,
+            saldo=saldo,
+            raw_data=row_data,
+            category_id=category_id,
+            recipient_id=recipient.id if recipient else None,
+            import_id=import_id
+        )
+        
+        existing_hashes.add(row_hash)
+        return new_row, False, None
+        
+    except ValueError as e:
+        return None, False, str(e)
+    except Exception as e:
+        return None, False, f"Unexpected error - {str(e)}"
+
+
+def _update_account_initial_balance(
+    db: Session,
+    account_id: int,
+    import_id: int
+) -> None:
+    """
+    Update account initial_balance based on earliest transaction with saldo.
+    
+    Args:
+        db: Database session
+        account_id: Account ID
+        import_id: Import ID
+    """
+    try:
+        earliest_with_saldo = db.query(DataRow).filter(
+            DataRow.import_id == import_id,
+            DataRow.saldo.isnot(None)
+        ).order_by(DataRow.transaction_date.asc()).first()
+        
+        if earliest_with_saldo:
+            calculated_initial_balance = earliest_with_saldo.saldo - earliest_with_saldo.amount
+            
+            account = db.query(Account).filter(Account.id == account_id).first()
+            if account:
+                account.initial_balance = calculated_initial_balance
+                db.commit()
+                
+                logger.info(
+                    f"Updated account {account_id} initial_balance to {calculated_initial_balance} "
+                    f"based on earliest transaction (date={earliest_with_saldo.transaction_date}, "
+                    f"saldo={earliest_with_saldo.saldo}, amount={earliest_with_saldo.amount})"
+                )
+    except Exception as e:
+        logger.exception(
+            f"Could not update initial_balance for account {account_id}",
+            exc_info=True,
+            extra={"account_id": account_id, "import_id": import_id}
+        )
+
+
+def _trigger_recurring_detection(
+    db: Session,
+    account_id: int,
+    import_id: int,
+    background_tasks: Optional[BackgroundTasks] = None
+) -> int:
+    """
+    Trigger recurring transaction detection.
+    
+    Args:
+        db: Database session
+        account_id: Account ID
+        import_id: Import ID
+        background_tasks: Optional background tasks instance
+        
+    Returns:
+        Number of recurring transactions detected (0 if async)
+    """
+    try:
+        if background_tasks is not None:
+            from app.services.job_service import JobService
+            job = JobService.create_job(db, task_type="recurring_detection", account_id=account_id, import_id=import_id)
+            background_tasks.add_task(run_update_recurring_transactions, account_id)
+            logger.info("Enqueued recurring detection for account", extra={"account_id": account_id, "job_id": getattr(job, 'id', None), "import_id": import_id})
+            return 0
+        else:
+            detector = RecurringTransactionDetector(db)
+            stats = detector.update_recurring_transactions(account_id)
+            from app.models.recurring_transaction import RecurringTransaction
+            recurring_count = db.query(RecurringTransaction).filter(
+                RecurringTransaction.account_id == account_id,
+                RecurringTransaction.is_active == True
+            ).count()
+            logger.info("Recurring detection (sync)", extra={"created": stats.get('created'), "updated": stats.get('updated'), "total_active": recurring_count, "account_id": account_id})
+            return recurring_count
+    except Exception as e:
+        logger.exception("Could not detect recurring transactions", exc_info=True, extra={"account_id": account_id, "import_id": import_id})
+        return 0
+
+
+def _find_transfer_candidates(
+    db: Session,
+    account_id: int,
+    import_id: int,
+    mapped_data: List[Dict[str, Any]] = None,
+    max_candidates: int = 200
+) -> List[Dict[str, Any]]:
+    """
+    Find transfer candidates for imported transactions.
+    
+    Args:
+        db: Database session
+        account_id: Account ID
+        import_id: Import ID
+        mapped_data: Optional mapped data (fallback for date range)
+        max_candidates: Maximum number of candidates to return
+        
+    Returns:
+        List of transfer candidates
+    """
+    try:
+        matcher = TransferMatcher(db)
+
+        # Determine date range for imported rows
+        from sqlalchemy import func
+        from datetime import date
+        date_min, date_max = db.query(
+            func.min(DataRow.transaction_date),
+            func.max(DataRow.transaction_date)
+        ).filter(DataRow.import_id == import_id).one()
+
+        # Fallback to mapped data if no transactions imported
+        if not date_min or not date_max:
+            if mapped_data:
+                dates = [row.get('date') for row in mapped_data if row.get('date')]
+                if dates:
+                    parsed_dates = []
+                    for d in dates:
+                        if isinstance(d, date):
+                            parsed_dates.append(d)
+                        elif isinstance(d, str):
+                            parsed_dt = CsvProcessor.parse_date(d)
+                            if parsed_dt:
+                                parsed_dates.append(parsed_dt.date())
+                    
+                    if parsed_dates:
+                        date_min = min(parsed_dates)
+                        date_max = max(parsed_dates)
+
+        if date_min and date_max:
+            candidates = matcher.find_transfer_candidates(
+                account_ids=[account_id],
+                date_from=date_min,
+                date_to=date_max,
+                min_confidence=0.7,
+                exclude_existing=True
+            )
+            return candidates[:max_candidates]
+        
+        return []
+    except Exception:
+        logger.exception("Transfer detection failed", exc_info=True, extra={"import_id": import_id, "account_id": account_id})
+        return []
 
 
 def validate_file_size(content: bytes, filename: str) -> None:
@@ -480,30 +829,11 @@ async def import_csv_advanced(
     import_id = import_record.id
     
     try:
-        # Parse CSV
-        df, _ = CsvProcessor.parse_csv_advanced(content)
-        headers = CsvProcessor.get_headers(df)
+        # Parse and validate CSV
+        df, _, headers = _parse_and_validate_csv(content, file.filename)
         
-        # Validate mapping
-        is_valid, errors = MappingSuggester.validate_mapping(
-            mapping.to_dict(),
-            headers
-        )
-        
-        if not is_valid:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid mapping: {'; '.join(errors)}"
-            )
-        
-        # Apply mappings
-        mapped_data = CsvProcessor.apply_mappings_advanced(df, mapping.to_dict())
-        
-        if not mapped_data:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="No valid data rows found in CSV after mapping"
-            )
+        # Validate and apply mapping
+        mapped_data = _validate_and_apply_mapping(df, headers, mapping)
         
         # Get existing hashes for duplicate detection
         existing_hashes = {
@@ -524,176 +854,26 @@ async def import_csv_advanced(
         error_messages = []
         
         for idx, row_data in enumerate(mapped_data, start=1):
-            try:
-                # Normalize transaction data (simplified to 3-4 fields)
-                normalized_data = CsvProcessor.normalize_transaction_data(row_data)
-
-                # Validate normalized data with Pydantic schema before persisting
-                try:
-                    validated = TransactionRow.model_validate(normalized_data)
-                    # Use the validated Python dict (date as date, amount as Decimal, etc.)
-                    validated_data = validated.model_dump()
-
-                    # Validate amount is a finite number (reject NaN/inf)
-                    # Accept Decimal, int, or float
-                    import math
-                    from decimal import Decimal, InvalidOperation
-                    amt = validated_data.get('amount')
-                    if amt is None:
-                        error_count += 1
-                        error_messages.append(f"Row {idx}: Amount is required")
-                        continue
-                    # Check if it's a valid number (Decimal, int, or float) and finite
-                    try:
-                        amt_float = float(amt)
-                        if not math.isfinite(amt_float):
-                            error_count += 1
-                            error_messages.append(f"Row {idx}: Invalid amount value: {amt} (not finite)")
-                            continue
-                    except (ValueError, InvalidOperation, TypeError):
-                        error_count += 1
-                        error_messages.append(f"Row {idx}: Invalid amount value: {amt} (cannot convert to number)")
-                        continue
-                except ValidationError as ve:
-                    error_count += 1
-                    error_messages.append(f"Row {idx}: Validation error - {ve.errors()}")
-                    continue
-
-                # Generate hash (use validated data to ensure canonicalization)
-                # Date may be a string or date object depending on schema
-                date_val = validated_data.get('date')
-                if hasattr(date_val, 'isoformat'):
-                    date_str_for_hash = date_val.isoformat()
-                else:
-                    date_str_for_hash = str(date_val) if date_val is not None else None
-
-                row_hash = HashService.generate_hash({
-                    'date': date_str_for_hash,
-                    'amount': validated_data.get('amount'),
-                    'recipient': validated_data.get('recipient')
-                })
-                
-                # Check for duplicates
-                if HashService.is_duplicate(row_hash, existing_hashes):
-                    duplicate_count += 1
-                    continue
-                
-                # Match category using rules (only CategoryMatcher, no CSV category)
-                category_id = category_matcher.match_category(validated_data)
-
-                # Find or create recipient
-                recipient = None
-                recipient_name = validated_data.get('recipient')
-                if recipient_name:
-                    recipient = recipient_matcher.find_or_create_recipient(recipient_name)
-
-                # Parse structured fields from validated_data
-                # Ensure transaction_date is a date object (DB expects Date)
-                date_val = validated_data.get('date')
-                transaction_date = None
-                if date_val:
-                    # If Pydantic returned a string, try multiple parse strategies
-                    if isinstance(date_val, str):
-                        parsed_dt = CsvProcessor.parse_date(date_val)
-                        if parsed_dt:
-                            transaction_date = parsed_dt.date()
-                        else:
-                            # Fallback: try ISO format parsing
-                            try:
-                                from datetime import datetime as _dt
-                                parsed_dt = _dt.fromisoformat(date_val)
-                                transaction_date = parsed_dt.date()
-                            except Exception:
-                                transaction_date = None
-                    else:
-                        # If it's already a date/datetime-like object, try to get date()
-                        try:
-                            transaction_date = date_val.date()
-                        except Exception:
-                            transaction_date = None
-
-                # Amount: keep as Decimal for precise storage
-                amount = validated_data.get('amount', Decimal('0.0'))
-
-                # Recipient and Purpose
-                recipient_str = validated_data.get('recipient', '')
-                purpose = validated_data.get('purpose', '')
-                
-                # Currency (from raw data or default)
-                currency = row_data.get('currency', 'EUR')
-                
-                # Saldo (optional - keep as Decimal)
-                saldo = validated_data.get('saldo', None)
-                
-                # Create data row with structured fields
-                new_row = DataRow(
-                    account_id=account_id,
-                    row_hash=row_hash,
-                    # NEW: Structured fields
-                    transaction_date=transaction_date,
-                    amount=amount,
-                    recipient=recipient_str[:200] if recipient_str else None,  # Truncate to 200 chars
-                    purpose=purpose,
-                    currency=currency,
-                    saldo=saldo,  # Store saldo from CSV
-                    raw_data=row_data,  # Keep original CSV data for audit
-                    # Relations
-                    category_id=category_id,
-                    recipient_id=recipient.id if recipient else None,
-                    import_id=import_id  # Link to import history
-                )
-                
+            new_row, is_duplicate, error = _process_transaction_row(
+                idx, row_data, account_id, import_id,
+                existing_hashes, category_matcher, recipient_matcher, db
+            )
+            
+            if error:
+                error_count += 1
+                error_messages.append(f"Row {idx}: {error}")
+            elif is_duplicate:
+                duplicate_count += 1
+            elif new_row:
                 db.add(new_row)
-                existing_hashes.add(row_hash)
                 imported_count += 1
-                
-            except ValueError as e:
-                error_count += 1
-                error_messages.append(f"Row {idx}: {str(e)}")
-                continue
-            except Exception as e:
-                error_count += 1
-                error_messages.append(f"Row {idx}: Unexpected error - {str(e)}")
-                continue
         
         # Commit all changes
         db.commit()
         
-        # Update account initial_balance based on earliest imported transaction with saldo
-        # Logic: initial_balance = first_saldo - first_amount
-        # This ensures balance calculations start from the correct opening balance
+        # Update account initial_balance if needed
         if imported_count > 0:
-            try:
-                # Find the earliest transaction with saldo for this import
-                earliest_with_saldo = db.query(DataRow).filter(
-                    DataRow.import_id == import_id,
-                    DataRow.saldo.isnot(None)
-                ).order_by(DataRow.transaction_date.asc()).first()
-                
-                if earliest_with_saldo:
-                    # Calculate initial_balance: opening_balance = saldo_after_transaction - transaction_amount
-                    # Example: if first transaction is -50 and saldo after is 950, opening was 1000
-                    calculated_initial_balance = earliest_with_saldo.saldo - earliest_with_saldo.amount
-                    
-                    # Reload account to ensure it's attached to the session
-                    account = db.query(Account).filter(Account.id == account_id).first()
-                    if account:
-                        # Update account with new initial_balance
-                        account.initial_balance = calculated_initial_balance
-                        db.commit()
-                        
-                        logger.info(
-                            f"Updated account {account_id} initial_balance to {calculated_initial_balance} "
-                            f"based on earliest transaction (date={earliest_with_saldo.transaction_date}, "
-                            f"saldo={earliest_with_saldo.saldo}, amount={earliest_with_saldo.amount})"
-                        )
-            except Exception as e:
-                # Log error but don't fail the import
-                logger.exception(
-                    f"Could not update initial_balance for account {account_id}",
-                    exc_info=True,
-                    extra={"account_id": account_id, "import_id": import_id}
-                )
+            _update_account_initial_balance(db, account_id, import_id)
         
         # Update import history with final statistics
         status_value = 'success' if error_count == 0 else ('partial' if imported_count > 0 else 'failed')
@@ -736,82 +916,12 @@ async def import_csv_advanced(
                 logger.exception("Could not save mappings", exc_info=True, extra={"account_id": account_id, "import_id": import_id})
         
         # Trigger recurring transaction detection after successful import
-        # IMPORTANT: Always analyze ALL transactions for the account, not just newly imported ones
         recurring_count = 0
-        if imported_count > 0 or duplicate_count > 0:  # Run even if only duplicates (might detect new patterns)
-            try:
-                # If a BackgroundTasks instance is provided by FastAPI, enqueue the detection
-                if background_tasks is not None:
-                    # Create job record first
-                    from app.services.job_service import JobService
-                    job = JobService.create_job(db, task_type="recurring_detection", account_id=account_id, import_id=import_id)
-                    background_tasks.add_task(run_update_recurring_transactions, account_id)
-                    logger.info("Enqueued recurring detection for account", extra={"account_id": account_id, "job_id": getattr(job, 'id', None), "import_id": import_id})
-                else:
-                    # Fallback to synchronous run (useful for tests or CLI)
-                    detector = RecurringTransactionDetector(db)
-                    stats = detector.update_recurring_transactions(account_id)
-                    from app.models.recurring_transaction import RecurringTransaction
-                    recurring_count = db.query(RecurringTransaction).filter(
-                        RecurringTransaction.account_id == account_id,
-                        RecurringTransaction.is_active == True
-                    ).count()
-                    logger.info("Recurring detection (sync)", extra={"created": stats.get('created'), "updated": stats.get('updated'), "total_active": recurring_count, "account_id": account_id})
-            except Exception as e:
-                # Log error but don't fail the import
-                logger.exception("Could not detect recurring transactions", exc_info=True, extra={"account_id": account_id, "import_id": import_id})
+        if imported_count > 0 or duplicate_count > 0:
+            recurring_count = _trigger_recurring_detection(db, account_id, import_id, background_tasks)
 
-        # Run transfer detection for the imported rows and include candidates in response
-        # Run this even if no new rows were imported (e.g., all duplicates) to detect transfers
-        # between existing transactions
-        transfer_candidates = None
-        try:
-            matcher = TransferMatcher(db)
-
-            # Determine date range for imported rows - limit detection to imported date span
-            from sqlalchemy import func
-            date_min, date_max = db.query(func.min(DataRow.transaction_date), func.max(DataRow.transaction_date)).filter(
-                DataRow.import_id == import_id
-            ).one()
-
-            # If no new transactions were imported (all duplicates), check date range of all transactions in account
-            if not date_min or not date_max:
-                # Use date range from the CSV data that was attempted to be imported
-                if mapped_data:
-                    # Get date range from the mapped data
-                    dates = [row.get('date') for row in mapped_data if row.get('date')]
-                    if dates:
-                        from datetime import datetime as _dt
-                        parsed_dates = []
-                        for d in dates:
-                            if isinstance(d, date):
-                                parsed_dates.append(d)
-                            elif isinstance(d, str):
-                                parsed_dt = CsvProcessor.parse_date(d)
-                                if parsed_dt:
-                                    parsed_dates.append(parsed_dt.date())
-                        
-                        if parsed_dates:
-                            date_min = min(parsed_dates)
-                            date_max = max(parsed_dates)
-
-            # Call matcher to find candidates involving this account within the date range
-            candidates = matcher.find_transfer_candidates(
-                account_ids=[account_id],
-                date_from=date_min,
-                date_to=date_max,
-                min_confidence=0.7,
-                exclude_existing=True
-            ) if date_min and date_max else []
-
-            # Limit number returned to avoid huge payloads
-            MAX_CANDIDATES_RETURN = 200
-            transfer_candidates = candidates[:MAX_CANDIDATES_RETURN]
-
-            # If background tasks are provided and we prefer async detection, we could enqueue here.
-        except Exception:
-            # Non-fatal: log and continue
-            logger.exception("Transfer detection failed during import", exc_info=True, extra={"import_id": import_id, "account_id": account_id})
+        # Run transfer detection for the imported rows
+        transfer_candidates = _find_transfer_candidates(db, account_id, import_id, mapped_data)
         
         success = error_count == 0 or imported_count > 0
         
@@ -1027,30 +1137,11 @@ async def bulk_import_csv(
             import_id = import_record.id
             
             try:
-                # Parse CSV
-                df, _ = CsvProcessor.parse_csv_advanced(content)
-                headers = CsvProcessor.get_headers(df)
+                # Parse and validate CSV
+                df, _, headers = _parse_and_validate_csv(content, file.filename)
                 
-                # Validate row count
-                try:
-                    validate_row_count(len(df), file.filename)
-                except HTTPException as e:
-                    raise ValueError(e.detail)
-                
-                # Validate mapping against this file's headers
-                is_valid, errors = MappingSuggester.validate_mapping(
-                    mapping.to_dict(),
-                    headers
-                )
-                
-                if not is_valid:
-                    raise ValueError(f"Mapping nicht kompatibel: {'; '.join(errors)}")
-                
-                # Apply mappings
-                mapped_data = CsvProcessor.apply_mappings_advanced(df, mapping.to_dict())
-                
-                if not mapped_data:
-                    raise ValueError("Keine gültigen Datenzeilen nach Mapping gefunden")
+                # Validate and apply mapping
+                mapped_data = _validate_and_apply_mapping(df, headers, mapping)
                 
                 # Get existing hashes for duplicate detection
                 existing_hashes = {
@@ -1071,125 +1162,26 @@ async def bulk_import_csv(
                 error_messages = []
                 
                 for idx, row_data in enumerate(mapped_data, start=1):
-                    try:
-                        # Normalize transaction data
-                        normalized_data = CsvProcessor.normalize_transaction_data(row_data)
-
-                        # Validate with Pydantic schema
-                        try:
-                            validated = TransactionRow.model_validate(normalized_data)
-                            validated_data = validated.model_dump()
-
-                            # Validate amount
-                            import math
-                            from decimal import Decimal, InvalidOperation
-                            amt = validated_data.get('amount')
-                            if amt is None:
-                                error_count += 1
-                                error_messages.append(f"Row {idx}: Amount is required")
-                                continue
-                            
-                            try:
-                                amt_float = float(amt)
-                                if not math.isfinite(amt_float):
-                                    error_count += 1
-                                    error_messages.append(f"Row {idx}: Invalid amount value: {amt}")
-                                    continue
-                            except (ValueError, InvalidOperation, TypeError):
-                                error_count += 1
-                                error_messages.append(f"Row {idx}: Invalid amount value: {amt}")
-                                continue
-                        except ValidationError as ve:
-                            error_count += 1
-                            error_messages.append(f"Row {idx}: Validation error - {ve.errors()}")
-                            continue
-
-                        # Generate hash
-                        date_val = validated_data.get('date')
-                        if hasattr(date_val, 'isoformat'):
-                            date_str_for_hash = date_val.isoformat()
-                        else:
-                            date_str_for_hash = str(date_val) if date_val is not None else None
-
-                        row_hash = HashService.generate_hash({
-                            'date': date_str_for_hash,
-                            'amount': validated_data.get('amount'),
-                            'recipient': validated_data.get('recipient')
-                        })
-                        
-                        # Check for duplicates
-                        if HashService.is_duplicate(row_hash, existing_hashes):
-                            duplicate_count += 1
-                            continue
-                        
-                        # Match category
-                        category_id = category_matcher.match_category(validated_data)
-
-                        # Find or create recipient
-                        recipient = None
-                        recipient_name = validated_data.get('recipient')
-                        if recipient_name:
-                            recipient = recipient_matcher.find_or_create_recipient(recipient_name)
-
-                        # Parse date
-                        date_val = validated_data.get('date')
-                        transaction_date = None
-                        if date_val:
-                            if isinstance(date_val, str):
-                                parsed_dt = CsvProcessor.parse_date(date_val)
-                                if parsed_dt:
-                                    transaction_date = parsed_dt.date()
-                                else:
-                                    try:
-                                        from datetime import datetime as _dt
-                                        parsed_dt = _dt.fromisoformat(date_val)
-                                        transaction_date = parsed_dt.date()
-                                    except Exception:
-                                        transaction_date = None
-                            else:
-                                try:
-                                    transaction_date = date_val.date()
-                                except Exception:
-                                    transaction_date = None
-
-                        # Keep amount as Decimal for precise storage
-                        amount = validated_data.get('amount', Decimal('0.0'))
-
-                        # Get recipient and purpose
-                        recipient_str = validated_data.get('recipient', '')
-                        purpose = validated_data.get('purpose', '')
-                        currency = row_data.get('currency', 'EUR')
-                        
-                        # Create data row
-                        new_row = DataRow(
-                            account_id=account_id,
-                            row_hash=row_hash,
-                            transaction_date=transaction_date,
-                            amount=amount,
-                            recipient=recipient_str[:200] if recipient_str else None,
-                            purpose=purpose,
-                            currency=currency,
-                            raw_data=row_data,
-                            category_id=category_id,
-                            recipient_id=recipient.id if recipient else None,
-                            import_id=import_id
-                        )
-                        
+                    new_row, is_duplicate, error = _process_transaction_row(
+                        idx, row_data, account_id, import_id,
+                        existing_hashes, category_matcher, recipient_matcher, db
+                    )
+                    
+                    if error:
+                        error_count += 1
+                        error_messages.append(f"Row {idx}: {error}")
+                    elif is_duplicate:
+                        duplicate_count += 1
+                    elif new_row:
                         db.add(new_row)
-                        existing_hashes.add(row_hash)
                         imported_count += 1
-                        
-                    except ValueError as e:
-                        error_count += 1
-                        error_messages.append(f"Row {idx}: {str(e)}")
-                        continue
-                    except Exception as e:
-                        error_count += 1
-                        error_messages.append(f"Row {idx}: {str(e)}")
-                        continue
                 
                 # Commit changes for this file
                 db.commit()
+                
+                # Update account initial_balance if needed
+                if imported_count > 0:
+                    _update_account_initial_balance(db, account_id, import_id)
                 
                 # Update import history
                 status_value = 'success' if error_count == 0 else ('partial' if imported_count > 0 else 'failed')
@@ -1206,25 +1198,8 @@ async def bulk_import_csv(
                 )
                 
                 # Detect transfers for this file
-                try:
-                    from sqlalchemy import func
-                    date_min, date_max = db.query(
-                        func.min(DataRow.transaction_date), 
-                        func.max(DataRow.transaction_date)
-                    ).filter(DataRow.import_id == import_id).one()
-                    
-                    if date_min and date_max:
-                        matcher = TransferMatcher(db)
-                        candidates = matcher.find_transfer_candidates(
-                            account_ids=[account_id],
-                            date_from=date_min,
-                            date_to=date_max,
-                            min_confidence=0.7,
-                            exclude_existing=True
-                        )
-                        all_transfer_candidates.extend(candidates[:50])  # Limit per file
-                except Exception:
-                    logger.exception("Transfer detection failed", exc_info=True)
+                candidates = _find_transfer_candidates(db, account_id, import_id, None, max_candidates=50)
+                all_transfer_candidates.extend(candidates)
                 
                 # Create file result
                 success = error_count == 0 or imported_count > 0
@@ -1317,21 +1292,7 @@ async def bulk_import_csv(
     # Trigger recurring transaction detection if any files were imported
     recurring_count = 0
     if total_imported > 0:
-        try:
-            if background_tasks is not None:
-                from app.services.job_service import JobService
-                job = JobService.create_job(db, task_type="recurring_detection", account_id=account_id)
-                background_tasks.add_task(run_update_recurring_transactions, account_id)
-            else:
-                detector = RecurringTransactionDetector(db)
-                stats = detector.update_recurring_transactions(account_id)
-                from app.models.recurring_transaction import RecurringTransaction
-                recurring_count = db.query(RecurringTransaction).filter(
-                    RecurringTransaction.account_id == account_id,
-                    RecurringTransaction.is_active == True
-                ).count()
-        except Exception:
-            logger.exception("Recurring detection failed", exc_info=True)
+        recurring_count = _trigger_recurring_detection(db, account_id, None, background_tasks)
     
     # Build response message
     message = f"{successful_files}/{len(files)} Dateien erfolgreich importiert. "

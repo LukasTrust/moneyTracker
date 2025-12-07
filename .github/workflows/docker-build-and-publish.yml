@@ -36,7 +36,7 @@ jobs:
           context: ./frontend
           file: ./frontend/Dockerfile
           target: production
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: true
           tags: |
             ghcr.io/lukastrust/moneytracker-frontend:latest
@@ -68,7 +68,7 @@ jobs:
           context: ./backend
           file: ./backend/Dockerfile
           target: production
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: true
           tags: |
             ghcr.io/lukastrust/moneytracker-backend:latest

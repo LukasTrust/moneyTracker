@@ -113,7 +113,7 @@ function CategoryMappingEditor({ category, onSave, onCancel }) {
         setPatterns([...updatedCategory.mappings.patterns]);
       }
       
-      showToast('Muster hinzugefügt - kategorisiere Transaktionen neu...', 'info');
+      showToast('Muster hinzugefügt - Transaktionen werden kategorisiert...', 'info');
       
       // Neu-Kategorisierung durchführen mit job support
       try {
@@ -124,10 +124,18 @@ function CategoryMappingEditor({ category, onSave, onCancel }) {
             setRecategorizeProgress(progress);
           }
         });
-        showToast(
-          `${recategorizeResult.updated_count || 0} Transaktionen neu kategorisiert`, 
-          'success'
-        );
+        
+        const categorizedCount = recategorizeResult.categorized || 0;
+        const updatedCount = recategorizeResult.updated_count || 0;
+        
+        if (updatedCount > 0) {
+          showToast(
+            `${updatedCount} Transaktionen neu kategorisiert (${categorizedCount} gesamt kategorisiert)`, 
+            'success'
+          );
+        } else {
+          showToast('Muster hinzugefügt - keine passenden Transaktionen gefunden', 'info');
+        }
       } catch (recatErr) {
         console.error('⚠️ Recategorization failed:', recatErr);
         showToast('Muster gespeichert, aber Neu-Kategorisierung fehlgeschlagen', 'warning');
@@ -210,7 +218,7 @@ function CategoryMappingEditor({ category, onSave, onCancel }) {
         setPatterns([...updatedCategory.mappings.patterns]);
       }
       
-      showToast(`Muster "${removedPattern}" entfernt - kategorisiere neu...`, 'info');
+      showToast(`Muster "${removedPattern}" entfernt - Transaktionen werden neu kategorisiert...`, 'info');
       
       // Neu-Kategorisierung durchführen mit job support
       try {
@@ -221,10 +229,18 @@ function CategoryMappingEditor({ category, onSave, onCancel }) {
             setRecategorizeProgress(progress);
           }
         });
-        showToast(
-          `${recategorizeResult.updated_count || 0} Transaktionen neu kategorisiert`, 
-          'success'
-        );
+        
+        const uncategorizedCount = recategorizeResult.uncategorized || 0;
+        const updatedCount = recategorizeResult.updated_count || 0;
+        
+        if (updatedCount > 0) {
+          showToast(
+            `Muster entfernt: ${updatedCount} Transaktionen neu kategorisiert${uncategorizedCount > 0 ? `, ${uncategorizedCount} sind jetzt unkategorisiert` : ''}`, 
+            'success'
+          );
+        } else {
+          showToast('Muster entfernt - keine Transaktionen betroffen', 'info');
+        }
       } catch (recatErr) {
         console.error('⚠️ Recategorization failed:', recatErr);
         showToast('Muster entfernt, aber Neu-Kategorisierung fehlgeschlagen', 'warning');
@@ -350,12 +366,12 @@ function CategoryMappingEditor({ category, onSave, onCancel }) {
                   <button
                     onClick={() => handleRemovePattern(index)}
                     disabled={isSaving}
-                    className="ml-2 p-1 text-neutral-400 hover:text-red-600 rounded opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="ml-2 p-1.5 text-red-500 hover:text-white hover:bg-red-600 rounded opacity-0 group-hover:opacity-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     title="Entfernen"
                     aria-label={`Muster ${pattern} entfernen`}
                   >
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
                 </div>

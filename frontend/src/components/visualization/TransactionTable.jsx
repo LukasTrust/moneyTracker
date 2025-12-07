@@ -25,6 +25,8 @@ export default function TransactionTable({
 }) {
   // Lade Kategorien für Icon-Anzeige
   const { categories } = useCategoryStore();
+  // Stelle sicher, dass categories immer ein Array ist
+  const categoriesArray = Array.isArray(categories) ? categories : [];
   
   const currencySymbols = {
     EUR: '€',
@@ -120,7 +122,7 @@ export default function TransactionTable({
                 symbol={symbol}
                 formatAmount={formatAmount}
                 formatDate={formatDate}
-                categories={categories}
+                categories={categoriesArray}
               />
             ))}
           </tbody>

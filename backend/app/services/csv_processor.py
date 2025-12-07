@@ -389,6 +389,9 @@ class CsvProcessor:
             '%d/%m/%Y',      # 31/12/2024
             '%d-%m-%Y',      # 31-12-2024
             '%Y/%m/%d',      # 2024/12/31
+            '%m-%d-%y',      # 06-24-25 (US format with 2-digit year)
+            '%m/%d/%y',      # 06/24/25 (US format with slashes)
+            '%m/%d/%Y',      # 06/24/2025 (US format with 4-digit year)
             '%d.%m.%Y %H:%M',  # 31.12.2024 14:30
             '%Y-%m-%d %H:%M:%S',  # 2024-12-31 14:30:00
         ]

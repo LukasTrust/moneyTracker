@@ -38,7 +38,8 @@ export default function AccountDetailPage() {
     maxAmount,
     recipientQuery,
     purposeQuery,
-    transactionType
+    transactionType,
+    showUncategorizedOnly
   } = useFilterStore();
   
   const [activeTab, setActiveTab] = useState('data');
@@ -80,6 +81,9 @@ export default function AccountDetailPage() {
     }
     if (transactionType && transactionType !== 'all') {
       params.transactionType = transactionType;
+    }
+    if (showUncategorizedOnly) {
+      params.uncategorized = 'true';
     }
     return params;
   }, [fromDate, toDate, selectedCategoryIds, minAmount, maxAmount, recipientQuery, purposeQuery, transactionType]);

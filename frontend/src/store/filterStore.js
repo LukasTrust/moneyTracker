@@ -106,6 +106,7 @@ export const useFilterStore = create((set, get) => ({
   maxAmount: null, // Maximum transaction amount
   recipientQuery: '', // Recipient search query
   purposeQuery: '', // Purpose/description search query (renamed from descriptionQuery)
+  showUncategorizedOnly: false, // Show only transactions without category
 
   // UI State
   showFilters: false,
@@ -262,6 +263,14 @@ export const useFilterStore = create((set, get) => ({
   },
 
   /**
+   * Set Show Uncategorized Only Filter
+   * @param {boolean} value
+   */
+  setShowUncategorizedOnly: (value) => {
+    set({ showUncategorizedOnly: value });
+  },
+
+  /**
    * Toggle Filter Panel
    */
   toggleFilters: () => {
@@ -285,6 +294,7 @@ export const useFilterStore = create((set, get) => ({
       maxAmount: null,
       recipientQuery: '',
       purposeQuery: '',
+      showUncategorizedOnly: false,
     });
   },
 

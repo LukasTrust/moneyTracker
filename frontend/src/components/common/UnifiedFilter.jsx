@@ -41,6 +41,7 @@ export default function UnifiedFilter({
     maxAmount,
     recipientQuery,
     purposeQuery,  // Changed from descriptionQuery
+    showUncategorizedOnly,
     setDateRange,
     applyDatePreset,
     setCategoryFilter,
@@ -49,6 +50,7 @@ export default function UnifiedFilter({
     setAmountRange,
     setRecipientQuery,
     setPurposeQuery,  // Changed from setDescriptionQuery
+    setShowUncategorizedOnly,
     resetFilters,
     hasActiveFilters,
     getActiveFilterCount,
@@ -275,6 +277,22 @@ export default function UnifiedFilter({
                   {category.name}
                 </button>
               ))}
+            </div>
+            
+            {/* Checkbox für unkategorisierte Transaktionen */}
+            <div className="mt-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={showUncategorizedOnly}
+                  onChange={(e) => {
+                    setShowUncategorizedOnly(e.target.checked);
+                    onChange?.();
+                  }}
+                  className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                />
+                <span className="text-sm text-gray-700">Nur Transaktionen ohne Kategorie anzeigen</span>
+              </label>
             </div>
           </div>
         )}

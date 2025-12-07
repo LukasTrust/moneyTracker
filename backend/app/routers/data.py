@@ -37,6 +37,7 @@ def get_account_data(
     recipient: Optional[str] = Query(None, description="Filter by recipient (partial match, case-insensitive)"),
     purpose: Optional[str] = Query(None, description="Filter by purpose (partial match, case-insensitive)"),
     transaction_type: Optional[str] = Query(None, description="Filter by type: 'income' or 'expense'"),
+    uncategorized: Optional[bool] = Query(None, description="Filter only uncategorized transactions"),
     account: Account = Depends(get_account_by_id),
     db: Session = Depends(get_db)
 ):
@@ -56,6 +57,7 @@ def get_account_data(
         recipient: Search in recipient field (case-insensitive, partial match)
         purpose: Search in purpose field (case-insensitive, partial match)
         transaction_type: Filter by type ('income' for positive, 'expense' for negative)
+        uncategorized: If True, show only transactions without category
         
     Returns:
         Paginated list of transactions
@@ -73,8 +75,11 @@ def get_account_data(
     if to_date:
         query = query.filter(DataRow.transaction_date <= to_date)
     
+    # Apply uncategorized filter (takes precedence over category filters)
+    if uncategorized:
+        query = query.filter(DataRow.category_id.is_(None))
     # Apply category filter (support both single and multiple)
-    if category_ids:
+    elif category_ids:
         # Multiple categories (OR logic)
         try:
             cat_id_list = [int(cid.strip()) for cid in category_ids.split(',') if cid.strip()]

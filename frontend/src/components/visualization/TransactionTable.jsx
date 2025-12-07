@@ -149,7 +149,15 @@ export default function TransactionTable({
         </table>
       </div>
 
-      
+      <Pagination
+        page={page}
+        pages={pages}
+        pageSize={pageSize}
+        total={total}
+        loading={loading}
+        onPageChange={onPageChange}
+        onPageSizeChange={onPageSizeChange}
+      />
     </Card>
   );
 }

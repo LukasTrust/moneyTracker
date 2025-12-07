@@ -33,25 +33,98 @@ import { useToast } from '../../hooks/useToast';
 
 // Vordefinierte Farben zur Auswahl
 const PRESET_COLORS = [
+  // Blautöne
   '#3b82f6', // blue
-  '#10b981', // green
-  '#f59e0b', // amber
-  '#ef4444', // red
-  '#8b5cf6', // violet
-  '#ec4899', // pink
-  '#14b8a6', // teal
-  '#f97316', // orange
-  '#6366f1', // indigo
-  '#84cc16', // lime
+  '#0ea5e9', // sky
   '#06b6d4', // cyan
+  '#6366f1', // indigo
+  '#1e40af', // dark blue
+  '#0284c7', // light blue
+  
+  // Grüntöne
+  '#10b981', // green
+  '#14b8a6', // teal
+  '#84cc16', // lime
+  '#22c55e', // emerald
+  '#16a34a', // forest green
+  '#65a30d', // olive
+  
+  // Gelb/Orange
+  '#f59e0b', // amber
+  '#f97316', // orange
+  '#eab308', // yellow
+  '#fb923c', // light orange
+  '#fbbf24', // golden
+  
+  // Rottöne
+  '#ef4444', // red
+  '#f43f5e', // rose
+  '#dc2626', // dark red
+  '#e11d48', // crimson
+  
+  // Violett/Pink
+  '#8b5cf6', // violet
   '#a855f7', // purple
+  '#ec4899', // pink
+  '#d946ef', // fuchsia
+  '#c026d3', // magenta
+  '#9333ea', // deep purple
+  
+  // Neutral/Grau
+  '#64748b', // slate
+  '#6b7280', // gray
+  '#78716c', // stone
+  '#71717a', // zinc
+  
+  // Brauntöne
+  '#92400e', // brown
+  '#b45309', // amber brown
+  '#a16207', // dark amber
 ];
 
-// Vordefinierte Icons (Emojis)
+// Vordefinierte Icons (Emojis) - nach Kategorien sortiert
 const PRESET_ICONS = [
-  '🏠', '🛒', '💰', '🚗', '🛡️', '🎮', '📱', '🍔',
-  '✈️', '🏥', '📚', '💼', '🎬', '🎵', '⚽', '🏋️',
-  '👕', '🎨', '🔧', '🌳', '☕', '🍕', '🎂', '🎁',
+  // Wohnen & Ha+shalt
+  '🏠', '🏢', '🛋️', '🛏️', '💡', '🔌', '🧹',
+  
+  // Einkaufen & Lebensmittel
+  '🛒', '🛍️', '🏪', '🍔', '🍞', '☕', '🍺',
+  
+  // Finanzen & Geld
+  '💰', '💵', '💳', '🏦', '💼',
+  
+  // Transport & Auto
+  '🚗', '🚕', '🚌', '🚛', '🚲', '⛽', '🅿️', '🚦',
+  
+  // Reisen & Urlaub
+  '✈️', '🌍', '🧳', '🏨', '🏖️', '🎒',
+  
+  // Gesundheit & Sport
+  '🏥', '💊', '🏋️', '⚽',
+  
+  // Bildung & Arbeit
+  '📚', '📖', '📝', '🎓', '🏫', '💻', '📱',
+  
+  // Unterhaltung & Freizeit
+  '🎮', '🎬', '🎵', '🎸', '🎹', '🎨', '🎭', '🎪', '🎰', '🎳', '🎿',
+  
+  // Kleidung & Mode
+  '👕', '👔', '👗', '👘', '👠', '👞', '👟', '🧥', '🧦', '🎩', '👒', '🧢',
+  
+  // Haustiere & Tiere
+  '🐕', '🐈', '🐁', '🐇', '🐦', '🐠', '🐾', '🦴',
+  
+  // Geschenke & Events
+  '🎁', '🎂', '🎉', '🎊', '🎈', '💐', '🌹', '💝',
+  
+  // Werkzeuge & Reparatur
+  '🔧', '🔨', '🪛', '⚙️', '🛠️', '🔩', '⚡',
+  
+  // Kommunikation
+  '📧', '📬', '📮', '📞', '💬', '📡',
+  
+  // Sonstige
+  '⭐', '❤️', '💚', '💙', '🔥', '💎', '🎯', '🏆', '📌', '❓', '❗', '✅', '❌',
 ];
 
 function CategoryManager({ accountId, onCategoryChange }) {
@@ -82,10 +155,13 @@ function CategoryManager({ accountId, onCategoryChange }) {
    */
   const handleCreate = useCallback(() => {
     setEditingCategory(null);
+    // Wähle zufällige Farbe und Icon für neue Kategorie
+    const randomColor = PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)];
+    const randomIcon = PRESET_ICONS[Math.floor(Math.random() * PRESET_ICONS.length)];
     setFormData({
       name: '',
-      color: PRESET_COLORS[0],
-      icon: PRESET_ICONS[0],
+      color: randomColor,
+      icon: randomIcon,
     });
     setFormErrors({});
     setIsModalOpen(true);

@@ -159,14 +159,12 @@ def delete_account(
         This will also delete all associated mappings and data rows
         due to CASCADE delete configuration
     """
-    # Delete dependent recurring_transaction_links and recurring_transactions
-    # using direct SQL to avoid ORM flush/update behaviour that can attempt
-    # to set NOT NULL FKs to NULL and cause IntegrityError. The database
-    # FK constraints already declare ON DELETE CASCADE for these relations,
-    # but using explicit SQL here ensures a safe, ordered cleanup across
-    # different DB backends and avoids ORM-generated UPDATE statements.
+    # Delete dependent data in correct order to avoid foreign key constraint violations
+    # Some relationships are handled by CASCADE delete in the database, but we need
+    # to explicitly handle those without CASCADE or with complex dependencies.
+    
     try:
-        # Remove links first (safe even if none exist)
+        # 1. Delete recurring_transaction_links (via recurring_transactions)
         db.execute(text("""
             DELETE FROM recurring_transaction_links
             WHERE recurring_transaction_id IN (
@@ -174,14 +172,42 @@ def delete_account(
             )
         """), {"aid": account.id})
 
-        # Remove recurring transactions for this account
+        # 2. Delete recurring_transactions for this account
         db.execute(text("DELETE FROM recurring_transactions WHERE account_id = :aid"), {"aid": account.id})
+        
+        # 3. Delete transfers that involve data_rows from this account
+        #    Transfers link two data_rows, so we need to delete transfers where
+        #    either from_transaction or to_transaction belongs to this account
+        db.execute(text("""
+            DELETE FROM transfers
+            WHERE from_transaction_id IN (
+                SELECT id FROM data_rows WHERE account_id = :aid
+            )
+            OR to_transaction_id IN (
+                SELECT id FROM data_rows WHERE account_id = :aid
+            )
+        """), {"aid": account.id})
+        
+        # 4. Delete background_jobs for this account
+        db.execute(text("DELETE FROM background_jobs WHERE account_id = :aid"), {"aid": account.id})
+        
     except Exception:
-        logger.exception("Failed to delete recurring transactions/links for account %s", account.id)
+        logger.exception("Failed to delete dependent data for account %s", account.id)
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete account due to database constraint violations"
+        )
 
-    # Finally delete the account itself and commit
+    # Finally delete the account itself
+    # The following will be CASCADE deleted by the database:
+    # - mappings (ON DELETE CASCADE)
+    # - data_rows (ON DELETE CASCADE)
+    # - import_history (ON DELETE CASCADE)
+    # - insights (ON DELETE CASCADE)
+    # - insight_generation_logs (ON DELETE CASCADE)
     db.delete(account)
     db.commit()
-    logger.info("Account deleted", extra={"account_id": account.id})
+    logger.info("Account deleted successfully", extra={"account_id": account.id})
 
     return None

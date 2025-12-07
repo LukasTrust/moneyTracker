@@ -121,7 +121,7 @@ def parse_german_amount(value: str) -> Decimal:
 def normalize_amount(value: Union[str, int, float], german_format: bool = False) -> Decimal:
     """
     Normalize various amount formats to Decimal.
-    Handles both English and German number formats.
+    Handles both English and German number formats, including malformed formats.
     
     Args:
         value: Amount in various formats
@@ -138,27 +138,84 @@ def normalize_amount(value: Union[str, int, float], german_format: bool = False)
         Decimal('1234.56')
         >>> normalize_amount("1.234,56", german_format=True)
         Decimal('1234.56')
+        >>> normalize_amount("146,0,47")  # Malformed: should be 146,47
+        Decimal('146.47')
     """
     if isinstance(value, (int, float, Decimal)):
         return to_decimal(value)
         
     value_str = str(value).strip()
     
-    # Auto-detect German format (comma as decimal separator)
-    if ',' in value_str and german_format:
-        return parse_german_amount(value_str)
+    # Remove currency symbols
+    value_str = value_str.replace('EUR', '').replace('€', '').replace('$', '').replace('USD', '').strip()
+    
+    # Handle malformed formats with mixed separators
+    # Pattern 1: "146,0,47" or "146.0,47" (should be "146,47" or "146.47")
+    # This appears when thousand separators are incorrectly replaced
+    
+    # Check for pattern X.0,Y or X,0,Y where Y is 1-2 digits
+    if '.0,' in value_str or ',0,' in value_str:
+        # Replace .0, or ,0, with just . (assuming it's a malformed decimal)
+        # "146.0,47" → "146.47"
+        # "146,0,47" → "146.47"
+        import re
+        # Match: digits, then (.0, or ,0,), then 1-2 digits
+        match = re.match(r'^(-?\d+)[.,]0[.,](\d{1,2})$', value_str)
+        if match:
+            integer_part = match.group(1)
+            decimal_part = match.group(2).zfill(2)  # Pad to 2 digits
+            value_str = f"{integer_part}.{decimal_part}"
+    
+    # Handle multiple commas (fallback if not caught by above)
+    elif value_str.count(',') > 1:
+        parts = value_str.split(',')
+        if len(parts) >= 2:
+            # Assume last comma is decimal separator if followed by 1-2 digits
+            if len(parts[-1]) in [1, 2]:
+                # Last part is likely decimal: rejoin all but last with empty string
+                decimal_part = parts[-1].zfill(2)  # Pad to 2 digits
+                value_str = ''.join(parts[:-1]) + '.' + decimal_part
+            else:
+                # Remove all commas as thousand separators
+                value_str = value_str.replace(',', '')
+    
+    # Auto-detect format: German (1.234,56) vs English (1,234.56)
+    if ',' in value_str and '.' in value_str:
+        # Both separators present - determine which is decimal
+        comma_pos = value_str.rindex(',')
+        dot_pos = value_str.rindex('.')
+        
+        if comma_pos > dot_pos:
+            # German format: 1.234,56 (comma is decimal separator)
+            german_format = True
+        else:
+            # English format: 1,234.56 (dot is decimal separator)
+            german_format = False
+    
+    # Process based on detected/specified format
+    if german_format or (value_str.count(',') == 1 and '.' not in value_str):
+        # German format or ambiguous single comma
+        if ',' in value_str:
+            parts = value_str.split(',')
+            if len(parts) == 2 and len(parts[1]) in [1, 2]:
+                # Likely German decimal: 1234,56 or 1.234,56
+                return parse_german_amount(value_str)
+        # Check if it has dots before comma (German thousands)
+        if '.' in value_str and ',' in value_str:
+            return parse_german_amount(value_str)
         
     # Handle English format (remove commas as thousand separators)
     if ',' in value_str and '.' in value_str:
-        # English format: 1,234.56
+        # English format confirmed: 1,234.56
         value_str = value_str.replace(',', '')
     elif ',' in value_str:
-        # Could be German format without thousand separators: 1234,56
-        # or large number with comma separators: 1,234
-        # Heuristic: if comma is followed by exactly 2 digits at end, treat as decimal
-        if value_str.count(',') == 1 and value_str.endswith(value_str.split(',')[1]) and len(value_str.split(',')[1]) == 2:
-            return parse_german_amount(value_str)
+        # Single comma - could be thousands or decimal
+        parts = value_str.split(',')
+        if len(parts) == 2 and len(parts[1]) in [1, 2]:
+            # Treat as German decimal
+            value_str = value_str.replace(',', '.')
         else:
+            # Treat as thousand separator
             value_str = value_str.replace(',', '')
             
     return to_decimal(value_str)

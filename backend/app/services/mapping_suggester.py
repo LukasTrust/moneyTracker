@@ -15,31 +15,41 @@ class MappingSuggester:
     """
     
     # Keyword patterns for field detection (lowercase)
+    # Patterns are ordered by specificity - more specific patterns first
     FIELD_PATTERNS = {
         'date': [
-            'datum', 'date', 'buchung', 'valuta', 'wertstellung',
+            # Most specific first
+            'buchungstag', 'buchungsdatum', 'transaktionsdatum',
+            'valutadatum', 'wertstellungsdatum',
+            'buchung', 'datum', 'date', 'valuta', 'wertstellung',
             'transaction.*date', 'booking.*date', 'value.*date'
         ],
         'amount': [
-            'betrag', 'amount', 'umsatz', 'wert', 'value', 'summe',
-            'sum', 'total', 'saldo', 'balance'
+            # Most specific first
+            'betrag', 'transaktionsbetrag', 'buchungsbetrag',
+            'amount', 'umsatz', 'wert', 'value', 'summe',
+            'sum', 'total'
         ],
         'recipient': [
-            # Patterns for sender/recipient name
-            'empfänger', 'empfaenger', 'recipient',
-            'beguenstigter', 'payee', 'to',
-            'sender', 'auftraggeber', 'zahler', 'payer', 'from',
-            'absender', 'kontoinhaber', 'account.*holder',
+            # Most specific first - prefer Empfänger/Auftraggeber over generic names
+            'empfänger', 'empfaenger', 'auftraggeber', 
+            'begünstigter', 'beguenstigter', 
+            'sender', 'zahler', 'absender',
+            'recipient', 'payee', 'payer', 'from', 'to',
+            'kontoinhaber', 'account.*holder',
             'gegenpartei', 'counterparty', 'partei', 'party',
-            'name', 'auftraggeber.*name', 'empfänger.*name'
+            'auftraggeber.*name', 'empfänger.*name',
+            'name'  # Generic, lower priority
         ],
         'purpose': [
-            # Patterns for purpose/description/usage
-            'verwendungszweck', 'verwendung', 'zweck',
-            'purpose', 'beschreibung', 'description', 'text',
-            'buchungstext', 'transaktionstext', 'details',
+            # Most specific first
+            'verwendungszweck', 'verwendungstext',
+            'verwendung', 'zweck', 'purpose', 
+            'buchungsdetails',
+            'beschreibung', 'description', 'details',
             'notiz', 'note', 'memo', 'reference', 'ref',
-            'verwendungstext', 'buchungsdetails'
+            'buchungstext', 'transaktionstext',  # Lower priority - could be description or purpose
+            'text'  # Generic, lowest priority
         ]
     }
     
@@ -111,6 +121,7 @@ class MappingSuggester:
         
         Returns:
             List of tuples (header_name, confidence_score) sorted by score
+            Prioritizes exact/high-confidence matches first
         """
         if exclude_headers is None:
             exclude_headers = set()
@@ -126,14 +137,16 @@ class MappingSuggester:
             if score > 0.0:
                 matches.append((header, score))
         
-        # Sort by score descending
-        matches.sort(key=lambda x: x[1], reverse=True)
+        # Sort by score descending (highest confidence first)
+        # This ensures best matches are prioritized in suggestions
+        matches.sort(key=lambda x: (-x[1], x[0]))  # Sort by score desc, then name asc
         return matches
     
     @classmethod
     def _calculate_match_score(cls, header: str, patterns: List[str]) -> float:
         """
         Calculate match score between header and patterns
+        Patterns are ordered by specificity - earlier patterns get higher scores
         
         Returns:
             Score between 0.0 and 1.0
@@ -141,30 +154,35 @@ class MappingSuggester:
         header_lower = header.lower().strip()
         max_score = 0.0
         
-        for pattern in patterns:
+        for idx, pattern in enumerate(patterns):
+            # Specificity bonus: earlier patterns (more specific) get higher scores
+            # This ensures "Verwendungszweck" beats "Text"
+            specificity_bonus = 1.0 - (idx * 0.01)  # Small penalty for later patterns
+            specificity_bonus = max(0.85, specificity_bonus)  # Min 0.85
+            
             # Exact match
             if header_lower == pattern.lower():
-                return 1.0
+                return 1.0 * specificity_bonus
             
             # Check if pattern is regex
             if '.*' in pattern or '\\' in pattern:
                 if re.search(pattern, header_lower, re.IGNORECASE):
-                    max_score = max(max_score, 0.9)
+                    max_score = max(max_score, 0.95 * specificity_bonus)
                 continue
             
             # Check if pattern is substring
             if pattern.lower() in header_lower:
                 # Full word match is better than partial
                 if re.search(r'\b' + re.escape(pattern.lower()) + r'\b', header_lower):
-                    max_score = max(max_score, 0.85)
+                    max_score = max(max_score, 0.90 * specificity_bonus)
                 else:
-                    max_score = max(max_score, 0.7)
+                    max_score = max(max_score, 0.75 * specificity_bonus)
                 continue
             
             # Fuzzy string matching
             similarity = SequenceMatcher(None, header_lower, pattern.lower()).ratio()
             if similarity > 0.6:
-                max_score = max(max_score, similarity * 0.8)
+                max_score = max(max_score, similarity * 0.8 * specificity_bonus)
         
         return max_score
     

@@ -10,12 +10,16 @@ class BackgroundJob(Base):
     id = Column(Integer, primary_key=True, index=True)
     task_type = Column(String(64), nullable=False)
     status = Column(String(32), nullable=False, default="queued")
-    account_id = Column(Integer, nullable=True)
-    import_id = Column(Integer, nullable=True)
+    account_id = Column(Integer, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=True, index=True)
+    import_id = Column(Integer, ForeignKey("import_history.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     started_at = Column(DateTime, nullable=True)
     finished_at = Column(DateTime, nullable=True)
     meta = Column(Text, nullable=True)
+    
+    # Relationships
+    account = relationship("Account", back_populates="background_jobs")
+    import_history = relationship("ImportHistory")
 
     def to_dict(self):
         return {

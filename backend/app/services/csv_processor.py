@@ -284,8 +284,8 @@ class CsvProcessor:
                     # Strip column names
                     df.columns = [str(c).strip() for c in df.columns]
 
-                    # Trim whitespace from string values
-                    df = df.applymap(lambda x: x.strip() if isinstance(x, str) else x)
+                    # Trim whitespace from string values (using map instead of deprecated applymap)
+                    df = df.map(lambda x: x.strip() if isinstance(x, str) else x)
 
                     # Check if we have valid data
                     if len(df.columns) < 2:
@@ -381,7 +381,7 @@ class CsvProcessor:
         if not date_str or date_str == '':
             return None
         
-        # Common date formats
+        # Common date formats (ordered by likelihood)
         formats = [
             '%d.%m.%Y',      # 31.12.2024
             '%d.%m.%y',      # 31.12.24
@@ -389,18 +389,64 @@ class CsvProcessor:
             '%d/%m/%Y',      # 31/12/2024
             '%d-%m-%Y',      # 31-12-2024
             '%Y/%m/%d',      # 2024/12/31
+            '%m/%d/%Y',      # 06/24/2025 (US format with leading zeros)
+            '%-m/%-d/%Y',    # 6/24/2025 (US format without leading zeros)
+            '%m/%d/%y',      # 06/24/25 (US format with 2-digit year)
+            '%-m/%-d/%y',    # 6/24/25 (US format without leading zeros, 2-digit year)
+            '%m-%d-%Y',      # 06-24-2025 (US format with dashes)
+            '%-m-%-d-%Y',    # 6-24-2025 (US format with dashes, no leading zeros)
             '%m-%d-%y',      # 06-24-25 (US format with 2-digit year)
-            '%m/%d/%y',      # 06/24/25 (US format with slashes)
-            '%m/%d/%Y',      # 06/24/2025 (US format with 4-digit year)
+            '%-m-%-d-%y',    # 6-24-25 (US format with dashes, no leading zeros, 2-digit year)
             '%d.%m.%Y %H:%M',  # 31.12.2024 14:30
             '%Y-%m-%d %H:%M:%S',  # 2024-12-31 14:30:00
         ]
         
+        date_str_clean = date_str.strip()
+        
         for fmt in formats:
             try:
-                return datetime.strptime(date_str.strip(), fmt)
+                return datetime.strptime(date_str_clean, fmt)
             except ValueError:
                 continue
+        
+        # Fallback: Try manual parsing for formats like "6/24/2025"
+        # This handles cases where strptime with %-m doesn't work on all platforms
+        try:
+            # Try M/D/YYYY or M/D/YY format
+            if '/' in date_str_clean:
+                parts = date_str_clean.split('/')
+                if len(parts) == 3:
+                    month, day, year = parts
+                    month = int(month)
+                    day = int(day)
+                    year = int(year)
+                    
+                    # Handle 2-digit year
+                    if year < 100:
+                        # Assume 2000+ for years 00-50, 1900+ for 51-99
+                        year = 2000 + year if year <= 50 else 1900 + year
+                    
+                    return datetime(year, month, day)
+            
+            # Try M-D-YYYY or M-D-YY format
+            if '-' in date_str_clean:
+                parts = date_str_clean.split('-')
+                if len(parts) == 3:
+                    # Check if it's likely M-D-Y (first part is small number)
+                    first = int(parts[0])
+                    if first <= 12:  # Likely month
+                        month, day, year = parts
+                        month = int(month)
+                        day = int(day)
+                        year = int(year)
+                        
+                        # Handle 2-digit year
+                        if year < 100:
+                            year = 2000 + year if year <= 50 else 1900 + year
+                        
+                        return datetime(year, month, day)
+        except (ValueError, IndexError):
+            pass
         
         return None
     

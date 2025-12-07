@@ -92,12 +92,17 @@ class DataRow(Base):
         
         DEPRECATED: Use direct field access instead (transaction_date, amount, etc.)
         """
-        return {
+        # Start with raw_data, then override with structured fields to ensure correct values
+        result = {**(self.raw_data or {})}
+        
+        # Override with structured fields (these are the authoritative values)
+        result.update({
             'date': self.transaction_date.isoformat() if self.transaction_date else None,
             'amount': str(self.amount) if self.amount is not None else None,
             'recipient': self.recipient,
             'purpose': self.purpose,
             'valuta_date': self.valuta_date.isoformat() if self.valuta_date else None,
             'currency': self.currency,
-            **(self.raw_data or {})  # Include any additional fields from raw_data
-        }
+        })
+        
+        return result

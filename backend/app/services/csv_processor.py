@@ -283,6 +283,9 @@ class CsvProcessor:
 
                     # Strip column names
                     df.columns = [str(c).strip() for c in df.columns]
+                    
+                    # Remove BOM (Byte Order Mark) from column names
+                    df.columns = [c.replace('\ufeff', '').replace('ï»¿', '') for c in df.columns]
 
                     # Trim whitespace from string values (using map instead of deprecated applymap)
                     df = df.map(lambda x: x.strip() if isinstance(x, str) else x)
@@ -389,13 +392,13 @@ class CsvProcessor:
             '%d/%m/%Y',      # 31/12/2024
             '%d-%m-%Y',      # 31-12-2024
             '%Y/%m/%d',      # 2024/12/31
+            '%m-%d-%y',      # 06-24-25 (US format with 2-digit year) - ING format
             '%m/%d/%Y',      # 06/24/2025 (US format with leading zeros)
             '%-m/%-d/%Y',    # 6/24/2025 (US format without leading zeros)
             '%m/%d/%y',      # 06/24/25 (US format with 2-digit year)
             '%-m/%-d/%y',    # 6/24/25 (US format without leading zeros, 2-digit year)
             '%m-%d-%Y',      # 06-24-2025 (US format with dashes)
             '%-m-%-d-%Y',    # 6-24-2025 (US format with dashes, no leading zeros)
-            '%m-%d-%y',      # 06-24-25 (US format with 2-digit year)
             '%-m-%-d-%y',    # 6-24-25 (US format with dashes, no leading zeros, 2-digit year)
             '%d.%m.%Y %H:%M',  # 31.12.2024 14:30
             '%Y-%m-%d %H:%M:%S',  # 2024-12-31 14:30:00

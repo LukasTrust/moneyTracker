@@ -151,14 +151,29 @@ def normalize_amount(value: Union[str, int, float], german_format: bool = False)
     
     # Handle malformed formats with mixed separators
     # Pattern 1: "146,0,47" or "146.0,47" (should be "146,47" or "146.47")
-    # This appears when thousand separators are incorrectly replaced
+    # Pattern 2: "0.0,62" or "22.0,83" (should be "0.62" or "22.83")
+    # Pattern 3: "0.000001" or "64.000008" (should be "0.01" or "64.08")
+    # This appears when thousand separators are incorrectly replaced or when decimals have too many zeros
+    
+    import re
+    
+    # First, handle cases with extraneous zeros in decimal part: X.00000Y → X.0Y
+    # e.g., "0.000001" → "0.01", "-64.000008" → "-64.08"
+    match_zeros = re.match(r'^(-?\d+)\.0+(\d+)$', value_str)
+    if match_zeros:
+        integer_part = match_zeros.group(1)
+        decimal_part = match_zeros.group(2)
+        # Take the significant digits (last 2 non-zero or all if less than 2)
+        # "000001" → "01", "000008" → "08"
+        if len(decimal_part) >= 2:
+            decimal_part = decimal_part[-2:]  # Last 2 digits
+        else:
+            decimal_part = decimal_part.zfill(2)  # Pad if only 1 digit
+        value_str = f"{integer_part}.{decimal_part}"
     
     # Check for pattern X.0,Y or X,0,Y where Y is 1-2 digits
-    if '.0,' in value_str or ',0,' in value_str:
-        # Replace .0, or ,0, with just . (assuming it's a malformed decimal)
-        # "146.0,47" → "146.47"
-        # "146,0,47" → "146.47"
-        import re
+    # e.g., "146.0,47" → "146.47", "0.0,62" → "0.62"
+    elif '.0,' in value_str or ',0,' in value_str:
         # Match: digits, then (.0, or ,0,), then 1-2 digits
         match = re.match(r'^(-?\d+)[.,]0[.,](\d{1,2})$', value_str)
         if match:

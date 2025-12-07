@@ -207,17 +207,35 @@ const RecurringTransactionsWidget = ({ accountId = null }) => {
                           </div>
                           <div className="bg-gray-50 rounded border max-h-48 overflow-y-auto">
                             <div className="divide-y divide-gray-200">
-                              {expandedData.linked_transactions.slice(0, 5).map((tx) => (
+                              {expandedData.linked_transactions.slice(0, 5).map((tx) => {
+                                const category = categories.find(cat => cat.id === tx.category_id);
+                                const categoryIcon = category?.icon || '❓';
+                                const categoryColor = category?.color || '#9ca3af';
+                                return (
                                 <div key={tx.id} className="p-2 hover:bg-gray-100 text-xs">
-                                  <div className="flex justify-between">
-                                    <span className="text-gray-600">{formatDate(tx.transaction_date)}</span>
+                                  <div className="flex justify-between items-center">
+                                    <div className="flex items-center gap-2">
+                                      <span 
+                                        className="text-base"
+                                        style={{ 
+                                          backgroundColor: `${categoryColor}20`,
+                                          borderRadius: '4px',
+                                          padding: '1px 4px'
+                                        }}
+                                        title={category?.name || 'Unkategorisiert'}
+                                      >
+                                        {categoryIcon}
+                                      </span>
+                                      <span className="text-gray-600">{formatDate(tx.transaction_date)}</span>
+                                    </div>
                                     <span className="font-medium text-gray-900">{formatCurrency(tx.amount)}</span>
                                   </div>
                                   {tx.description && (
-                                    <div className="text-gray-500 truncate mt-1">{tx.description}</div>
+                                    <div className="text-gray-500 truncate mt-1 ml-7">{tx.description}</div>
                                   )}
                                 </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           </div>
                           {expandedData.linked_transactions.length > 5 && (

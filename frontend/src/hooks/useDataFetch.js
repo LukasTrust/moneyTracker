@@ -351,6 +351,18 @@ export function useCategoryData() {
 
   useEffect(() => {
     fetchCategories();
+    
+    // Event-Listener für Kategorie-Updates
+    const handleCategoryUpdate = () => {
+      console.log('[useCategoryData] Category update event received, refetching...');
+      fetchCategories();
+    };
+    
+    window.addEventListener('categoryUpdated', handleCategoryUpdate);
+    
+    return () => {
+      window.removeEventListener('categoryUpdated', handleCategoryUpdate);
+    };
   }, []);
 
   return { categories, loading, error, refetch: fetchCategories };
@@ -508,6 +520,20 @@ export function useCategoryStatistics(accountId, params = {}) {
   useEffect(() => {
     fetchCategoryData();
   }, [accountId, params.fromDate, params.toDate, params.categoryIds, params.minAmount, params.maxAmount, params.recipient, params.purpose, params.transactionType, params._refreshKey]);
+  
+  // Event-Listener für Kategorie-Updates
+  useEffect(() => {
+    const handleCategoryUpdate = () => {
+      console.log('[useCategoryStatistics] Category update event received, refetching...');
+      fetchCategoryData();
+    };
+    
+    window.addEventListener('categoryUpdated', handleCategoryUpdate);
+    
+    return () => {
+      window.removeEventListener('categoryUpdated', handleCategoryUpdate);
+    };
+  }, [accountId, params.fromDate, params.toDate, params.categoryIds, params.minAmount, params.maxAmount, params.recipient, params.purpose, params.transactionType]);
 
   return { categoryData, loading, error, refetch: fetchCategoryData };
 }

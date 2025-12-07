@@ -105,6 +105,23 @@ def create_category(category_data: CategoryCreate, db: Session = Depends(get_db)
     
     # Convert mappings to dict
     mappings_dict = category_data.mappings.model_dump()
+    patterns = mappings_dict.get('patterns', [])
+    
+    # Check for pattern conflicts with existing categories
+    if patterns:
+        all_categories = db.query(Category).all()
+        for other_cat in all_categories:
+            other_mappings = other_cat.mappings or {}
+            other_patterns = other_mappings.get('patterns', [])
+            
+            for pattern in patterns:
+                pattern_lower = pattern.lower().strip()
+                # Check if this pattern exists in another category (case-insensitive)
+                if any(p.lower() == pattern_lower for p in other_patterns):
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Muster '{pattern}' wird bereits in Kategorie '{other_cat.name}' verwendet"
+                    )
     
     # Create new category
     new_category = Category(
@@ -288,6 +305,21 @@ def update_category(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Pattern length must not exceed 100 characters"
             )
+        
+        # Check for conflicts with other categories
+        all_categories = db.query(Category).filter(Category.id != category_id).all()
+        for other_cat in all_categories:
+            other_mappings = other_cat.mappings or {}
+            other_patterns = other_mappings.get('patterns', [])
+            
+            for pattern in unique_patterns:
+                pattern_lower = pattern.lower()
+                # Check if this pattern exists in another category (case-insensitive)
+                if any(p.lower() == pattern_lower for p in other_patterns):
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Muster '{pattern}' wird bereits in Kategorie '{other_cat.name}' verwendet"
+                    )
         
         update_data['mappings'] = {'patterns': unique_patterns}
         logger.debug("Cleaned patterns for category_id=%s count=%d", category_id, len(unique_patterns))

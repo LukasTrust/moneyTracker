@@ -6,6 +6,7 @@ import Pagination from '../common/Pagination';
 import { useTransferForTransaction } from '../../hooks/useTransfers';
 import TransferBadge, { TransferIndicator } from '../common/TransferBadge';
 import { parseAmount } from '../../utils/amount';
+import { useCategoryStore } from '../../store/categoryStore';
 
 /**
  * Transaktions-Tabelle mit Pagination
@@ -22,6 +23,9 @@ export default function TransactionTable({
   onPageChange = () => {},
   onPageSizeChange = () => {},
 }) {
+  // Lade Kategorien für Icon-Anzeige
+  const { categories } = useCategoryStore();
+  
   const currencySymbols = {
     EUR: '€',
     USD: '$',
@@ -88,6 +92,9 @@ export default function TransactionTable({
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
+              <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Kat.
+              </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Datum
               </th>
@@ -113,6 +120,7 @@ export default function TransactionTable({
                 symbol={symbol}
                 formatAmount={formatAmount}
                 formatDate={formatDate}
+                categories={categories}
               />
             ))}
           </tbody>
@@ -127,7 +135,7 @@ export default function TransactionTable({
 /**
  * TransactionRow - renders a single transaction row and shows transfer indicator
  */
-function TransactionRow({ transaction, symbol, formatAmount, formatDate }) {
+function TransactionRow({ transaction, symbol, formatAmount, formatDate, categories = [] }) {
   const data = typeof transaction.data === 'string' ? JSON.parse(transaction.data) : transaction.data;
   const amount = parseAmount(data.amount || 0);
   const isNegative = amount < 0;
@@ -135,9 +143,28 @@ function TransactionRow({ transaction, symbol, formatAmount, formatDate }) {
 
   // Use hook to fetch transfer info for this transaction (may be null)
   const { transfer, loading } = useTransferForTransaction(transaction.id);
+  
+  // Finde die Kategorie für diese Transaktion
+  const category = categories.find(cat => cat.id === transaction.category_id);
+  const categoryIcon = category?.icon || '❓';
+  const categoryName = category?.name || 'Unkategorisiert';
+  const categoryColor = category?.color || '#9ca3af';
 
   return (
     <tr key={transaction.id} className="hover:bg-gray-50">
+      <td className="px-3 py-4 whitespace-nowrap text-center">
+        <div 
+          className="text-xl inline-block" 
+          style={{ 
+            backgroundColor: `${categoryColor}20`,
+            borderRadius: '6px',
+            padding: '2px 6px'
+          }}
+          title={categoryName}
+        >
+          {categoryIcon}
+        </div>
+      </td>
       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
         {formatDate(data.date)}
       </td>

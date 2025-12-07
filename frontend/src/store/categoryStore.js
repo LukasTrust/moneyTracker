@@ -12,6 +12,7 @@ import { callApi, invalidateKey, runOptimistic } from '../hooks/useApi';
  * - Category Mappings (Empfänger -> Kategorie)
  * - Optimistic Updates
  * - Error Handling
+ * - Auto-refresh bei Kategorie-Updates via Event-System
  * 
  * ERWEITERBARKEIT:
  * - Kategorie-Hierarchien (Parent/Child)
@@ -25,6 +26,16 @@ export const useCategoryStore = create((set, get) => ({
   loading: false,
   error: null,
   lastFetch: null,
+
+  // Init: Event-Listener für automatisches Refresh
+  _initEventListener: (() => {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('categoryUpdated', () => {
+        console.log('[categoryStore] Category update event received, refetching...');
+        get().fetchCategories(true);
+      });
+    }
+  })(),
 
   // Actions
   

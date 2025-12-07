@@ -152,6 +152,9 @@ function CategoryManager({ accountId, onCategoryChange }) {
       setIsModalOpen(false);
       refetch();
       if (onCategoryChange) onCategoryChange();
+      
+      // Sende globales Event für alle Komponenten
+      window.dispatchEvent(new CustomEvent('categoryUpdated', { detail: { action: editingCategory ? 'updated' : 'created' } }));
     } catch (err) {
       console.error('Error saving category:', err);
       showToast('Fehler beim Speichern der Kategorie', 'error');
@@ -178,6 +181,9 @@ function CategoryManager({ accountId, onCategoryChange }) {
       refetch();
       if (onCategoryChange) onCategoryChange();
       showToast('Kategorie gelöscht', 'success');
+      
+      // Sende globales Event für alle Komponenten
+      window.dispatchEvent(new CustomEvent('categoryUpdated', { detail: { action: 'deleted' } }));
     } catch (err) {
       console.error('Error deleting category:', err);
       showToast('Fehler beim Löschen der Kategorie', 'error');

@@ -448,14 +448,32 @@ const RecurringTransactionsList = ({ accountId = null, showTitle = true }) => {
                                   <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-gray-50 sticky top-0">
                                       <tr>
+                                        <th className="px-2 py-2 text-center text-xs font-medium text-gray-500">Kat.</th>
                                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Datum</th>
                                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Betrag</th>
                                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Beschreibung</th>
                                       </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-200">
-                                      {expandedData.linked_transactions.map((tx) => (
+                                      {expandedData.linked_transactions.map((tx) => {
+                                        const category = categories.find(cat => cat.id === tx.category_id);
+                                        const categoryIcon = category?.icon || '❓';
+                                        const categoryColor = category?.color || '#9ca3af';
+                                        return (
                                         <tr key={tx.id} className="hover:bg-gray-50">
+                                          <td className="px-2 py-2 text-center">
+                                            <span 
+                                              className="text-lg inline-block"
+                                              style={{ 
+                                                backgroundColor: `${categoryColor}20`,
+                                                borderRadius: '4px',
+                                                padding: '1px 4px'
+                                              }}
+                                              title={category?.name || 'Unkategorisiert'}
+                                            >
+                                              {categoryIcon}
+                                            </span>
+                                          </td>
                                           <td className="px-4 py-2 text-sm text-gray-900">
                                             {formatDate(tx.transaction_date)}
                                           </td>
@@ -466,7 +484,8 @@ const RecurringTransactionsList = ({ accountId = null, showTitle = true }) => {
                                             {tx.description || '-'}
                                           </td>
                                         </tr>
-                                      ))}
+                                        );
+                                      })}
                                     </tbody>
                                   </table>
                                 </div>

@@ -138,6 +138,9 @@ function CategoryMappingEditor({ category, onSave, onCancel }) {
       
       // Informiere Parent-Component über Änderung (damit Liste sofort aktualisiert wird)
       if (onSave) onSave(updatedCategory);
+      
+      // Sende globales Event für alle Komponenten
+      window.dispatchEvent(new CustomEvent('categoryUpdated', { detail: { category: updatedCategory } }));
     } catch (err) {
       console.error('❌ Error auto-saving pattern:', err);
       // Bei Fehler: Zurück zum vorherigen Zustand
@@ -232,6 +235,9 @@ function CategoryMappingEditor({ category, onSave, onCancel }) {
       
       // Informiere Parent-Component über Änderung
       if (onSave) onSave(updatedCategory);
+      
+      // Sende globales Event für alle Komponenten
+      window.dispatchEvent(new CustomEvent('categoryUpdated', { detail: { category: updatedCategory } }));
     } catch (err) {
       console.error('❌ Error auto-saving after remove:', err);
       // Bei Fehler: Zurück zum vorherigen Zustand

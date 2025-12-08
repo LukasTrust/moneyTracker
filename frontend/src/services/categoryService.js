@@ -83,7 +83,7 @@ export const categoryService = {
   },
 
   async getCategoryData(accountId, params = {}) {
-    const { fromDate, toDate, categoryIds, minAmount, maxAmount, recipient, purpose, transactionType, limit } = params;
+    const { fromDate, toDate, categoryIds, minAmount, maxAmount, recipient, purpose, transactionType, uncategorized, limit } = params;
 
     const queryParams = new URLSearchParams();
     if (fromDate) queryParams.append('from_date', fromDate);
@@ -98,6 +98,7 @@ export const categoryService = {
     if (recipient) queryParams.append('recipient', recipient);
     if (purpose) queryParams.append('purpose', purpose);
     if (transactionType && transactionType !== 'all') queryParams.append('transaction_type', transactionType);
+    if (uncategorized) queryParams.append('uncategorized', 'true');
 
     const response = await api.get(
       `/accounts/${accountId}/transactions/categories?${queryParams}`

@@ -34,6 +34,7 @@ def get_dashboard_summary(
     recipient: Optional[str] = Query(None, description="Recipient search query"),
     purpose: Optional[str] = Query(None, description="Purpose search query"),
     transaction_type: Optional[str] = Query(None, description="Transaction type: 'income', 'expense', 'all'"),
+    uncategorized: Optional[bool] = Query(None, description="Filter only uncategorized transactions"),
     db: Session = Depends(get_db)
 ):
     """
@@ -66,7 +67,8 @@ def get_dashboard_summary(
         max_amount=max_amount,
         recipient=recipient,
         purpose=purpose,
-        transaction_type=transaction_type
+        transaction_type=transaction_type,
+        uncategorized=uncategorized
     )
     logger.debug(
         "get_dashboard_summary called from_date=%s to_date=%s category_id=%s summary_keys=%s",
@@ -82,7 +84,9 @@ def get_dashboard_summary(
     if to_date:
         query = query.filter(DataRow.transaction_date <= to_date)
     
-    if category_id is not None:
+    if uncategorized:
+        query = query.filter(DataRow.category_id.is_(None))
+    elif category_id is not None:
         if category_id == -1:
             query = query.filter(DataRow.category_id.is_(None))
         else:
@@ -167,6 +171,7 @@ def get_dashboard_balance_history(
     recipient: Optional[str] = Query(None, description="Recipient search query"),
     purpose: Optional[str] = Query(None, description="Purpose search query"),
     transaction_type: Optional[str] = Query(None, description="Transaction type filter"),
+    uncategorized: Optional[bool] = Query(None, description="Filter only uncategorized transactions"),
     db: Session = Depends(get_db)
 ):
     """
@@ -200,7 +205,8 @@ def get_dashboard_balance_history(
         max_amount=max_amount,
         recipient=recipient,
         purpose=purpose,
-        transaction_type=transaction_type
+        transaction_type=transaction_type,
+        uncategorized=uncategorized
     )
     logger.debug(
         "get_dashboard_balance_history called group_by=%s from_date=%s to_date=%s category_id=%s labels_len=%s",

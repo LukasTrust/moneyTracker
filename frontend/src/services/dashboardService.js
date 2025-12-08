@@ -44,7 +44,8 @@ export const dashboardService = {
       maxAmount,
       recipient,
       purpose,
-      transactionType
+      transactionType,
+      uncategorized
     } = params;
     
     const queryParams = new URLSearchParams();
@@ -63,6 +64,7 @@ export const dashboardService = {
     if (recipient) queryParams.append('recipient', recipient);
     if (purpose) queryParams.append('purpose', purpose);
     if (transactionType && transactionType !== 'all') queryParams.append('transaction_type', transactionType);
+    if (uncategorized) queryParams.append('uncategorized', 'true');
 
     const response = await api.get(`/dashboard/summary?${queryParams}`);
     return response.data;
@@ -100,7 +102,8 @@ export const dashboardService = {
       maxAmount,
       recipient,
       purpose,
-      transactionType
+      transactionType,
+      uncategorized
     } = params;
     
     const queryParams = new URLSearchParams({
@@ -121,6 +124,7 @@ export const dashboardService = {
     if (recipient) queryParams.append('recipient', recipient);
     if (purpose) queryParams.append('purpose', purpose);
     if (transactionType && transactionType !== 'all') queryParams.append('transaction_type', transactionType);
+    if (uncategorized) queryParams.append('uncategorized', 'true');
 
     const response = await api.get(`/dashboard/categories?${queryParams}`);
     return response.data;
@@ -153,7 +157,8 @@ export const dashboardService = {
       maxAmount,
       recipient,
       purpose,
-      transactionType
+      transactionType,
+      uncategorized
     } = params;
     
     const queryParams = new URLSearchParams({
@@ -174,6 +179,7 @@ export const dashboardService = {
     if (recipient) queryParams.append('recipient', recipient);
     if (purpose) queryParams.append('purpose', purpose);
     if (transactionType && transactionType !== 'all') queryParams.append('transaction_type', transactionType);
+    if (uncategorized) queryParams.append('uncategorized', 'true');
 
     const response = await api.get(`/dashboard/balance-history?${queryParams}`);
     return response.data;

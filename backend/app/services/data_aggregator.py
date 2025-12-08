@@ -93,7 +93,8 @@ class DataAggregator:
         max_amount: Optional[float] = None,
         recipient: Optional[str] = None,
         purpose: Optional[str] = None,
-        transaction_type: Optional[str] = None
+        transaction_type: Optional[str] = None,
+        uncategorized: Optional[bool] = None
     ) -> Dict[str, Any]:
         """
         Get summary statistics (income, expenses, balance, count)
@@ -142,8 +143,11 @@ class DataAggregator:
         if to_date:
             query = query.filter(DataRow.transaction_date <= to_date)
         
+        # Apply uncategorized filter (takes precedence over category filters)
+        if uncategorized:
+            query = query.filter(DataRow.category_id.is_(None))
         # Apply category filter (support both single and multiple)
-        if category_ids:
+        elif category_ids:
             try:
                 cat_id_list = [int(cid.strip()) for cid in category_ids.split(',') if cid.strip()]
                 if cat_id_list:
@@ -651,7 +655,8 @@ class DataAggregator:
         max_amount: Optional[float] = None,
         recipient: Optional[str] = None,
         purpose: Optional[str] = None,
-        transaction_type: Optional[str] = None
+        transaction_type: Optional[str] = None,
+        uncategorized: Optional[bool] = None
     ) -> Dict[str, List]:
         """
         Get balance history grouped by time period
@@ -708,8 +713,11 @@ class DataAggregator:
         if to_date:
             query = query.filter(DataRow.transaction_date <= to_date)
         
+        # Apply uncategorized filter (takes precedence over category filters)
+        if uncategorized:
+            query = query.filter(DataRow.category_id.is_(None))
         # Apply category filter
-        if category_ids:
+        elif category_ids:
             try:
                 cat_id_list = [int(cid.strip()) for cid in category_ids.split(',') if cid.strip()]
                 if cat_id_list:

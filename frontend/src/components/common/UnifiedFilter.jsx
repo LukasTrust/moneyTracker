@@ -80,11 +80,28 @@ export default function UnifiedFilter({
     
     if (categoryId === 'all') {
       newIds = [];
+      // Clear uncategorized filter when selecting "Alle"
+      if (showUncategorizedOnly) {
+        setShowUncategorizedOnly(false);
+      }
+    } else if (categoryId === 'uncategorized') {
+      // Toggle uncategorized filter
+      setShowUncategorizedOnly(!showUncategorizedOnly);
+      // Clear category selection when enabling uncategorized
+      if (!showUncategorizedOnly) {
+        setCategoryFilter([]);
+      }
+      onChange?.();
+      return;
     } else {
       if (currentIds.includes(categoryId)) {
         newIds = currentIds.filter(id => id !== categoryId);
       } else {
         newIds = [...currentIds, categoryId];
+      }
+      // Clear uncategorized filter when selecting specific categories
+      if (showUncategorizedOnly) {
+        setShowUncategorizedOnly(false);
       }
     }
     
@@ -252,7 +269,7 @@ export default function UnifiedFilter({
                 onClick={() => handleCategoryChange('all')}
                 className={`
                   px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors
-                  ${selectedCategoryIds.length === 0
+                  ${selectedCategoryIds.length === 0 && !showUncategorizedOnly
                     ? 'bg-primary-600 text-white border-primary-600'
                     : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
                   }
@@ -277,22 +294,19 @@ export default function UnifiedFilter({
                   {category.name}
                 </button>
               ))}
-            </div>
-            
-            {/* Checkbox für unkategorisierte Transaktionen */}
-            <div className="mt-3">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={showUncategorizedOnly}
-                  onChange={(e) => {
-                    setShowUncategorizedOnly(e.target.checked);
-                    onChange?.();
-                  }}
-                  className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-                />
-                <span className="text-sm text-gray-700">Nur Transaktionen ohne Kategorie anzeigen</span>
-              </label>
+              <button
+                onClick={() => handleCategoryChange('uncategorized')}
+                className={`
+                  px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors flex items-center gap-1
+                  ${showUncategorizedOnly
+                    ? 'bg-gray-600 text-white border-gray-600'
+                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  }
+                `}
+              >
+                <span>❓</span>
+                Ohne Kategorie
+              </button>
             </div>
           </div>
         )}

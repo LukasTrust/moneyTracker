@@ -57,6 +57,7 @@ function DashboardGraphOverview() {
   const maxAmount = useFilterStore((state) => state.maxAmount);
   const recipientQuery = useFilterStore((state) => state.recipientQuery);
   const purposeQuery = useFilterStore((state) => state.purposeQuery);  // Changed from descriptionQuery
+  const showUncategorizedOnly = useFilterStore((state) => state.showUncategorizedOnly);
 
   // Memoize filter params to prevent unnecessary re-fetches
   const filterParams = useMemo(() => {
@@ -96,6 +97,9 @@ function DashboardGraphOverview() {
     if (purposeQuery) {
       params.purpose = purposeQuery;  // Changed from description to purpose
     }
+    if (showUncategorizedOnly) {
+      params.uncategorized = 'true';
+    }
 
     return params;
   }, [
@@ -110,6 +114,7 @@ function DashboardGraphOverview() {
     maxAmount,
     recipientQuery,
     purposeQuery,  // Changed from descriptionQuery
+    showUncategorizedOnly,
   ]);
 
   // Fetch Dashboard Data (will automatically re-fetch when filterParams change)

@@ -86,7 +86,7 @@ export default function AccountDetailPage() {
       params.uncategorized = 'true';
     }
     return params;
-  }, [fromDate, toDate, selectedCategoryIds, minAmount, maxAmount, recipientQuery, purposeQuery, transactionType]);
+  }, [fromDate, toDate, selectedCategoryIds, minAmount, maxAmount, recipientQuery, purposeQuery, transactionType, showUncategorizedOnly]);
 
   // Reset to first page whenever filters change
   useEffect(() => {

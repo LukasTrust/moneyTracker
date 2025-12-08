@@ -54,7 +54,8 @@ function CategoriesTab({ accountId, currency = 'EUR', refreshTrigger }) {
     maxAmount,
     recipientQuery,
     purposeQuery,
-    transactionType
+    transactionType,
+    showUncategorizedOnly
   } = useFilterStore();
 
   // Fetch Daten
@@ -72,7 +73,8 @@ function CategoriesTab({ accountId, currency = 'EUR', refreshTrigger }) {
     maxAmount: maxAmount !== null ? maxAmount : undefined,
     recipient: recipientQuery || undefined,
     purpose: purposeQuery || undefined,
-    transactionType: transactionType && transactionType !== 'all' ? transactionType : undefined
+    transactionType: transactionType && transactionType !== 'all' ? transactionType : undefined,
+    uncategorized: showUncategorizedOnly ? 'true' : undefined
   });
 
   /**

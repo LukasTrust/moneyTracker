@@ -38,7 +38,8 @@ function RecipientsTab({ accountId, currency = 'EUR' }) {
     maxAmount,
     recipientQuery,
     purposeQuery,
-    transactionType
+    transactionType,
+    showUncategorizedOnly
   } = useFilterStore();
 
   // Limit für Top-Listen (Standard: 10)
@@ -64,9 +65,10 @@ function RecipientsTab({ accountId, currency = 'EUR' }) {
     if (recipientQuery) params.recipient = recipientQuery;
     if (purposeQuery) params.purpose = purposeQuery;
     if (transactionType && transactionType !== 'all') params.transactionType = transactionType;
+    if (showUncategorizedOnly) params.uncategorized = 'true';
     
     return params;
-  }, [dateParams, selectedCategoryIds, minAmount, maxAmount, recipientQuery, purposeQuery, transactionType, limit]);
+  }, [dateParams, selectedCategoryIds, minAmount, maxAmount, recipientQuery, purposeQuery, transactionType, showUncategorizedOnly, limit]);
 
   // Fetch Categories (for debugging)
   const { categories, loading: categoriesLoading } = useCategoryData();

@@ -167,6 +167,7 @@ def get_account_summary(
     recipient: Optional[str] = Query(None, description="Recipient search query"),
     purpose: Optional[str] = Query(None, description="Purpose search query"),
     transaction_type: Optional[str] = Query(None, description="Transaction type filter"),
+    uncategorized: Optional[bool] = Query(None, description="Filter only uncategorized transactions"),
     account: Account = Depends(get_account_by_id),
     db: Session = Depends(get_db)
 ):
@@ -202,7 +203,8 @@ def get_account_summary(
         max_amount=max_amount,
         recipient=recipient,
         purpose=purpose,
-        transaction_type=transaction_type
+        transaction_type=transaction_type,
+        uncategorized=uncategorized
     )
     
     return summary
@@ -221,6 +223,7 @@ def get_account_statistics(
     recipient: Optional[str] = Query(None, description="Recipient search query"),
     purpose: Optional[str] = Query(None, description="Purpose search query"),
     transaction_type: Optional[str] = Query(None, description="Transaction type filter"),
+    uncategorized: Optional[bool] = Query(None, description="Filter only uncategorized transactions"),
     account: Account = Depends(get_account_by_id),
     db: Session = Depends(get_db)
 ):
@@ -258,7 +261,8 @@ def get_account_statistics(
         max_amount=max_amount,
         recipient=recipient,
         purpose=purpose,
-        transaction_type=transaction_type
+        transaction_type=transaction_type,
+        uncategorized=uncategorized
     )
     
     return statistics

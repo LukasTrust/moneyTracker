@@ -340,6 +340,9 @@ export const useFilterStore = create((set, get) => ({
     if (state.purposeQuery) {
       params.purpose = state.purposeQuery;  // Changed from description to purpose
     }
+    if (state.showUncategorizedOnly) {
+      params.uncategorized = 'true';
+    }
 
     return params;
   },
@@ -358,7 +361,8 @@ export const useFilterStore = create((set, get) => ({
       state.minAmount !== null ||
       state.maxAmount !== null ||
       state.recipientQuery !== '' ||
-      state.purposeQuery !== ''
+      state.purposeQuery !== '' ||
+      state.showUncategorizedOnly
     );
   },
 
@@ -378,6 +382,7 @@ export const useFilterStore = create((set, get) => ({
     if (state.maxAmount !== null) count++;
     if (state.recipientQuery !== '') count++;
     if (state.purposeQuery !== '') count++;
+    if (state.showUncategorizedOnly) count++;
     
     return count;
   },

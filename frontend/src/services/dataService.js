@@ -21,7 +21,8 @@ export const dataService = {
       recipient,
       purpose,  // Changed from description
       transactionType,
-      categoryIds
+      categoryIds,
+      uncategorized
     } = params;
     
     const queryParams = new URLSearchParams({
@@ -36,6 +37,7 @@ export const dataService = {
     if (recipient) queryParams.append('recipient', recipient);
     if (purpose) queryParams.append('purpose', purpose);  // Changed from description
     if (transactionType && transactionType !== 'all') queryParams.append('transaction_type', transactionType);
+    if (uncategorized) queryParams.append('uncategorized', 'true');
     
     // Category Filter: Support multiple categories (comma-separated)
     if (categoryIds) {
@@ -51,7 +53,7 @@ export const dataService = {
   * Zusammenfassung für ein Konto (Einnahmen, Ausgaben, Aktueller Kontostand)
    */
   async getSummary(accountId, params = {}) {
-    const { fromDate, toDate, categoryIds, minAmount, maxAmount, recipient, purpose, transactionType } = params;
+    const { fromDate, toDate, categoryIds, minAmount, maxAmount, recipient, purpose, transactionType, uncategorized } = params;
     
     const queryParams = new URLSearchParams();
     if (fromDate) queryParams.append('from_date', fromDate);
@@ -68,6 +70,7 @@ export const dataService = {
     if (recipient) queryParams.append('recipient', recipient);
     if (purpose) queryParams.append('purpose', purpose);
     if (transactionType && transactionType !== 'all') queryParams.append('transaction_type', transactionType);
+    if (uncategorized) queryParams.append('uncategorized', 'true');
 
     const response = await api.get(
       // New RESTful summary path under transactions
@@ -80,7 +83,7 @@ export const dataService = {
    * Statistiken für Charts (gruppiert nach Tag/Monat/Jahr)
    */
   async getStatistics(accountId, groupBy = 'month', params = {}) {
-    const { fromDate, toDate, categoryIds, minAmount, maxAmount, recipient, purpose, transactionType } = params;
+    const { fromDate, toDate, categoryIds, minAmount, maxAmount, recipient, purpose, transactionType, uncategorized } = params;
     
     const queryParams = new URLSearchParams({
       group_by: groupBy,
@@ -100,6 +103,7 @@ export const dataService = {
     if (recipient) queryParams.append('recipient', recipient);
     if (purpose) queryParams.append('purpose', purpose);
     if (transactionType && transactionType !== 'all') queryParams.append('transaction_type', transactionType);
+    if (uncategorized) queryParams.append('uncategorized', 'true');
 
     const response = await api.get(
       `/accounts/${accountId}/transactions/statistics?${queryParams}`
@@ -138,7 +142,8 @@ export const dataService = {
       minAmount,
       maxAmount,
       recipient,
-      purpose
+      purpose,
+      uncategorized
     } = params;
     
     const queryParams = new URLSearchParams({
@@ -159,6 +164,7 @@ export const dataService = {
     if (maxAmount !== undefined && maxAmount !== null) queryParams.append('max_amount', toApiAmount(maxAmount));
     if (recipient) queryParams.append('recipient', recipient);
     if (purpose) queryParams.append('purpose', purpose);
+    if (uncategorized) queryParams.append('uncategorized', 'true');
 
     const response = await api.get(
       `/accounts/${accountId}/transactions/recipients?${queryParams}`
@@ -186,7 +192,8 @@ export const dataService = {
       maxAmount,
       recipient,
       purpose,
-      transactionType
+      transactionType,
+      uncategorized
     } = params;
     
     const queryParams = new URLSearchParams();
@@ -203,6 +210,7 @@ export const dataService = {
     if (recipient) queryParams.append('recipient', recipient);
     if (purpose) queryParams.append('purpose', purpose);
     if (transactionType && transactionType !== 'all') queryParams.append('transaction_type', transactionType);
+    if (uncategorized) queryParams.append('uncategorized', 'true');
 
     const response = await api.get(
       `/accounts/${accountId}/transactions/money-flow?${queryParams}`
